@@ -2674,17 +2674,18 @@ function adminLoginSuccess() {
     document.getElementById("admin-login-pass").value = "";
     renderAdminDashboard();
     addNotification("\uD83D\uDD10", "Admin Login", "Admin logged into the portal");
-    // Sync from backend if available
-    if (window.__HAVENGO_BACKEND__) {
-        _syncAdminData();
-    }
+    // Sync from backend (fresh health check each time)
+    _syncAdminData();
 }
 
 async function _syncAdminData() {
     try {
         var token = window.__HAVENGO_JWT__;
-        var headers = token ? { "Authorization": "Bearer " + token } : {};
+        if (!token) return;
+        var headers = { "Authorization": "Bearer " + token };
         var apiUrl = HAVENGO_BACKEND_URL + "/api";
+        // Check backend availability
+        try { var hR = await fetch(apiUrl + "/health", { cache: "no-store" }); if (!hR.ok) return; } catch(e) { return; }
         // Fetch providers
         var provResp = await fetch(apiUrl + "/admin/providers", { headers: headers });
         if (provResp.ok) {
@@ -3783,9 +3784,11 @@ async function submitReview() {
     if (!text) { alert("Please write a review"); return; }
     if (currentReviewStars === 0) { alert("Please select a rating"); return; }
 
-    // Try backend first
-    if (window.__HAVENGO_BACKEND__ && window.__HAVENGO_JWT__) {
-        var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    // Try backend first — check availability fresh each time
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var backendOk = false;
+    try { var hR = await fetch(apiUrl + "/health", { cache: "no-store" }); backendOk = hR.ok; } catch(e) {}
+    if (backendOk && window.__HAVENGO_JWT__) {
         try {
             var resp = await fetch(apiUrl + "/reviews", {
                 method: "POST",
@@ -3817,8 +3820,10 @@ async function submitReview() {
 }
 
 async function loadReviews() {
-    if (window.__HAVENGO_BACKEND__) {
-        var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var backendOk = false;
+    try { var hR = await fetch(apiUrl + "/health", { cache: "no-store" }); backendOk = hR.ok; } catch(e) {}
+    if (backendOk) {
         try {
             var resp = await fetch(apiUrl + "/reviews");
             if (resp.ok) {
