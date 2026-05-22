@@ -4128,6 +4128,33 @@ function checkAutoPayment() {
 }
 
 // ============================================================
+// BACKEND NOTIFICATIONS
+// ============================================================
+
+async function fetchBackendNotifications() {
+    var jwt = window.__HAVENGO_JWT__;
+    if (!jwt) return;
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var route = "";
+    if (currentAdmin) route = "/admin/notifications";
+    else if (currentLoggedProvider) route = "/provider/notifications";
+    else if (currentUser) route = "/customer/notifications";
+    if (!route) return;
+    try {
+        var resp = await fetch(apiUrl + route, { headers: { "Authorization": "Bearer " + jwt } });
+        if (resp.ok) {
+            var notifs = await resp.json();
+            if (notifs && notifs.length > 0) {
+                for (var ni = 0; ni < notifs.length; ni++) {
+                    var n = notifs[ni];
+                    addNotification(n.icon || "\uD83D\uDCE2", n.title || "Notification", n.message || "");
+                }
+            }
+        }
+    } catch(e) {}
+}
+
+// ============================================================
 // WINDOW ONLOAD
 // ============================================================
 
@@ -4217,31 +4244,6 @@ window.onload = function() {
         }
     })();
 
-// Fetch backend notifications and merge into globalNotifications
-async function fetchBackendNotifications() {
-    var jwt = window.__HAVENGO_JWT__;
-    if (!jwt) return;
-    var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    var route = "";
-    if (currentAdmin) route = "/admin/notifications";
-    else if (currentLoggedProvider) route = "/provider/notifications";
-    else if (currentUser) route = "/customer/notifications";
-    if (!route) return;
-    try {
-        var resp = await fetch(apiUrl + route, { headers: { "Authorization": "Bearer " + jwt } });
-        if (resp.ok) {
-            var notifs = await resp.json();
-            if (notifs && notifs.length > 0) {
-                for (var ni = 0; ni < notifs.length; ni++) {
-                    var n = notifs[ni];
-                    addNotification(n.icon || "\uD83D\uDCE2", n.title || "Notification", n.message || "");
-                }
-            }
-        }
-    } catch(e) {}
-}
-
-// Fetch verified providers from backend for service listing
     fetchVerifiedProviders();
 };
 </script>
