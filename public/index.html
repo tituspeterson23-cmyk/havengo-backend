@@ -1145,6 +1145,7 @@ function logout() {
     if (currentUser && currentUser.email) {
         userNotificationsMap[currentUser.email] = globalNotifications.slice();
     }
+    globalNotifications = [];
     currentUser = null;
     customerBitmoji = null;
     profilePicSrc = "https://images.unsplash.com/photo-1531123897720-8f129e1688f7?w=400";
@@ -2324,6 +2325,11 @@ async function loginAsProvider() {
 }
 
 async function enterProviderDashboard(provider) {
+    // Restore provider notifications
+    if (provider.email && userNotificationsMap[provider.email]) {
+        globalNotifications = userNotificationsMap[provider.email].slice();
+        delete userNotificationsMap[provider.email];
+    }
     document.getElementById("provider-login-screen").classList.add("hidden");
     document.getElementById("provider-dashboard").classList.remove("hidden");
     document.getElementById("provider-header").classList.remove("hidden");
@@ -2391,13 +2397,16 @@ async function enterProviderDashboard(provider) {
 }
 
 function logoutProvider() {
+    if (currentLoggedProvider && currentLoggedProvider.email) {
+        userNotificationsMap[currentLoggedProvider.email] = globalNotifications.slice();
+    }
     currentLoggedProvider = null;
+    globalNotifications = [];
     document.getElementById("provider-login-screen").classList.remove("hidden");
     document.getElementById("provider-dashboard").classList.add("hidden");
     document.getElementById("provider-header").classList.add("hidden");
     document.getElementById("prov-login-id").value = "";
     document.getElementById("prov-login-pass").value = "";
-    addNotification("\uD83D\uDD13", "Provider Logout", "Logged out of provider dashboard");
 }
 
 function switchProviderTab(n) {
@@ -2665,6 +2674,11 @@ async function loginAsAdmin() {
 
 function adminLoginSuccess() {
     currentAdmin = { name: "Admin", email: "thermypetson@gmail.com" };
+    // Restore admin notifications
+    if (userNotificationsMap["admin"]) {
+        globalNotifications = userNotificationsMap["admin"].slice();
+        delete userNotificationsMap["admin"];
+    }
     closeAuthModal();
     document.getElementById("admin-login-screen").classList.add("hidden");
     document.getElementById("admin-dashboard").classList.remove("hidden");
@@ -2672,9 +2686,10 @@ function adminLoginSuccess() {
     document.getElementById("admin-nav-link").classList.remove("hidden");
     document.getElementById("admin-login-id").value = "";
     document.getElementById("admin-login-pass").value = "";
+    updateNotifCount();
     renderAdminDashboard();
     addNotification("\uD83D\uDD10", "Admin Login", "Admin logged into the portal");
-    // Sync from backend (fresh health check each time)
+    // Sync from backend
     _syncAdminData();
 }
 
@@ -2684,8 +2699,6 @@ async function _syncAdminData() {
         if (!token) return;
         var headers = { "Authorization": "Bearer " + token };
         var apiUrl = HAVENGO_BACKEND_URL + "/api";
-        // Check backend availability
-        if (!(await checkBackend())) return;
         // Fetch providers
         var provResp = await fetch(apiUrl + "/admin/providers", { headers: headers });
         if (provResp.ok) {
@@ -2741,11 +2754,12 @@ async function _syncAdminData() {
 }
 
 function logoutAdmin() {
+    userNotificationsMap["admin"] = globalNotifications.slice();
     currentAdmin = null;
+    globalNotifications = [];
     document.getElementById("admin-dashboard").classList.add("hidden");
     document.getElementById("admin-header").classList.add("hidden");
     document.getElementById("admin-nav-link").classList.add("hidden");
-    addNotification("\uD83D\uDD13", "Admin Logout", "Admin logged out. Use the main login form to log back in.");
 }
 
 function switchAdminTab(n) {
@@ -3948,6 +3962,7 @@ window.onload = function() {
             document.getElementById("admin-header").classList.remove("hidden");
             document.getElementById("admin-nav-link").classList.remove("hidden");
             renderAdminDashboard();
+            _syncAdminData();
         }
         if (currentLoggedProvider) {
             document.getElementById("provider-login-screen").classList.add("hidden");
