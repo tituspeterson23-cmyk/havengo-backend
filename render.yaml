@@ -19,7 +19,4 @@ services:
         value: "0757532066"
       - key: ADMIN_PASSWORD
         value: "23.Forlife"
-    disk:
-      name: havengo-data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
+
