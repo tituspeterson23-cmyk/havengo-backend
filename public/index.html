@@ -709,6 +709,17 @@
 // Set this to your Render backend URL after deploying
 var HAVENGO_BACKEND_URL = "https://havengo-backend.onrender.com";
 
+// Quick backend health check with 8s timeout
+async function checkBackend() {
+    var controller = new AbortController();
+    var timer = setTimeout(function() { controller.abort(); }, 8000);
+    try {
+        var r = await fetch(HAVENGO_BACKEND_URL + "/api/health", { method: "GET", cache: "no-store", signal: controller.signal });
+        clearTimeout(timer);
+        return r.ok;
+    } catch(e) { clearTimeout(timer); return false; }
+}
+
 // --- STATE ---
 let currentUser = null;
 let allUsers = [];
@@ -967,11 +978,7 @@ async function performSignup() {
 
     // Try backend signup first
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    var backendOk = false;
-    try {
-        var hResp = await fetch(apiUrl + "/health", { method: "GET", cache: "no-store" });
-        backendOk = hResp.ok;
-    } catch(e) {}
+    var backendOk = await checkBackend();
 
     if (backendOk) {
         try {
@@ -1044,13 +1051,8 @@ async function performLogin() {
 
     var isAdminCred = identifier === "thermypetson@gmail.com" || identifier === "0757532066";
 
-    // Check backend availability inline (avoid race condition with async init)
-    var backendAvail = false;
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    try {
-        var healthResp = await fetch(apiUrl + "/health", { method: "GET", cache: "no-store" });
-        backendAvail = healthResp.ok;
-    } catch(e) {}
+    var backendAvail = await checkBackend();
 
     if (backendAvail) {
         // For admin credentials, try admin login first
@@ -2094,11 +2096,7 @@ async function placeOrder(event) {
 
     // Try backend first
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    var backendOk = false;
-    try {
-        var hResp = await fetch(apiUrl + "/health", { method: "GET", cache: "no-store" });
-        backendOk = hResp.ok;
-    } catch(e) {}
+    var backendOk = await checkBackend();
 
     if (backendOk && window.__HAVENGO_JWT__) {
         var assignedProvider = currentSelectedProvider || "";
@@ -2236,11 +2234,7 @@ async function loginAsProvider() {
 
     // Try backend first
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    var backendOk = false;
-    try {
-        var hResp = await fetch(apiUrl + "/health", { method: "GET", cache: "no-store" });
-        backendOk = hResp.ok;
-    } catch(e) {}
+    var backendOk = await checkBackend();
 
     if (backendOk) {
         try {
@@ -2685,7 +2679,7 @@ async function _syncAdminData() {
         var headers = { "Authorization": "Bearer " + token };
         var apiUrl = HAVENGO_BACKEND_URL + "/api";
         // Check backend availability
-        try { var hR = await fetch(apiUrl + "/health", { cache: "no-store" }); if (!hR.ok) return; } catch(e) { return; }
+        if (!(await checkBackend())) return;
         // Fetch providers
         var provResp = await fetch(apiUrl + "/admin/providers", { headers: headers });
         if (provResp.ok) {
@@ -3560,11 +3554,7 @@ async function submitProviderApplication(event) {
 
     // Try backend first
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    var backendOk = false;
-    try {
-        var hResp = await fetch(apiUrl + "/health", { method: "GET", cache: "no-store" });
-        backendOk = hResp.ok;
-    } catch(e) {}
+    var backendOk = await checkBackend();
 
     if (backendOk) {
         var nameParts = name.split(" ");
@@ -3784,10 +3774,9 @@ async function submitReview() {
     if (!text) { alert("Please write a review"); return; }
     if (currentReviewStars === 0) { alert("Please select a rating"); return; }
 
-    // Try backend first — check availability fresh each time
+    // Try backend first
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    var backendOk = false;
-    try { var hR = await fetch(apiUrl + "/health", { cache: "no-store" }); backendOk = hR.ok; } catch(e) {}
+    var backendOk = await checkBackend();
     if (backendOk && window.__HAVENGO_JWT__) {
         try {
             var resp = await fetch(apiUrl + "/reviews", {
@@ -3821,9 +3810,7 @@ async function submitReview() {
 
 async function loadReviews() {
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    var backendOk = false;
-    try { var hR = await fetch(apiUrl + "/health", { cache: "no-store" }); backendOk = hR.ok; } catch(e) {}
-    if (backendOk) {
+    if (await checkBackend()) {
         try {
             var resp = await fetch(apiUrl + "/reviews");
             if (resp.ok) {
