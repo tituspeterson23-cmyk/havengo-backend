@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: havengo-backend
+    env: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: JWT_SECRET
+        value: havengo_ug_5^Kp#9mX$2vR!qLz@8wN&bYdEfGhIj
+      - key: ENCRYPTION_KEY
+        value: havengo-aes-key-32bytes-2026-secure!
+      - key: ADMIN_EMAIL
+        value: thermypetson@gmail.com
+      - key: ADMIN_PHONE
+        value: "0757532066"
+      - key: ADMIN_PASSWORD
+        value: "23.Forlife"
+    disk:
+      name: havengo-data
+      mountPath: /opt/render/project/src/data
+      sizeGB: 1
