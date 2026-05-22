@@ -35,6 +35,13 @@ router.post('/register', async (req, res) => {
     db.prepare('INSERT INTO providers (firstname, lastname, email, phone, business_name, services, password_hash, bitmoji, verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)')
       .run(sanitize(firstname), sanitize(lastname), sanitize(email), sanitize(phone), sanitize(businessName), servicesStr, hash, bm);
 
+    // Notify admin about new provider signup
+    const adminEmail = db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
+    if (adminEmail) {
+      db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+        .run(adminEmail, '🔧', 'New Provider Application', sanitize(businessName) + ' (' + sanitize(email) + ') applied to join as a provider.', 'provider_signup');
+    }
+
     res.json({ success: true, message: 'Application submitted! Pending admin verification.' });
   } catch (e) {
     console.error('Provider register error:', e);

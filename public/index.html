@@ -2394,12 +2394,54 @@ async function enterProviderDashboard(provider) {
 
     renderProviderDashboard();
     addNotification("\uD83D\uDD10", "Provider Login", provider.name + " logged into dashboard");
+
+    // Start provider polling every 30s for cross-browser task sync
+    if (window.__providerPollInterval) clearInterval(window.__providerPollInterval);
+    window.__providerPollInterval = setInterval(async function() {
+        if (!window.__HAVENGO_JWT__ || !currentLoggedProvider) return;
+        var apiUrl = HAVENGO_BACKEND_URL + "/api";
+        try {
+            var tasksResp = await fetch(apiUrl + "/provider/tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ } });
+            if (tasksResp.ok) {
+                var backendTasks = await tasksResp.json();
+                for (var ti = 0; ti < backendTasks.length; ti++) {
+                    var bt = backendTasks[ti];
+                    var existing = providerTasks.some(function(pt) { return pt.id === bt.id; });
+                    if (!existing) {
+                        providerTasks.push({
+                            id: bt.id, serviceId: bt.service_id, serviceName: bt.service_name,
+                            customerName: "", customerPhone: "", address: bt.address || "",
+                            date: "", time: "", price: bt.price, instructions: bt.details || "",
+                            providerName: bt.provider_name || "", status: bt.status
+                        });
+                    }
+                }
+                var compResp = await fetch(apiUrl + "/provider/completed-tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ } });
+                if (compResp.ok) {
+                    var backendCompleted = await compResp.json();
+                    for (var ci = 0; ci < backendCompleted.length; ci++) {
+                        var bc = backendCompleted[ci];
+                        var existing = completedTasks.some(function(ct) { return ct.id === bc.id; });
+                        if (!existing) {
+                            completedTasks.push({
+                                id: bc.id, taskId: bc.task_id, serviceName: bc.service_name,
+                                customerName: bc.customer_email, price: bc.price,
+                                providerName: bc.provider_name, date: bc.completed_at, paid: bc.paid
+                            });
+                        }
+                    }
+                }
+                renderProviderDashboard();
+            }
+        } catch(e) {}
+    }, 30000);
 }
 
 function logoutProvider() {
     if (currentLoggedProvider && currentLoggedProvider.email) {
         userNotificationsMap[currentLoggedProvider.email] = globalNotifications.slice();
     }
+    if (window.__providerPollInterval) clearInterval(window.__providerPollInterval);
     currentLoggedProvider = null;
     globalNotifications = [];
     document.getElementById("provider-login-screen").classList.remove("hidden");
@@ -2691,6 +2733,11 @@ function adminLoginSuccess() {
     addNotification("\uD83D\uDD10", "Admin Login", "Admin logged into the portal");
     // Sync from backend
     _syncAdminData();
+    // Start admin polling every 30s
+    if (window.__adminPollInterval) clearInterval(window.__adminPollInterval);
+    window.__adminPollInterval = setInterval(function() {
+        if (currentAdmin && window.__HAVENGO_JWT__) _syncAdminData();
+    }, 30000);
 }
 
 async function _syncAdminData() {
@@ -2749,12 +2796,33 @@ async function _syncAdminData() {
                 });
             }
         }
+        // Fetch admin conversations from backend so admin sees all chats
+        try {
+            var convResp = await fetch(apiUrl + "/admin/chat/conversations", { headers: headers });
+            if (convResp.ok) {
+                var convIds = await convResp.json();
+                for (var ci = 0; ci < convIds.length; ci++) {
+                    var cid = convIds[ci];
+                    if (!chatConversations[cid]) chatConversations[cid] = [];
+                    // Fetch messages for this conversation
+                    var msgResp = await fetch(apiUrl + "/admin/chat/" + encodeURIComponent(cid), { headers: headers });
+                    if (msgResp.ok) {
+                        var msgs = await msgResp.json();
+                        chatConversations[cid] = msgs.map(function(m) {
+                            return { text: m.message, sender: m.sender === "Admin" ? "admin" : m.sender, time: new Date(m.created_at).getTime(), created_at: m.created_at };
+                        });
+                    }
+                }
+            }
+        } catch(ec) {}
         renderAdminDashboard();
+        renderAllProviderLists();
     } catch(e) { console.log("Backend sync error:", e); }
 }
 
 function logoutAdmin() {
     userNotificationsMap["admin"] = globalNotifications.slice();
+    if (window.__adminPollInterval) clearInterval(window.__adminPollInterval);
     currentAdmin = null;
     globalNotifications = [];
     document.getElementById("admin-dashboard").classList.add("hidden");
@@ -3051,13 +3119,13 @@ function openCustomerAdminChat() {
     var chatId = "customer-admin-" + (currentUser.email || currentUser.phone || "guest");
     currentChatTaskId = chatId;
     if (!chatConversations[chatId]) chatConversations[chatId] = [];
-    loadChatFromStorage(chatId);
+    loadChatFromStorage(chatId).then(function() { renderCustomerAdminMessages(); }).catch(function() { renderCustomerAdminMessages(); });
     var area = document.getElementById("customer-admin-chat-area");
     if (area) area.classList.remove("hidden");
     renderCustomerAdminMessages();
 }
 
-function sendCustomerAdminMessage() {
+async function sendCustomerAdminMessage() {
     var input = document.getElementById("customer-admin-chat-input");
     var text = sanitizeInput(input ? input.value.trim() : "");
     if (!text || !currentUser) return;
@@ -3065,6 +3133,19 @@ function sendCustomerAdminMessage() {
     if (!chatConversations[chatId]) chatConversations[chatId] = [];
     chatConversations[chatId].push({ text: text, sender: "customer", time: Date.now() });
     syncChatToStorage(chatId);
+
+    // Send to backend
+    var jwt = window.__HAVENGO_JWT__;
+    if (jwt) {
+        try {
+            await fetch(HAVENGO_BACKEND_URL + "/api/chat/send", {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + jwt, "Content-Type": "application/json" },
+                body: JSON.stringify({ conversationId: chatId, message: text, sender: currentUser.name })
+            });
+        } catch(e) {}
+    }
+
     renderCustomerAdminMessages();
     if (input) input.value = "";
     addNotification("\uD83D\uDCAC", "Customer Message", currentUser.name + " sent a message to admin support");
@@ -3314,11 +3395,23 @@ function renderChatMessages(messages, currentRole) {
 function openChatWithProvider(taskId) {
     currentChatTaskId = taskId;
     if (!chatConversations[taskId]) chatConversations[taskId] = [];
-    loadChatFromStorage(taskId);
+    loadChatFromStorage(taskId).then(function() { renderChatMessages(chatConversations[taskId], "customer"); }).catch(function() {});
     var task = findTask(taskId);
-    document.getElementById("chat-provider-name").textContent = (task ? task.serviceName : "Chat") + " â€” " + (task ? task.customerName : "Customer");
+    document.getElementById("chat-provider-name").textContent = (task ? task.serviceName : "Chat") + " \u2014 " + (task ? task.customerName : "Customer");
     document.getElementById("chat-provider-avatar").textContent = "\uD83D\uDCAC";
     renderChatMessages(chatConversations[taskId], "customer");
+    document.getElementById("chat-modal").classList.remove("hidden");
+    startChatPolling(taskId);
+}
+
+function openProviderChat(taskId) {
+    currentChatTaskId = taskId;
+    if (!chatConversations[taskId]) chatConversations[taskId] = [];
+    loadChatFromStorage(taskId).then(function() { renderChatMessages(chatConversations[taskId], "provider"); }).catch(function() {});
+    var task = findTask(taskId);
+    document.getElementById("chat-provider-name").textContent = task ? task.customerName : "Customer";
+    document.getElementById("chat-provider-avatar").textContent = "\uD83D\uDC64";
+    renderChatMessages(chatConversations[taskId], "provider");
     document.getElementById("chat-modal").classList.remove("hidden");
     startChatPolling(taskId);
 }
@@ -3340,7 +3433,7 @@ function openProviderAdminChat() {
     var chatId = "admin-" + providerId;
     currentChatTaskId = chatId;
     if (!chatConversations[chatId]) chatConversations[chatId] = [];
-    loadChatFromStorage(chatId);
+    loadChatFromStorage(chatId).then(function() { renderChatMessages(chatConversations[chatId], "provider"); }).catch(function() {});
     document.getElementById("chat-provider-name").textContent = "Admin Support";
     document.getElementById("chat-provider-avatar").textContent = "\uD83D\uDC6E";
     renderChatMessages(chatConversations[chatId], "provider");
@@ -3352,7 +3445,7 @@ function openAdminProviderChat(providerId, providerName) {
     var chatId = "admin-" + providerId;
     currentChatTaskId = chatId;
     if (!chatConversations[chatId]) chatConversations[chatId] = [];
-    loadChatFromStorage(chatId);
+    loadChatFromStorage(chatId).then(function() { renderChatMessages(chatConversations[chatId], "admin"); }).catch(function() {});
     document.getElementById("chat-provider-name").textContent = providerName || "Provider";
     document.getElementById("chat-provider-avatar").textContent = "\uD83D\uDCAC";
     renderChatMessages(chatConversations[chatId], "admin");
@@ -3365,7 +3458,7 @@ function closeChatModal() {
     document.getElementById("chat-modal").classList.add("hidden");
 }
 
-function sendChatMessage() {
+async function sendChatMessage() {
     var input = document.getElementById("chat-input");
     var text = sanitizeInput(input ? input.value.trim() : "");
     if (!text || !currentChatTaskId) return;
@@ -3378,6 +3471,22 @@ function sendChatMessage() {
 
     chatConversations[currentChatTaskId].push(msg);
     syncChatToStorage(currentChatTaskId);
+
+    // Send to backend for cross-browser sync
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var jwt = window.__HAVENGO_JWT__;
+    if (jwt) {
+        var convId = currentChatTaskId;
+        var chatSender = currentAdmin ? "Admin" : (currentLoggedProvider ? currentLoggedProvider.name : (currentUser ? currentUser.name : "Customer"));
+        try {
+            var endpoint = currentAdmin ? "/admin/chat/send" : "/chat/send";
+            await fetch(apiUrl + endpoint, {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + jwt, "Content-Type": "application/json" },
+                body: JSON.stringify({ conversationId: convId, message: text, sender: chatSender })
+            });
+        } catch(e) {}
+    }
 
     renderChatMessages(chatConversations[currentChatTaskId], currentRole);
     if (input) input.value = "";
@@ -3392,7 +3501,43 @@ function syncChatToStorage(taskId) {
     } catch(e) {}
 }
 
-function loadChatFromStorage(taskId) {
+async function loadChatFromStorage(taskId) {
+    // Fetch from backend first (cross-browser sync)
+    var jwt = window.__HAVENGO_JWT__;
+    if (jwt && taskId) {
+        var apiUrl = HAVENGO_BACKEND_URL + "/api";
+        try {
+            var endpoint = currentAdmin ? "/admin/chat/" : "/chat/";
+            var resp = await fetch(apiUrl + endpoint + encodeURIComponent(taskId), {
+                headers: { "Authorization": "Bearer " + jwt }
+            });
+            if (resp.ok) {
+                var backendMsgs = await resp.json();
+                if (backendMsgs.length > 0) {
+                    if (!chatConversations[taskId]) chatConversations[taskId] = [];
+                    var merged = [];
+                    var existingIds = {};
+                    for (var ei = 0; ei < chatConversations[taskId].length; ei++) {
+                        var em = chatConversations[taskId][ei];
+                        var key = em.text + "_" + em.sender + "_" + (em.created_at || em.time || "");
+                        existingIds[key] = true;
+                    }
+                    for (var bi = 0; bi < backendMsgs.length; bi++) {
+                        var bm = backendMsgs[bi];
+                        var bKey = bm.message + "_" + bm.sender + "_" + bm.created_at;
+                        if (!existingIds[bKey]) {
+                            chatConversations[taskId].push({ text: bm.message, sender: bm.sender === "Admin" ? "admin" : bm.sender, time: new Date(bm.created_at).getTime(), created_at: bm.created_at });
+                        }
+                    }
+                    var currentRole = currentAdmin ? "admin" : (currentLoggedProvider ? "provider" : "customer");
+                    renderChatMessages(chatConversations[taskId], currentRole);
+                    return;
+                }
+            }
+        } catch(e) {}
+    }
+
+    // Fallback: localStorage
     try {
         var data = localStorage.getItem("havengo-chat-" + taskId);
         if (data) {
@@ -3847,6 +3992,37 @@ async function loadReviews() {
     renderReviews();
 }
 
+// Fetch verified providers from backend for service listing
+async function fetchVerifiedProviders() {
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    try {
+        var resp = await fetch(apiUrl + "/providers/verified");
+        if (resp.ok) {
+            var data = await resp.json();
+            if (data && data.length > 0) {
+                for (var i = 0; i < data.length; i++) {
+                    var bp = data[i];
+                    var existing = false;
+                    for (var j = 0; j < registeredProviders.length; j++) {
+                        if (registeredProviders[j].email === bp.email) { existing = true; break; }
+                    }
+                    if (!existing) {
+                        var svcs = bp.services ? JSON.parse(bp.services) : [];
+                        registeredProviders.push({
+                            id: bp.id, name: bp.business_name || bp.name, business_name: bp.business_name,
+                            email: bp.email, phone: bp.phone || "", firstname: bp.name ? bp.name.split(" ")[0] : "",
+                            lastname: bp.name ? bp.name.split(" ").slice(1).join(" ") : "",
+                            services: svcs, bitmoji: bp.bitmoji || "\uD83D\uDC64",
+                            verified: true, jobs: bp.jobs || 0
+                        });
+                    }
+                }
+                renderAllProviderLists();
+            }
+        }
+    } catch(e) {}
+}
+
 function renderReviews() {
     var grid = document.getElementById("reviews-grid");
     if (!grid) return;
@@ -4001,6 +4177,9 @@ window.onload = function() {
             console.log("Backend not available, using local mode");
         }
     })();
+
+    // Fetch verified providers from backend for service listing
+    fetchVerifiedProviders();
 };
 </script>
 </body>

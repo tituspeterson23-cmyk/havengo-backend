@@ -55,6 +55,19 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Public: list verified providers for service listing
+app.get('/api/providers/verified', (req, res) => {
+  const { getDb } = require('./src/database');
+  const db = getDb();
+  const providers = db.prepare("SELECT id, firstname, lastname, email, phone, business_name, services, bitmoji, total_earnings FROM providers WHERE verified = 1").all();
+  const mapped = providers.map(p => ({
+    id: p.id, name: p.firstname + ' ' + p.lastname, business_name: p.business_name,
+    email: p.email, phone: p.phone, services: p.services, bitmoji: p.bitmoji,
+    jobs: p.total_earnings ? Math.floor(p.total_earnings / 50000) : 0
+  }));
+  res.json(mapped);
+});
+
 // Serve the frontend HTML
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
