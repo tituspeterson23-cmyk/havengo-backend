@@ -1002,6 +1002,7 @@ async function performSignup() {
                 renderProfilePage();
                 updateProfilePicCursor();
                 addNotification("\uD83C\uDF89", "Account Created", "Welcome to HavenGo, " + firstname + "!");
+                fetchBackendNotifications();
                 addActivity("signup", "Created your HavenGo account");
                 alert("Account created successfully! Welcome " + firstname + "!");
                 saveAppState();
@@ -1102,7 +1103,7 @@ async function performLogin() {
                 renderProfilePage();
                 updateProfilePicCursor();
                 addNotification("\uD83D\uDD13", "Logged In", "Welcome back, " + data.user.firstname + "!");
-                fetchBackendNotifications("customer");
+                fetchBackendNotifications();
                 return;
             }
         } catch(e) {}
@@ -2393,10 +2394,8 @@ async function enterProviderDashboard(provider) {
         } catch(e) {}
     }
 
-    // Fetch backend notifications
-    fetchBackendNotifications("provider");
-
     renderProviderDashboard();
+    fetchBackendNotifications();
     addNotification("\uD83D\uDD10", "Provider Login", provider.name + " logged into dashboard");
 
     // Start provider polling every 30s for cross-browser task sync
@@ -2737,8 +2736,7 @@ function adminLoginSuccess() {
     addNotification("\uD83D\uDD10", "Admin Login", "Admin logged into the portal");
     // Sync from backend
     _syncAdminData();
-    // Fetch backend notifications
-    fetchBackendNotifications("admin");
+    fetchBackendNotifications();
     // Start admin polling every 30s
     if (window.__adminPollInterval) clearInterval(window.__adminPollInterval);
     window.__adminPollInterval = setInterval(function() {
@@ -4177,6 +4175,7 @@ window.onload = function() {
             document.getElementById("admin-nav-link").classList.remove("hidden");
             renderAdminDashboard();
             _syncAdminData();
+            fetchBackendNotifications();
         }
         if (currentLoggedProvider) {
             document.getElementById("provider-login-screen").classList.add("hidden");
@@ -4186,11 +4185,13 @@ window.onload = function() {
             document.getElementById("logged-provider-name").textContent = prov.name;
             document.getElementById("logged-provider-service").textContent = (prov.service || "General") + " \u2022 " + (prov.location || "");
             renderProviderDashboard();
+            fetchBackendNotifications();
         }
         if (currentUser) {
             updateProfileWithUser();
             renderProfilePage();
             updateProfilePicCursor();
+            fetchBackendNotifications();
         }
         renderAllProviderLists();
     })();
@@ -4217,25 +4218,24 @@ window.onload = function() {
     })();
 
 // Fetch backend notifications and merge into globalNotifications
-async function fetchBackendNotifications(endpoint) {
+async function fetchBackendNotifications() {
     var jwt = window.__HAVENGO_JWT__;
     if (!jwt) return;
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var route = "";
+    if (currentAdmin) route = "/admin/notifications";
+    else if (currentLoggedProvider) route = "/provider/notifications";
+    else if (currentUser) route = "/customer/notifications";
+    if (!route) return;
     try {
-        var resp = await fetch(apiUrl + "/" + endpoint + "/notifications", {
-            headers: { "Authorization": "Bearer " + jwt }
-        });
+        var resp = await fetch(apiUrl + route, { headers: { "Authorization": "Bearer " + jwt } });
         if (resp.ok) {
             var notifs = await resp.json();
             if (notifs && notifs.length > 0) {
                 for (var ni = 0; ni < notifs.length; ni++) {
                     var n = notifs[ni];
-                    var exists = globalNotifications.some(function(gn) { return gn.text === n.message && gn.title === n.title; });
-                    if (!exists) {
-                        globalNotifications.push({ icon: n.icon || "\uD83D\uDD14", title: n.title, text: n.message });
-                    }
+                    addNotification(n.icon || "\uD83D\uDCE2", n.title || "Notification", n.message || "");
                 }
-                updateNotifCount();
             }
         }
     } catch(e) {}
