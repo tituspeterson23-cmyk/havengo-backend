@@ -2534,38 +2534,57 @@ function renderAdminVerification() {
     list.innerHTML = html;
 }
 
-function verifyProvider(id) {
-    for (var i = 0; i < registeredProviders.length; i++) {
-        if (registeredProviders[i].id === id) {
-            registeredProviders[i].verified = true;
-            addNotification("\u2705", "Provider Verified", registeredProviders[i].name + " has been verified by admin.");
-            break;
+async function verifyProvider(id) {
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var headers = { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" };
+    try {
+        var resp = await fetch(apiUrl + "/admin/providers/verify/" + id, { method: "POST", headers: headers });
+        if (!resp.ok) { alert("Failed to verify provider on server"); return; }
+        for (var i = 0; i < registeredProviders.length; i++) {
+            if (registeredProviders[i].id === id) {
+                registeredProviders[i].verified = true;
+                addNotification("\u2705", "Provider Verified", registeredProviders[i].name + " has been verified by admin.");
+                break;
+            }
         }
-    }
-    renderAdminDashboard();
-    renderAllProviderLists();
-    saveAppState();
+        renderAdminDashboard();
+        renderAllProviderLists();
+        saveAppState();
+    } catch(e) { alert("Network error verifying provider"); }
 }
 
-function rejectProvider(id) {
-    var name = "";
-    for (var i = 0; i < registeredProviders.length; i++) {
-        if (registeredProviders[i].id === id) { name = registeredProviders[i].name; registeredProviders.splice(i, 1); break; }
-    }
-    addNotification("\u274C", "Provider Rejected", name + "'s application has been rejected.");
-    renderAdminDashboard();
-    saveAppState();
+async function rejectProvider(id) {
+    if (!confirm("Reject this provider application?")) return;
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var headers = { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" };
+    try {
+        var resp = await fetch(apiUrl + "/admin/providers/reject/" + id, { method: "POST", headers: headers });
+        if (!resp.ok) { alert("Failed to reject provider on server"); return; }
+        var name = "";
+        for (var i = 0; i < registeredProviders.length; i++) {
+            if (registeredProviders[i].id === id) { name = registeredProviders[i].name; registeredProviders.splice(i, 1); break; }
+        }
+        addNotification("\u274C", "Provider Rejected", name + "'s application has been rejected.");
+        renderAdminDashboard();
+        saveAppState();
+    } catch(e) { alert("Network error rejecting provider"); }
 }
 
-function adminDeleteProvider(id) {
+async function adminDeleteProvider(id) {
     if (!confirm("Are you sure you want to permanently delete this provider account?")) return;
-    var name = "";
-    for (var i = 0; i < registeredProviders.length; i++) {
-        if (registeredProviders[i].id === id) { name = registeredProviders[i].name; registeredProviders.splice(i, 1); break; }
-    }
-    addNotification("\uD83D\uDDD1\uFE0F", "Provider Deleted", name + " has been deleted by admin.");
-    renderAdminDashboard();
-    saveAppState();
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var headers = { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" };
+    try {
+        var resp = await fetch(apiUrl + "/admin/providers/" + id, { method: "DELETE", headers: headers });
+        if (!resp.ok) { alert("Failed to delete provider on server"); return; }
+        var name = "";
+        for (var i = 0; i < registeredProviders.length; i++) {
+            if (registeredProviders[i].id === id) { name = registeredProviders[i].name; registeredProviders.splice(i, 1); break; }
+        }
+        addNotification("\uD83D\uDDD1\uFE0F", "Provider Deleted", name + " has been deleted by admin.");
+        renderAdminDashboard();
+        saveAppState();
+    } catch(e) { alert("Network error deleting provider"); }
 }
 
 function renderAdminPriceRequests() {
