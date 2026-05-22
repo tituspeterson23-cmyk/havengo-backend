@@ -819,7 +819,8 @@ function buildAppState() {
         userRatings: userRatings, reviews: reviews,
         hAvengoJwt: window.__HAVENGO_JWT__ || null,
         currentLoggedProvider: currentLoggedProvider,
-        currentAdmin: currentAdmin
+        currentAdmin: currentAdmin,
+        currentPage: window.__currentPage || null
     };
 }
 function saveAppState() {
@@ -851,7 +852,6 @@ function applyState(state) {
     if (state.userBalance !== undefined) userBalance = state.userBalance;
     if (state.userPaymentMethods) userPaymentMethods = state.userPaymentMethods;
     if (state.savedAddresses) savedAddresses = state.savedAddresses;
-    if (state.pendingPayments) pendingPayments = state.pendingPayments;
     if (state.globalNotifications) globalNotifications = state.globalNotifications;
     if (state.userNotificationsMap) userNotificationsMap = state.userNotificationsMap;
     if (state.userActivity) userActivity = state.userActivity;
@@ -869,6 +869,7 @@ function applyState(state) {
     if (state.hAvengoJwt) window.__HAVENGO_JWT__ = state.hAvengoJwt;
     if (state.currentLoggedProvider) currentLoggedProvider = state.currentLoggedProvider;
     if (state.currentAdmin) currentAdmin = state.currentAdmin;
+    if (state.currentPage) window.__currentPage = state.currentPage;
 }
 
 // Reviews - starts empty; only customer-submitted reviews appear
@@ -1144,9 +1145,22 @@ async function performLogin() {
 }
 
 function logout() {
+    if (!confirm("Are you sure you want to logout?")) return;
     if (currentUser && currentUser.email) {
         userNotificationsMap[currentUser.email] = globalNotifications.slice();
     }
+    currentUser = null;
+    userBalance = 500000;
+    // Keep userActivity across logout/login
+    document.getElementById("profile-page").classList.add("hidden");
+    document.getElementById("nav-home").click();
+    updateProfileWithUser();
+    renderProfilePage();
+    renderAllProviderLists();
+    updateProfilePicCursor();
+    updateNotifCount();
+    document.getElementById("home-page").classList.remove("hidden");
+}
     globalNotifications = [];
     currentUser = null;
     customerBitmoji = null;
@@ -1220,6 +1234,27 @@ function requestProviderAccountDeletion() {
     var identifier = currentLoggedProvider.email || currentLoggedProvider.phone;
     if (!identifier) return;
     if (!confirm("Are you sure? Your account will be permanently deleted in 15 days. Log in within 15 days to cancel deletion.")) return;
+
+    // Call backend API for immediate removal
+    (async function() {
+        var jwt = window.__HAVENGO_JWT__;
+        if (jwt) {
+            try {
+                await fetch(HAVENGO_BACKEND_URL + "/api/provider/account", {
+                    method: "DELETE", headers: { "Authorization": "Bearer " + jwt }
+                });
+            } catch(e) {}
+        }
+    })();
+
+    // Remove from local registeredProviders immediately
+    for (var ri = registeredProviders.length - 1; ri >= 0; ri--) {
+        if (registeredProviders[ri].email === currentLoggedProvider.email) {
+            registeredProviders.splice(ri, 1);
+        }
+    }
+    renderAllProviderLists();
+
     var existing = -1;
     for (var i = 0; i < deletionRequests.length; i++) {
         if (deletionRequests[i].identifier === identifier) { existing = i; break; }
@@ -1598,6 +1633,21 @@ function renderProfilePage() {
     if (delContainer) {
         delContainer.style.display = currentUser ? "block" : "none";
     }
+
+    // Restore bitmoji/photo on refresh
+    if (profilePicSrc) {
+        var pic = document.getElementById("profile-pic");
+        var bitmojiDisplay = document.getElementById("profile-bitmoji-display");
+        if (profilePicSrc.startsWith("http") || profilePicSrc.startsWith("data:")) {
+            pic.src = profilePicSrc;
+            pic.classList.remove("hidden");
+            bitmojiDisplay.classList.add("hidden");
+        } else {
+            bitmojiDisplay.textContent = profilePicSrc;
+            bitmojiDisplay.classList.remove("hidden");
+            pic.classList.add("hidden");
+        }
+    }
 }
 
 function addActivity(type, description) {
@@ -1606,24 +1656,17 @@ function addActivity(type, description) {
         description: description || "",
         time: Date.now()
     });
-    // Keep only recent: completed bookings shown for 5 hours, clear after 3 days idle
+    // Keep activity for 30 days
     var now = Date.now();
-    var fiveHours = 5 * 60 * 60 * 1000;
-    var threeDays = 3 * 24 * 60 * 60 * 1000;
-    var hasRecent = false;
+    var thirtyDays = 30 * 24 * 60 * 60 * 1000;
     var filtered = [];
     for (var i = 0; i < userActivity.length; i++) {
         var age = now - userActivity[i].time;
-        if (userActivity[i].type === "booking" && age < fiveHours) {
-            filtered.push(userActivity[i]);
-            hasRecent = true;
-        } else if (userActivity[i].type !== "booking" && age < threeDays) {
-            filtered.push(userActivity[i]);
-            hasRecent = true;
-        }
+        if (age < thirtyDays) filtered.push(userActivity[i]);
     }
-    if (!hasRecent) filtered = [];
+    if (filtered.length === 0) filtered = [];
     userActivity = filtered;
+    saveAppState();
 }
 
 function renderRecentActivity() {
@@ -1803,6 +1846,8 @@ function navigateTo(page) {
     var mobileMenu = document.getElementById("mobile-menu");
     if (mobileMenu) mobileMenu.classList.add("menu-closed");
     window.scrollTo({ top: 0, behavior: "smooth" });
+    window.__currentPage = page;
+    saveAppState();
 }
 
 var menuManuallyOpened = false;
@@ -1829,6 +1874,7 @@ function toggleDarkMode() {
     document.documentElement.classList.toggle("dark");
     var stars = document.getElementById("stars-container");
     if (stars) stars.classList.toggle("hidden");
+    localStorage.setItem("havengo-dark", document.documentElement.classList.contains("dark") ? "1" : "0");
 }
 
 function createStars() {
@@ -1880,6 +1926,7 @@ function setTheme(theme) {
     if (theme !== "default") document.documentElement.classList.add("theme-" + theme);
     var menu = document.getElementById("theme-menu");
     if (menu) menu.classList.add("hidden");
+    localStorage.setItem("havengo-theme", theme);
 }
 
 function searchServices() {
@@ -2090,7 +2137,7 @@ async function placeOrder(event) {
     if (!currentUser) { alert("Please login first to place an order"); showAuthModal("login"); return; }
     if (!currentService) return;
     var finalPrice = calculateDynamicPrice(currentService.id);
-    if (finalPrice > userBalance) { alert("Insufficient balance. Please deposit at least UGX " + finalPrice.toLocaleString() + " to book this service."); closeModal("checkout-modal"); showDepositModal(); return; }
+    if (userBalance <= 0) { alert("Insufficient balance. Please deposit at least UGX " + finalPrice.toLocaleString() + " to book this service."); closeModal("checkout-modal"); showDepositModal(); return; }
     var date = document.getElementById("booking-date").value;
     var time = document.getElementById("booking-time").value;
     var address = sanitizeInput(document.getElementById("address-input").value.trim());
@@ -2148,6 +2195,7 @@ async function placeOrder(event) {
     }
 
     // Fallback: local-only
+    userBalance -= finalPrice;
     var booking = {
         id: Date.now(),
         serviceId: currentService.id,
@@ -2441,17 +2489,7 @@ async function enterProviderDashboard(provider) {
 }
 
 function logoutProvider() {
-    if (currentLoggedProvider && currentLoggedProvider.email) {
-        userNotificationsMap[currentLoggedProvider.email] = globalNotifications.slice();
-    }
-    if (window.__providerPollInterval) clearInterval(window.__providerPollInterval);
-    currentLoggedProvider = null;
-    globalNotifications = [];
-    document.getElementById("provider-login-screen").classList.remove("hidden");
-    document.getElementById("provider-dashboard").classList.add("hidden");
-    document.getElementById("provider-header").classList.add("hidden");
-    document.getElementById("prov-login-id").value = "";
-    document.getElementById("prov-login-pass").value = "";
+    // This override is defined later with confirm dialog
 }
 
 function switchProviderTab(n) {
@@ -2842,6 +2880,7 @@ async function _syncAdminData() {
 }
 
 function logoutAdmin() {
+    if (!confirm("Are you sure you want to logout?")) return;
     userNotificationsMap["admin"] = globalNotifications.slice();
     if (window.__adminPollInterval) clearInterval(window.__adminPollInterval);
     currentAdmin = null;
@@ -2849,6 +2888,21 @@ function logoutAdmin() {
     document.getElementById("admin-dashboard").classList.add("hidden");
     document.getElementById("admin-header").classList.add("hidden");
     document.getElementById("admin-nav-link").classList.add("hidden");
+}
+
+function logoutProvider() {
+    if (!confirm("Are you sure you want to logout?")) return;
+    if (currentLoggedProvider && currentLoggedProvider.email) {
+        userNotificationsMap[currentLoggedProvider.email] = globalNotifications.slice();
+    }
+    if (window.__providerPollInterval) clearInterval(window.__providerPollInterval);
+    currentLoggedProvider = null;
+    globalNotifications = [];
+    document.getElementById("provider-login-screen").classList.remove("hidden");
+    document.getElementById("provider-dashboard").classList.add("hidden");
+    document.getElementById("provider-header").classList.add("hidden");
+    document.getElementById("prov-login-id").value = "";
+    document.getElementById("prov-login-pass").value = "";
 }
 
 function switchAdminTab(n) {
@@ -3893,13 +3947,6 @@ function renderAllProviderLists() {
         }
     }
 
-    // Demo providers for each category
-    var demoProviders = [
-        { name: "Aisha Cleaning Co.", rating: 4.9, jobs: 342, bitmoji: "\uD83D\uDC69\u200D\uD83D\uDD27", tag: "\u2B50 Top Rated" },
-        { name: "James M.", rating: 4.8, jobs: 198, bitmoji: "\uD83D\uDC68\u200D\uD83D\uDD27", tag: "\u26A1 Fast Response" },
-        { name: "Grace Home Services", rating: 4.9, jobs: 267, bitmoji: "\uD83E\uDDF9", tag: "\u2B50 Top Rated" }
-    ];
-
     var keys = Object.keys(providerMap);
     for (var k = 0; k < keys.length; k++) {
         var key = keys[k];
@@ -3907,7 +3954,8 @@ function renderAllProviderLists() {
         if (!el) continue;
         var providers = providerMap[key];
         if (providers.length === 0) {
-            providers = [].concat(demoProviders);
+            el.innerHTML = "<div class=\"text-center text-gray-400 py-6\"><i class=\"fa-solid fa-user-clock text-3xl mb-2\"></i><p class=\"text-sm\">No providers available yet</p></div>";
+            continue;
         }
         var html = "";
         for (var i = 0; i < providers.length; i++) {
@@ -3919,16 +3967,16 @@ function renderAllProviderLists() {
             for (var s = 0; s < r; s++) stars += "\u2605";
             var jobCount = providerJobCounts[p.name] || p.jobs || 0;
             var serviceId = key.replace("-providers", "");
+            var displayName = p.business_name || p.businessName || p.name;
             html += "<div class=\"flex items-center justify-between\">" +
                 "<div class=\"flex items-center gap-3\">" +
                 "<div class=\"bitmoji\">" + (p.bitmoji || "\uD83D\uDC64") + "</div>" +
-                "<div><p class=\"font-medium text-sm\">" + p.name + "</p>" +
+                "<div><p class=\"font-medium text-sm\">" + displayName + "</p>" +
                 "<div class=\"flex items-center gap-2 text-xs text-gray-500\">" +
                 "<span class=\"text-yellow-500\">" + stars + "</span>" +
                 "<span>" + displayRating.toFixed(1) + "</span>" +
                 "<span>\u2022 " + jobCount + " jobs</span></div></div></div>" +
-                (p.tag ? "<span class=\"text-xs bg-emerald-50 text-emerald-600 px-2 py-1 rounded-full\">" + p.tag + "</span>" : "") +
-                "<button onclick=\"selectService('" + serviceId + "','" + p.name.replace(/'/g,"\\'") + "')\" class=\"mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-xl text-sm font-medium transition-all\"><i class=\"fa-solid fa-bookmark mr-1\"></i> Book Now</button></div>";
+                "<button onclick=\"selectService('" + serviceId + "','" + displayName.replace(/'/g,"\\'") + "')\" class=\"mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-xl text-sm font-medium transition-all\"><i class=\"fa-solid fa-bookmark mr-1\"></i> Book Now</button></div>";
         }
         el.innerHTML = html;
     }
@@ -4036,8 +4084,10 @@ async function fetchVerifiedProviders() {
         if (resp.ok) {
             var data = await resp.json();
             if (data && data.length > 0) {
+                var backendEmails = {};
                 for (var i = 0; i < data.length; i++) {
                     var bp = data[i];
+                    backendEmails[bp.email] = true;
                     var existing = false;
                     for (var j = 0; j < registeredProviders.length; j++) {
                         if (registeredProviders[j].email === bp.email) { existing = true; break; }
@@ -4051,6 +4101,12 @@ async function fetchVerifiedProviders() {
                             services: svcs, bitmoji: bp.bitmoji || "\uD83D\uDC64",
                             verified: true, jobs: bp.jobs || 0
                         });
+                    }
+                }
+                // Remove providers no longer verified by backend
+                for (var ri = registeredProviders.length - 1; ri >= 0; ri--) {
+                    if (registeredProviders[ri].email && !backendEmails[registeredProviders[ri].email]) {
+                        registeredProviders.splice(ri, 1);
                     }
                 }
                 renderAllProviderLists();
@@ -4159,6 +4215,17 @@ async function fetchBackendNotifications() {
 // ============================================================
 
 window.onload = function() {
+    // Restore dark mode
+    if (localStorage.getItem("havengo-dark") === "1") {
+        document.documentElement.classList.add("dark");
+        var stars = document.getElementById("stars-container");
+        if (stars) stars.classList.remove("hidden");
+    }
+    // Restore theme
+    var savedTheme = localStorage.getItem("havengo-theme");
+    if (savedTheme && savedTheme !== "default") {
+        document.documentElement.classList.add("theme-" + savedTheme);
+    }
     createStars();
     startHeroSlider();
     renderAllProviderLists();
@@ -4221,6 +4288,11 @@ window.onload = function() {
             fetchBackendNotifications();
         }
         renderAllProviderLists();
+        // Restore last visited page
+        if (window.__currentPage) {
+            var pageEl = document.getElementById(window.__currentPage);
+            if (pageEl) navigateTo(window.__currentPage);
+        }
     })();
 
     // Auto-save every 10 seconds
@@ -4245,6 +4317,9 @@ window.onload = function() {
     })();
 
     fetchVerifiedProviders();
+
+    // Poll verified providers every 30s for cross-browser sync
+    setInterval(fetchVerifiedProviders, 30000);
 };
 </script>
 </body>

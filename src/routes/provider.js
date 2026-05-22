@@ -199,4 +199,22 @@ router.post('/notifications/clear', (req, res) => {
   res.json({ success: true });
 });
 
+// DELETE /api/provider/account
+router.delete('/account', (req, res) => {
+  const db = getDb();
+  const provider = db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
+  if (!provider) return res.status(404).json({ error: 'Provider not found' });
+  // Insert deletion request with 15-day expiry
+  db.prepare("INSERT INTO deletion_requests (user_email, user_type, provider_name, business_name, created_at, expires_at) VALUES (?, 'provider', ?, ?, datetime('now'), datetime('now', '+15 days'))")
+    .run(provider.email, provider.firstname + ' ' + provider.lastname, provider.business_name);
+  // Immediately soft-delete: mark as unverified so they disappear from services
+  db.prepare('UPDATE providers SET verified = 0, deleted_at = datetime("now") WHERE email = ?').run(provider.email);
+  // Remove pending tasks for this provider
+  const pendingTasks = db.prepare("SELECT id FROM tasks WHERE provider_name = ? AND status = 'pending_confirmation'").all(provider.business_name);
+  for (const t of pendingTasks) {
+    db.prepare('DELETE FROM tasks WHERE id = ?').run(t.id);
+  }
+  res.json({ success: true, message: 'Account queued for deletion. You have 15 days to cancel.' });
+});
+
 module.exports = router;
