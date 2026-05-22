@@ -816,7 +816,10 @@ function buildAppState() {
         bookings: bookings, providerTasks: providerTasks, completedTasks: completedTasks,
         earnings: earnings, providerEarningsMap: providerEarningsMap,
         priceChangeRequests: priceChangeRequests, deletionRequests: deletionRequests,
-        userRatings: userRatings, reviews: reviews
+        userRatings: userRatings, reviews: reviews,
+        hAvengoJwt: window.__HAVENGO_JWT__ || null,
+        currentLoggedProvider: currentLoggedProvider,
+        currentAdmin: currentAdmin
     };
 }
 function saveAppState() {
@@ -863,6 +866,9 @@ function applyState(state) {
     if (state.deletionRequests) deletionRequests = state.deletionRequests;
     if (state.userRatings) userRatings = state.userRatings;
     if (state.reviews) reviews = state.reviews;
+    if (state.hAvengoJwt) window.__HAVENGO_JWT__ = state.hAvengoJwt;
+    if (state.currentLoggedProvider) currentLoggedProvider = state.currentLoggedProvider;
+    if (state.currentAdmin) currentAdmin = state.currentAdmin;
 }
 
 // Reviews - starts empty; only customer-submitted reviews appear
@@ -3933,7 +3939,32 @@ window.onload = function() {
     }
 
     // Load persisted state (async to support encrypted storage)
-    (async function() { await loadAppState(); })();
+    (async function() {
+        await loadAppState();
+        // Re-render appropriate dashboards after state restore
+        if (currentAdmin) {
+            document.getElementById("admin-login-screen").classList.add("hidden");
+            document.getElementById("admin-dashboard").classList.remove("hidden");
+            document.getElementById("admin-header").classList.remove("hidden");
+            document.getElementById("admin-nav-link").classList.remove("hidden");
+            renderAdminDashboard();
+        }
+        if (currentLoggedProvider) {
+            document.getElementById("provider-login-screen").classList.add("hidden");
+            document.getElementById("provider-dashboard").classList.remove("hidden");
+            document.getElementById("provider-header").classList.remove("hidden");
+            var prov = currentLoggedProvider;
+            document.getElementById("logged-provider-name").textContent = prov.name;
+            document.getElementById("logged-provider-service").textContent = (prov.service || "General") + " \u2022 " + (prov.location || "");
+            renderProviderDashboard();
+        }
+        if (currentUser) {
+            updateProfileWithUser();
+            renderProfilePage();
+            updateProfilePicCursor();
+        }
+        renderAllProviderLists();
+    })();
 
     // Auto-save every 10 seconds
     setInterval(saveAppState, 10000);
