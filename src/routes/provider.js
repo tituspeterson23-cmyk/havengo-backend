@@ -186,4 +186,17 @@ router.get('/dashboard-stats', (req, res) => {
   });
 });
 
+// Notifications
+router.get('/notifications', (req, res) => {
+  const db = getDb();
+  const notifs = db.prepare("SELECT * FROM notifications WHERE user_email = ? AND (expiry IS NULL OR expiry > datetime('now')) ORDER BY created_at DESC LIMIT 50").all(req.user.email);
+  res.json(notifs);
+});
+
+router.post('/notifications/clear', (req, res) => {
+  const db = getDb();
+  db.prepare('DELETE FROM notifications WHERE user_email = ?').run(req.user.email);
+  res.json({ success: true });
+});
+
 module.exports = router;

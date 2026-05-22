@@ -140,4 +140,20 @@ router.get('/dashboard-stats', (req, res) => {
   res.json({ totalProviders, pendingVerification, totalRevenue, pendingPriceRequests });
 });
 
+// GET /api/admin/notifications
+router.get('/notifications', (req, res) => {
+  const db = getDb();
+  const adminEmail = db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
+  const email = adminEmail || 'admin';
+  const notifs = db.prepare("SELECT * FROM notifications WHERE user_email = ? AND (expiry IS NULL OR expiry > datetime('now')) ORDER BY created_at DESC LIMIT 50").all(email);
+  res.json(notifs);
+});
+
+router.post('/notifications/clear', (req, res) => {
+  const db = getDb();
+  const adminEmail = db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
+  db.prepare('DELETE FROM notifications WHERE user_email = ?').run(adminEmail || 'admin');
+  res.json({ success: true });
+});
+
 module.exports = router;
