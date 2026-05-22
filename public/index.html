@@ -2074,7 +2074,7 @@ function calculateDynamicPrice(serviceId) {
     return Math.round(total);
 }
 
-function placeOrder(event) {
+async function placeOrder(event) {
     event.preventDefault();
     if (!currentUser) { alert("Please login first to place an order"); showAuthModal("login"); return; }
     if (!currentService) return;
@@ -2091,6 +2091,56 @@ function placeOrder(event) {
     }
 
     var finalPrice = calculateDynamicPrice(currentService.id);
+
+    // Try backend first
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var backendOk = false;
+    try {
+        var hResp = await fetch(apiUrl + "/health", { method: "GET", cache: "no-store" });
+        backendOk = hResp.ok;
+    } catch(e) {}
+
+    if (backendOk && window.__HAVENGO_JWT__) {
+        var assignedProvider = currentSelectedProvider || "";
+        if (!assignedProvider) {
+            for (var pi = 0; pi < registeredProviders.length; pi++) {
+                var rp = registeredProviders[pi];
+                if (rp.services) {
+                    for (var ps = 0; ps < rp.services.length; ps++) {
+                        if (rp.services[ps].id === currentService.id) { assignedProvider = rp.name; break; }
+                    }
+                }
+                if (assignedProvider) break;
+            }
+        }
+        try {
+            var orderResp = await fetch(apiUrl + "/customer/place-order", {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    serviceId: currentService.id, serviceName: currentService.name,
+                    providerName: assignedProvider, price: finalPrice,
+                    address: address, details: instructions + " | Date: " + date + " Time: " + time
+                })
+            });
+            var orderData = await orderResp.json();
+            if (orderData.success) {
+                userBalance -= finalPrice;
+                closeModal("checkout-modal");
+                renderBookings();
+                addNotification("\uD83D\uDCCB", "New Booking Placed", currentService.name + " on " + date + " at " + time);
+                addActivity("booking", "Booked " + currentService.name + " for " + date);
+                alert("Order placed successfully! Your provider will be notified.");
+                saveAppState();
+                return;
+            }
+            if (orderData.error) { alert(orderData.error); return; }
+        } catch(e) {}
+        alert("Failed to place order on server. Please try again.");
+        return;
+    }
+
+    // Fallback: local-only
     var booking = {
         id: Date.now(),
         serviceId: currentService.id,
@@ -2184,6 +2234,50 @@ async function loginAsProvider() {
         return;
     }
 
+    // Try backend first
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var backendOk = false;
+    try {
+        var hResp = await fetch(apiUrl + "/health", { method: "GET", cache: "no-store" });
+        backendOk = hResp.ok;
+    } catch(e) {}
+
+    if (backendOk) {
+        try {
+            var resp = await fetch(apiUrl + "/provider/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ identifier: idVal, password: passVal })
+            });
+            var data = await resp.json();
+            if (data.success) {
+                var p = data.provider;
+                window.__HAVENGO_JWT__ = data.token;
+                currentLoggedProvider = {
+                    id: p.id,
+                    name: p.firstname + " " + p.lastname,
+                    firstname: p.firstname,
+                    lastname: p.lastname,
+                    service: (typeof p.services === "string" ? p.services : "General Services"),
+                    location: "",
+                    phone: p.phone,
+                    email: p.email,
+                    password: "",
+                    bitmoji: p.bitmoji || "\uD83D\uDD27",
+                    bio: "",
+                    verified: true
+                };
+                enterProviderDashboard(currentLoggedProvider);
+                return;
+            }
+            if (resp.status === 403) {
+                alert("Your account is pending admin verification. Please wait for an administrator to approve your application before logging in.");
+                return;
+            }
+        } catch(e) {}
+        // Backend failed, fall through to local
+    }
+
     var hashedInput = await hashPassword(passVal);
     var provider = null;
     for (var i = 0; i < registeredProviders.length; i++) {
@@ -2229,7 +2323,7 @@ async function loginAsProvider() {
     enterProviderDashboard(provider);
 }
 
-function enterProviderDashboard(provider) {
+async function enterProviderDashboard(provider) {
     document.getElementById("provider-login-screen").classList.add("hidden");
     document.getElementById("provider-dashboard").classList.remove("hidden");
     document.getElementById("provider-header").classList.remove("hidden");
@@ -2237,6 +2331,61 @@ function enterProviderDashboard(provider) {
     document.getElementById("logged-provider-service").textContent = provider.service + " \u2022 " + provider.location;
     document.getElementById("prov-login-id").value = "";
     document.getElementById("prov-login-pass").value = "";
+
+    // Fetch provider tasks from backend if available
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    if (window.__HAVENGO_JWT__) {
+        try {
+            var tasksResp = await fetch(apiUrl + "/provider/tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ } });
+            if (tasksResp.ok) {
+                var backendTasks = await tasksResp.json();
+                for (var ti = 0; ti < backendTasks.length; ti++) {
+                    var bt = backendTasks[ti];
+                    var existing = providerTasks.some(function(pt) { return pt.id === bt.id; });
+                    if (!existing) {
+                        providerTasks.push({
+                            id: bt.id,
+                            serviceId: bt.service_id,
+                            serviceName: bt.service_name,
+                            customerName: "",
+                            customerPhone: "",
+                            address: bt.address || "",
+                            date: "",
+                            time: "",
+                            price: bt.price,
+                            instructions: bt.details || "",
+                            providerName: bt.provider_name || "",
+                            status: bt.status
+                        });
+                    }
+                }
+            }
+            var compResp = await fetch(apiUrl + "/provider/completed-tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ } });
+            if (compResp.ok) {
+                var backendCompleted = await compResp.json();
+                for (var ci = 0; ci < backendCompleted.length; ci++) {
+                    var bc = backendCompleted[ci];
+                    var existing = completedTasks.some(function(ct) { return ct.id === bc.id; });
+                    if (!existing) {
+                        completedTasks.push({
+                            id: bc.id,
+                            taskId: bc.task_id,
+                            serviceName: bc.service_name,
+                            customerName: bc.customer_email,
+                            price: bc.price,
+                            providerName: bc.provider_name,
+                            date: bc.completed_at,
+                            paid: bc.paid
+                        });
+                        if (bc.paid && bc.provider_name) {
+                            providerEarningsMap[bc.provider_name] = (providerEarningsMap[bc.provider_name] || 0) + Math.round(bc.price * 0.85);
+                        }
+                    }
+                }
+            }
+        } catch(e) {}
+    }
+
     renderProviderDashboard();
     addNotification("\uD83D\uDD10", "Provider Login", provider.name + " logged into dashboard");
 }
@@ -2351,7 +2500,30 @@ function renderProviderDashboard() {
     }
 }
 
-function confirmProviderTask(taskId) {
+async function confirmProviderTask(taskId) {
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    if (window.__HAVENGO_JWT__) {
+        try {
+            var resp = await fetch(apiUrl + "/provider/confirm-task/" + taskId, {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }
+            });
+            if (resp.ok) {
+                for (var i = 0; i < providerTasks.length; i++) {
+                    if (providerTasks[i].id === taskId) {
+                        providerTasks[i].status = "active";
+                        providerTasks[i].providerName = currentLoggedProvider.name;
+                        addNotification("\u2705", "Order Confirmed", currentLoggedProvider.name + " confirmed order #" + taskId);
+                        break;
+                    }
+                }
+                renderProviderDashboard();
+                saveAppState();
+                return;
+            }
+        } catch(e) {}
+    }
+    // Fallback local
     for (var i = 0; i < providerTasks.length; i++) {
         if (providerTasks[i].id === taskId) {
             providerTasks[i].status = "active";
@@ -2364,7 +2536,7 @@ function confirmProviderTask(taskId) {
     saveAppState();
 }
 
-function completeProviderTask(taskId) {
+async function completeProviderTask(taskId) {
     var task = null;
     var taskIdx = -1;
     for (var i = 0; i < providerTasks.length; i++) {
@@ -2372,6 +2544,18 @@ function completeProviderTask(taskId) {
     }
     if (!task) return;
     if (!confirm("Mark this task as complete? This will notify the customer to confirm payment.")) return;
+
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    if (window.__HAVENGO_JWT__) {
+        try {
+            var resp = await fetch(apiUrl + "/provider/complete-task/" + taskId, {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }
+            });
+            if (!resp.ok) { alert("Failed to complete task on server"); return; }
+        } catch(e) { alert("Network error completing task"); return; }
+    }
+
     providerTasks.splice(taskIdx, 1);
     var completed = {
         id: task.id,
@@ -2423,7 +2607,7 @@ function renderProviderPriceList() {
     container.innerHTML = html;
 }
 
-function requestPriceChange(serviceId, serviceName) {
+async function requestPriceChange(serviceId, serviceName) {
     if (!currentLoggedProvider) return;
     var input = document.getElementById("price-input-" + serviceId);
     if (!input) return;
@@ -2434,6 +2618,24 @@ function requestPriceChange(serviceId, serviceName) {
     for (var i = 0; i < services.length; i++) {
         if (services[i].id === serviceId) { currentPrice = services[i].basePrice; break; }
     }
+
+    // Try backend first
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    if (window.__HAVENGO_JWT__) {
+        try {
+            var resp = await fetch(apiUrl + "/provider/price-request", {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" },
+                body: JSON.stringify({ serviceId: serviceId, currentPrice: currentPrice, requestedPrice: newPrice })
+            });
+            if (resp.ok) {
+                alert("Price change request submitted for " + serviceName + ". Admin will review it shortly.");
+                addNotification("\uD83D\uDCCB", "Price Request Submitted", "Price change for " + serviceName + " sent to admin.");
+                return;
+            }
+        } catch(e) {}
+    }
+
     priceChangeRequests.push({
         id: Date.now(),
         providerName: currentLoggedProvider.name,
@@ -2508,6 +2710,30 @@ async function _syncAdminData() {
         if (revResp.ok) {
             var rev = await revResp.json();
             adminRevenueData = rev;
+        }
+        // Fetch users
+        var usersResp = await fetch(apiUrl + "/admin/users", { headers: headers });
+        if (usersResp.ok) {
+            allUsers = await usersResp.json();
+        }
+        // Fetch price requests
+        var prResp = await fetch(apiUrl + "/admin/price-requests", { headers: headers });
+        if (prResp.ok) {
+            var prs = await prResp.json();
+            priceChangeRequests = [];
+            for (var pri = 0; pri < prs.length; pri++) {
+                priceChangeRequests.push({
+                    id: prs[pri].id,
+                    providerName: prs[pri].provider_name,
+                    providerEmail: "",
+                    serviceId: prs[pri].service_id,
+                    serviceName: "",
+                    currentPrice: prs[pri].current_price,
+                    requestedPrice: prs[pri].requested_price,
+                    status: prs[pri].status || "pending",
+                    date: prs[pri].created_at
+                });
+            }
         }
         renderAdminDashboard();
     } catch(e) { console.log("Backend sync error:", e); }
@@ -2715,20 +2941,29 @@ function renderAdminRevenue() {
     var list = document.getElementById("admin-revenue-list");
     if (!list) return;
     var totalRev = 0;
-    if (completedTasks.length === 0) {
+    var revData = completedTasks;
+    if (adminRevenueData && adminRevenueData.revenue !== undefined) {
+        totalRev = adminRevenueData.revenue;
+        revData = adminRevenueData.byProvider || [];
+    }
+    if (revData.length === 0 && (!adminRevenueData || !adminRevenueData.byProvider)) {
         list.innerHTML = "<div class=\"text-center text-gray-500 py-8\"><i class=\"fa-solid fa-coins text-4xl mb-3\"></i><p>No revenue yet.</p></div>";
     } else {
-        var html = "<div class=\"bg-white rounded-2xl p-6 shadow mb-6\"><h3 class=\"text-xl font-bold mb-2\">Total System Revenue (15%)</h3><p class=\"text-4xl font-bold text-emerald-600\">0 UGX</p></div><div class=\"space-y-4\">";
-        for (var i = 0; i < completedTasks.length; i++) {
-            var t = completedTasks[i];
-            var fee = Math.round(t.price * 0.15);
-            totalRev += fee;
-            html += "<div class=\"bg-white rounded-2xl p-4 shadow flex justify-between items-center\"><div><p class=\"font-medium\">" + t.serviceName + "</p><p class=\"text-xs text-gray-500\">" + t.customerName + " \u2022 " + t.date + "</p></div><p class=\"font-bold text-amber-600\">+UGX " + fee.toLocaleString() + "</p></div>";
+        var html = "<div class=\"bg-white rounded-2xl p-6 shadow mb-6\"><h3 class=\"text-xl font-bold mb-2\">Total System Revenue (15%)</h3><p class=\"text-4xl font-bold text-emerald-600\">" + totalRev.toLocaleString() + " UGX</p></div><div class=\"space-y-4\">";
+        if (adminRevenueData && adminRevenueData.byProvider) {
+            for (var bi = 0; bi < adminRevenueData.byProvider.length; bi++) {
+                var bp = adminRevenueData.byProvider[bi];
+                html += "<div class=\"bg-white rounded-2xl p-4 shadow flex justify-between items-center\"><div><p class=\"font-medium\">" + bp.provider_name + "</p><p class=\"text-xs text-gray-500\">" + bp.jobs + " jobs completed</p></div><p class=\"font-bold text-amber-600\">+UGX " + Math.round(bp.revenue).toLocaleString() + "</p></div>";
+            }
+        } else {
+            for (var i = 0; i < completedTasks.length; i++) {
+                var t = completedTasks[i];
+                var fee = Math.round(t.price * 0.15);
+                html += "<div class=\"bg-white rounded-2xl p-4 shadow flex justify-between items-center\"><div><p class=\"font-medium\">" + (t.serviceName || "Service") + "</p><p class=\"text-xs text-gray-500\">" + (t.customerName || t.customer_email || "Customer") + " \u2022 " + (t.date || "") + "</p></div><p class=\"font-bold text-amber-600\">+UGX " + fee.toLocaleString() + "</p></div>";
+            }
         }
         html += "</div>";
         list.innerHTML = html;
-        var revEl = list.querySelector(".text-4xl.font-bold.text-emerald-600");
-        if (revEl) revEl.textContent = totalRev.toLocaleString() + " UGX";
     }
 }
 
@@ -3320,7 +3555,59 @@ async function submitProviderApplication(event) {
             }
         }
     }
+    var serviceNames = serviceList.map(function(s) { return s.name; });
 
+    // Try backend first
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var backendOk = false;
+    try {
+        var hResp = await fetch(apiUrl + "/health", { method: "GET", cache: "no-store" });
+        backendOk = hResp.ok;
+    } catch(e) {}
+
+    if (backendOk) {
+        var nameParts = name.split(" ");
+        var firstname = nameParts[0] || name;
+        var lastname = nameParts.slice(1).join(" ") || nameParts[0] || name;
+        try {
+            var resp = await fetch(apiUrl + "/provider/register", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    firstname: firstname, lastname: lastname, email: email, phone: phone,
+                    businessName: businessName, services: serviceNames,
+                    password: password, confirmPassword: confirmPassword,
+                    bitmoji: selectedBitmoji
+                })
+            });
+            var data = await resp.json();
+            if (data.success) {
+                addNotification("\uD83C\uDF89", "Provider Application Submitted", name + " applied as a provider in " + (serviceList.length > 0 ? serviceList[0].name : "General") + ".");
+                document.getElementById("provider-form").reset();
+                document.getElementById("prov-name").value = "";
+                document.getElementById("prov-phone").value = "";
+                document.getElementById("prov-email").value = "";
+                document.getElementById("prov-business").value = "";
+                document.getElementById("prov-exp").value = "";
+                document.getElementById("prov-password").value = "";
+                document.getElementById("prov-confirm-password").value = "";
+                document.getElementById("prov-location").value = "";
+                document.getElementById("prov-bio").value = "";
+                document.getElementById("multi-service-select").selectedIndex = -1;
+                document.getElementById("agree-terms").checked = false;
+                selectedBitmoji = null;
+                document.getElementById("bitmoji-select").textContent = "\uD83D\uDC64";
+                navigateTo("provider-tasks");
+                alert("Application submitted successfully! Your account is now pending admin verification. You will be able to login once an administrator approves your application.");
+                return;
+            }
+            if (data.error) { alert(data.error); return; }
+        } catch(e) {}
+        alert("Failed to submit application on server. Please try again.");
+        return;
+    }
+
+    // Fallback: local-only
     var hashedPass = await hashPassword(password);
 
     var newProvider = {
