@@ -156,7 +156,7 @@
 .dark .chat-bubble-received { background: #374151; }
 .chat-bubble-sent { background: #10b981; color: white; border-bottom-right-radius: 4px; }
 .auth-modal { max-width: 420px; }
-#mobile-menu { overflow: hidden; transition: max-height 0.4s ease, opacity 0.3s ease; max-height: 500px; opacity: 1; }
+#mobile-menu { overflow-y: auto; transition: max-height 0.4s ease, opacity 0.3s ease; max-height: 80vh; opacity: 1; }
 #mobile-menu.menu-closed { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; }
 ::-webkit-scrollbar { width: 0; height: 0; }
 ::-webkit-scrollbar-thumb { background: transparent; }
@@ -916,11 +916,8 @@ function showAuthModal(mode) {
 
 function closeAuthModal() {
     document.getElementById("auth-modal").classList.add("hidden");
-    // Clear login fields
-    var idField = document.getElementById("login-identifier");
-    var pwField = document.getElementById("login-password");
-    if (idField) idField.value = "";
-    if (pwField) pwField.value = "";
+    document.getElementById("login-identifier").value = "";
+    document.getElementById("login-password").value = "";
 }
 
 function switchAuthMode(mode) {
@@ -1149,9 +1146,14 @@ function logout() {
     if (currentUser && currentUser.email) {
         userNotificationsMap[currentUser.email] = globalNotifications.slice();
     }
+    globalNotifications = [];
+    customerBitmoji = null;
+    profilePicSrc = "https://images.unsplash.com/photo-1531123897720-8f129e1688f7?w=400";
+    document.getElementById("profile-pic").src = profilePicSrc;
+    document.getElementById("profile-pic").classList.remove("hidden");
+    document.getElementById("profile-bitmoji-display").classList.add("hidden");
     currentUser = null;
     userBalance = 500000;
-    // Keep userActivity across logout/login
     document.getElementById("profile-page").classList.add("hidden");
     document.getElementById("nav-home").click();
     updateProfileWithUser();
@@ -1160,24 +1162,6 @@ function logout() {
     updateProfilePicCursor();
     updateNotifCount();
     document.getElementById("home-page").classList.remove("hidden");
-}
-    globalNotifications = [];
-    currentUser = null;
-    customerBitmoji = null;
-    profilePicSrc = "https://images.unsplash.com/photo-1531123897720-8f129e1688f7?w=400";
-    document.getElementById("profile-pic").src = profilePicSrc;
-    document.getElementById("profile-pic").classList.remove("hidden");
-    document.getElementById("profile-bitmoji-display").classList.add("hidden");
-    globalNotifications.length = 0;
-    bookings.length = 0;
-    savedAddresses.length = 0;
-    userPaymentMethods.length = 0;
-    userActivity.length = 0;
-    pendingPayments.length = 0;
-    updateNotifCount();
-    updateProfileWithUser();
-    renderProfilePage();
-    updateProfilePicCursor();
     saveAppState();
 }
 
@@ -1227,6 +1211,7 @@ function requestAccountDeletion() {
     addNotification("\uD83D\uDDD1\uFE0F", "Account Deletion Scheduled", "Your account will be permanently deleted in 15 days. Log in to cancel.");
     alert("Deletion scheduled. Your account will be permanently deleted in 15 days. Log in within 15 days to cancel.");
     saveAppState();
+    logout();
 }
 
 function requestProviderAccountDeletion() {
@@ -1266,7 +1251,18 @@ function requestProviderAccountDeletion() {
     }
     addNotification("\uD83D\uDDD1\uFE0F", "Account Deletion Scheduled", currentLoggedProvider.name + "'s account will be permanently deleted in 15 days.");
     alert("Deletion scheduled. Your account will be permanently deleted in 15 days. Log in within 15 days to cancel.");
-    logoutProvider();
+    // Direct logout without confirm dialog (already confirmed above)
+    if (currentLoggedProvider && currentLoggedProvider.email) {
+        userNotificationsMap[currentLoggedProvider.email] = globalNotifications.slice();
+    }
+    if (window.__providerPollInterval) clearInterval(window.__providerPollInterval);
+    currentLoggedProvider = null;
+    globalNotifications = [];
+    document.getElementById("provider-login-screen").classList.remove("hidden");
+    document.getElementById("provider-dashboard").classList.add("hidden");
+    document.getElementById("provider-header").classList.add("hidden");
+    document.getElementById("prov-login-id").value = "";
+    document.getElementById("prov-login-pass").value = "";
     saveAppState();
 }
 
@@ -4122,7 +4118,8 @@ function renderReviews() {
     if (reviews.length === 0) {
         html = "<div class=\"col-span-full text-center py-16 text-gray-400\"><i class=\"fa-solid fa-star text-5xl mb-4\"></i><p class=\"text-xl font-medium\">No reviews yet</p><p class=\"text-sm\">Be the first to share your experience!</p></div>";
     } else {
-        for (var i = 0; i < reviews.length; i++) {
+        var showCount = Math.min(reviews.length, 6);
+        for (var i = 0; i < showCount; i++) {
             var r = reviews[i];
             var stars = "";
             for (var s = 0; s < 5; s++) {
@@ -4135,8 +4132,34 @@ function renderReviews() {
                 "<p class=\"text-yellow-500\">" + stars + "</p></div></div>" +
                 "<p class=\"text-gray-600\">\"" + r.text + "\"</p></div>";
         }
+        if (reviews.length > 6) {
+            html += "<div class=\"col-span-full text-center mt-4\"><button onclick=\"showAllReviews()\" class=\"bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl font-medium\">Show All (" + reviews.length + " reviews)</button></div>";
+        }
     }
     grid.innerHTML = html;
+    grid._fullListShown = false;
+}
+
+function showAllReviews() {
+    var grid = document.getElementById("reviews-grid");
+    if (!grid) return;
+    var html = "";
+    for (var i = 0; i < reviews.length; i++) {
+        var r = reviews[i];
+        var stars = "";
+        for (var s = 0; s < 5; s++) {
+            stars += s < r.rating ? "\u2605" : "\u2606";
+        }
+        html += "<div class=\"bg-white rounded-3xl p-8 shadow\">" +
+            "<div class=\"flex items-center gap-4 mb-5\">" +
+            "<div class=\"w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-2xl font-bold text-emerald-600\">" + r.name.charAt(0).toUpperCase() + "</div>" +
+            "<div><h4 class=\"font-bold\">" + r.name + "</h4>" +
+            "<p class=\"text-yellow-500\">" + stars + "</p></div></div>" +
+            "<p class=\"text-gray-600\">\"" + r.text + "\"</p></div>";
+    }
+    html += "<div class=\"col-span-full text-center mt-4\"><button onclick=\"renderReviews()\" class=\"bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-2xl font-medium\">Show Less</button></div>";
+    grid.innerHTML = html;
+    grid._fullListShown = true;
 }
 
 // ============================================================
