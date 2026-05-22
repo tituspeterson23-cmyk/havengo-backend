@@ -964,12 +964,55 @@ async function performSignup() {
         alert("Please enter a valid email address");
         return;
     }
+
+    // Try backend signup first
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var backendOk = false;
+    try {
+        var hResp = await fetch(apiUrl + "/health", { method: "GET", cache: "no-store" });
+        backendOk = hResp.ok;
+    } catch(e) {}
+
+    if (backendOk) {
+        try {
+            var regResp = await fetch(apiUrl + "/auth/register", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ firstname: firstname, lastname: lastname, phone: phone, email: email, password: password })
+            });
+            var regData = await regResp.json();
+            if (regData.success) {
+                currentUser = regData.user;
+                window.__HAVENGO_JWT__ = regData.token;
+                closeAuthModal();
+                updateProfileWithUser();
+                renderProfilePage();
+                updateProfilePicCursor();
+                addNotification("\uD83C\uDF89", "Account Created", "Welcome to HavenGo, " + firstname + "!");
+                addActivity("signup", "Created your HavenGo account");
+                alert("Account created successfully! Welcome " + firstname + "!");
+                saveAppState();
+                // Clear signup form
+                document.getElementById("signup-firstname").value = "";
+                document.getElementById("signup-lastname").value = "";
+                document.getElementById("signup-phone").value = "";
+                document.getElementById("signup-email").value = "";
+                document.getElementById("signup-password").value = "";
+                document.getElementById("signup-confirm-password").value = "";
+                return;
+            }
+            if (regData.error) { alert(regData.error); return; }
+        } catch(e) {}
+        alert("Signup failed on server. Please try again.");
+        return;
+    }
+
+    // Fallback: local-only signup
+    var hashedPass = await hashPassword(password);
     if (allUsers.find(function(u) { return u.email === email || u.phone === phone; })) {
         alert("An account with this email or phone already exists");
         return;
     }
-
-    var hashedPass = await hashPassword(password);
     var user = { firstname: firstname, lastname: lastname, phone: phone, email: email, password: hashedPass, name: firstname + " " + lastname };
     allUsers.push(user);
     currentUser = user;
@@ -1041,6 +1084,11 @@ async function performLogin() {
             if (data.success) {
                 currentUser = data.user;
                 window.__HAVENGO_JWT__ = data.token;
+                // Sync to local users array for offline fallback
+                var existing = allUsers.find(function(u) { return u.email === data.user.email; });
+                if (!existing) {
+                    allUsers.push({ firstname: data.user.firstname, lastname: data.user.lastname, phone: data.user.phone, email: data.user.email, password: "", name: data.user.firstname + " " + data.user.lastname });
+                }
                 closeAuthModal();
                 updateProfileWithUser();
                 renderProfilePage();
@@ -1049,8 +1097,7 @@ async function performLogin() {
                 return;
             }
         } catch(e) {}
-        alert("Invalid credentials. Please try again.");
-        return;
+        // Backend login failed — fall through to local check
     }
 
     var hashedInput = await hashPassword(password);
