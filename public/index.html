@@ -981,6 +981,13 @@ async function performSignup() {
     addActivity("signup", "Created your HavenGo account");
     alert("Account created successfully! Welcome " + firstname + "!");
     saveAppState();
+    // Clear signup form
+    document.getElementById("signup-firstname").value = "";
+    document.getElementById("signup-lastname").value = "";
+    document.getElementById("signup-phone").value = "";
+    document.getElementById("signup-email").value = "";
+    document.getElementById("signup-password").value = "";
+    document.getElementById("signup-confirm-password").value = "";
 }
 
 async function performLogin() {
@@ -3282,11 +3289,24 @@ async function submitProviderApplication(event) {
     registeredProviders.push(newProvider);
     saveAppState();
 
-    document.getElementById("application-fee-modal").classList.remove("hidden");
-}
-
-function completeApplicationPayment() {
-    closeModal("application-fee-modal");
+    // Show notification
+    addNotification("\uD83C\uDF89", "Provider Application Submitted", name + " applied as a provider in " + (serviceList.length > 0 ? serviceList[0].name : "General") + ".");
+    document.getElementById("provider-form").reset();
+    // Clear all provider form fields
+    document.getElementById("prov-name").value = "";
+    document.getElementById("prov-phone").value = "";
+    document.getElementById("prov-email").value = "";
+    document.getElementById("prov-business").value = "";
+    document.getElementById("prov-exp").value = "";
+    document.getElementById("prov-password").value = "";
+    document.getElementById("prov-confirm-password").value = "";
+    document.getElementById("prov-location").value = "";
+    document.getElementById("prov-bio").value = "";
+    document.getElementById("multi-service-select").selectedIndex = -1;
+    document.getElementById("agree-terms").checked = false;
+    selectedBitmoji = null;
+    document.getElementById("bitmoji-select").textContent = "\uD83D\uDC64";
+    navigateTo("provider-tasks");
     alert("Application submitted successfully! Your account is now pending admin verification. You will be able to login once an administrator approves your application.");
     addNotification("\uD83C\uDF89", "Provider Application Submitted", "Your application is pending admin verification. You'll be notified once approved.");
     navigateTo("home");
@@ -3406,6 +3426,7 @@ function startHeroSlider() {
 // ============================================================
 
 function showAddReviewModal() {
+    if (!currentUser) { alert("Please login first to submit a review"); showAuthModal("login"); return; }
     currentReviewStars = 0;
     document.getElementById("review-text").value = "";
     var stars = document.querySelectorAll("#star-rating span");
@@ -3423,22 +3444,61 @@ function setReviewStars(n) {
     }
 }
 
-function submitReview() {
+async function submitReview() {
     var text = sanitizeInput(document.getElementById("review-text").value.trim());
     if (!text) { alert("Please write a review"); return; }
     if (currentReviewStars === 0) { alert("Please select a rating"); return; }
 
+    // Try backend first
+    if (window.__HAVENGO_BACKEND__ && window.__HAVENGO_JWT__) {
+        var apiUrl = HAVENGO_BACKEND_URL + "/api";
+        try {
+            var resp = await fetch(apiUrl + "/reviews", {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" },
+                body: JSON.stringify({ rating: currentReviewStars, text: text })
+            });
+            if (resp.ok) {
+                closeModal("add-review-modal");
+                await loadReviews();
+                addNotification("\u2B50", "New Review Added", "Thank you for your feedback!");
+                alert("Review submitted successfully!");
+                return;
+            }
+        } catch(e) {}
+    }
+
+    // Fallback: local mode
     reviews.push({
         name: currentUser ? (currentUser.name || currentUser.firstname + " " + currentUser.lastname) : "Guest User",
         img: profilePicSrc,
         rating: currentReviewStars,
         text: text
     });
-
     closeModal("add-review-modal");
     renderReviews();
+    saveAppState();
     addNotification("\u2B50", "New Review Added", "Thank you for your feedback!");
     alert("Review submitted successfully!");
+}
+
+async function loadReviews() {
+    if (window.__HAVENGO_BACKEND__) {
+        var apiUrl = HAVENGO_BACKEND_URL + "/api";
+        try {
+            var resp = await fetch(apiUrl + "/reviews");
+            if (resp.ok) {
+                var data = await resp.json();
+                reviews = data.map(function(r) {
+                    return { name: r.name, rating: r.rating, text: r.text, created_at: r.created_at };
+                });
+                renderReviews();
+                return;
+            }
+        } catch(e) {}
+    }
+    // No backend — reviews already loaded from localStorage
+    renderReviews();
 }
 
 function renderReviews() {
@@ -3456,7 +3516,7 @@ function renderReviews() {
             }
             html += "<div class=\"bg-white rounded-3xl p-8 shadow\">" +
                 "<div class=\"flex items-center gap-4 mb-5\">" +
-                "<img src=\"" + (r.img || profilePicSrc) + "\" class=\"w-16 h-16 rounded-full object-cover\" onerror=\"this.src='https://images.unsplash.com/photo-1531123897720-8f129e1688f7?w=200'\">" +
+                "<div class=\"w-16 h-16 rounded-full bg-emerald-100 flex items-center justify-center text-2xl font-bold text-emerald-600\">" + r.name.charAt(0).toUpperCase() + "</div>" +
                 "<div><h4 class=\"font-bold\">" + r.name + "</h4>" +
                 "<p class=\"text-yellow-500\">" + stars + "</p></div></div>" +
                 "<p class=\"text-gray-600\">\"" + r.text + "\"</p></div>";
@@ -3519,7 +3579,7 @@ window.onload = function() {
     renderAllProviderLists();
     renderBookings();
     renderBlogPosts();
-    renderReviews();
+    loadReviews();
     renderProfilePage();
     populateMultiServiceSelect();
     populateBitmojiSelect();
