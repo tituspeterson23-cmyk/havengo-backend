@@ -42,4 +42,13 @@ router.get('/conversations/mine', (req, res) => {
   return res.json(convs.map(c => c.conversation_id));
 });
 
+// DELETE /api/chat/:conversationId/message/:messageId
+router.delete('/:conversationId/message/:messageId', (req, res) => {
+  const db = getDb();
+  const msg = db.prepare('SELECT * FROM chat_messages WHERE id = ? AND conversation_id = ?').get(req.params.messageId, req.params.conversationId);
+  if (!msg) return res.status(404).json({ error: 'Message not found' });
+  db.prepare('DELETE FROM chat_messages WHERE id = ?').run(req.params.messageId);
+  res.json({ success: true });
+});
+
 module.exports = router;

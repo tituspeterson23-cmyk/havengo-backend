@@ -7,7 +7,7 @@ const { hashPassword, sanitize, isValidEmail, isValidPhone } = require('../auth'
 // POST /api/provider/register
 router.post('/register', async (req, res) => {
   try {
-    const { firstname, lastname, email, phone, businessName, services, password, confirmPassword, bitmoji } = req.body;
+    const { firstname, lastname, email, phone, businessName, services, password, confirmPassword, bitmoji, location, bio, experience } = req.body;
 
     if (!firstname || !lastname || !email || !phone || !businessName || !services || !password || !confirmPassword) {
       return res.status(400).json({ error: 'All fields are required' });
@@ -31,9 +31,12 @@ router.post('/register', async (req, res) => {
     const hash = await hashPassword(password);
     const servicesStr = Array.isArray(services) ? services.join(',') : services;
     const bm = bitmoji || '🔧';
+    const loc = sanitize(location || '');
+    const b = sanitize(bio || '');
+    const exp = parseInt(experience) || 0;
 
-    db.prepare('INSERT INTO providers (firstname, lastname, email, phone, business_name, services, password_hash, bitmoji, verified) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0)')
-      .run(sanitize(firstname), sanitize(lastname), sanitize(email), sanitize(phone), sanitize(businessName), servicesStr, hash, bm);
+    db.prepare('INSERT INTO providers (firstname, lastname, email, phone, business_name, services, password_hash, bitmoji, verified, location, bio, experience) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)')
+      .run(sanitize(firstname), sanitize(lastname), sanitize(email), sanitize(phone), sanitize(businessName), servicesStr, hash, bm, loc, b, exp);
 
     // Notify admin about new provider signup
     const adminEmail = db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
@@ -80,7 +83,8 @@ router.post('/login', async (req, res) => {
       provider: {
         id: provider.id, firstname: provider.firstname, lastname: provider.lastname,
         email: provider.email, phone: provider.phone, business_name: provider.business_name,
-        services: provider.services, bitmoji: provider.bitmoji, total_earnings: provider.total_earnings
+        services: provider.services, bitmoji: provider.bitmoji, total_earnings: provider.total_earnings,
+        location: provider.location || '', bio: provider.bio || '', experience: provider.experience || 0
       }
     });
   } catch (e) {

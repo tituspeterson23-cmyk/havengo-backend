@@ -50,19 +50,19 @@ router.post('/place-order', (req, res) => {
 
   // Create task
   const pName = providerName || '';
-  db.prepare('INSERT INTO tasks (customer_email, service_id, service_name, provider_name, price, status, address, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+  const result = db.prepare('INSERT INTO tasks (customer_email, service_id, service_name, provider_name, price, status, address, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
     .run(req.user.email, serviceId, sanitize(serviceName), sanitize(pName), price, 'pending_confirmation', sanitize(address || ''), sanitize(details || ''));
 
   // Try to find a matching provider if not assigned
   if (!pName) {
     const providers = db.prepare("SELECT business_name FROM providers WHERE services LIKE ? AND verified = 1").all(`%${sanitize(serviceName)}%`);
     if (providers.length > 0) {
-      db.prepare("UPDATE tasks SET provider_name = ? WHERE id = (SELECT MAX(id) FROM tasks WHERE customer_email = ?)")
-        .run(providers[0].business_name, req.user.email);
+      db.prepare("UPDATE tasks SET provider_name = ? WHERE id = ?")
+        .run(providers[0].business_name, result.lastInsertRowid);
     }
   }
 
-  res.json({ success: true, message: 'Order placed! Awaiting provider confirmation.' });
+  res.json({ success: true, message: 'Order placed! Awaiting provider confirmation.', taskId: result.lastInsertRowid });
 });
 
 // POST /api/customer/confirm-payment

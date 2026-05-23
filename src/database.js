@@ -169,12 +169,19 @@ async function initDatabase() {
       business_name TEXT NOT NULL,
       password_hash TEXT NOT NULL,
       services TEXT NOT NULL,
+      location TEXT DEFAULT '',
+      bio TEXT DEFAULT '',
+      experience INTEGER DEFAULT 0,
       bitmoji TEXT DEFAULT '🔧',
       verified INTEGER DEFAULT 0,
       total_earnings REAL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  // Add location/bio/experience columns if missing (migration for existing DB)
+  try { db.run('ALTER TABLE providers ADD COLUMN location TEXT DEFAULT \'\''); } catch(e) {}
+  try { db.run('ALTER TABLE providers ADD COLUMN bio TEXT DEFAULT \'\''); } catch(e) {}
+  try { db.run('ALTER TABLE providers ADD COLUMN experience INTEGER DEFAULT 0'); } catch(e) {}
 
   db.run(`
     CREATE TABLE IF NOT EXISTS tasks (

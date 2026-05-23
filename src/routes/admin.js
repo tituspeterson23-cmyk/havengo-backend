@@ -10,14 +10,14 @@ router.use(authenticate, adminOnly);
 // GET /api/admin/providers - all providers
 router.get('/providers', (req, res) => {
   const db = getDb();
-  const providers = db.prepare('SELECT id, firstname, lastname, email, phone, business_name, services, bitmoji, verified, total_earnings, created_at FROM providers').all();
+  const providers = db.prepare('SELECT id, firstname, lastname, email, phone, business_name, services, bitmoji, verified, total_earnings, created_at, location, bio, experience FROM providers').all();
   res.json(providers);
 });
 
 // GET /api/admin/providers/pending - unverified providers
 router.get('/providers/pending', (req, res) => {
   const db = getDb();
-  const pending = db.prepare("SELECT id, firstname, lastname, email, phone, business_name, services, bitmoji, created_at FROM providers WHERE verified = 0").all();
+  const pending = db.prepare("SELECT id, firstname, lastname, email, phone, business_name, services, bitmoji, created_at, location, bio, experience FROM providers WHERE verified = 0").all();
   res.json(pending);
 });
 
@@ -153,6 +153,15 @@ router.post('/notifications/clear', (req, res) => {
   const db = getDb();
   const adminEmail = db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
   db.prepare('DELETE FROM notifications WHERE user_email = ?').run(adminEmail || 'admin');
+  res.json({ success: true });
+});
+
+// DELETE /api/admin/chat/:conversationId/message/:messageId
+router.delete('/chat/:conversationId/message/:messageId', (req, res) => {
+  const db = getDb();
+  const msg = db.prepare('SELECT * FROM chat_messages WHERE id = ? AND conversation_id = ?').get(req.params.messageId, req.params.conversationId);
+  if (!msg) return res.status(404).json({ error: 'Message not found' });
+  db.prepare('DELETE FROM chat_messages WHERE id = ?').run(req.params.messageId);
   res.json({ success: true });
 });
 
