@@ -694,6 +694,26 @@
     <button onclick="closeModal('application-fee-modal')" class="w-full border py-4 rounded-3xl font-semibold">Cancel</button>
 </div></div>
 
+<div id="payment-prompt-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 modal p-5">
+<div class="bg-white max-w-md w-full rounded-3xl overflow-hidden">
+<div class="hero-gradient p-8 text-white text-center">
+    <div class="text-5xl mb-4">💳</div>
+    <h3 class="text-2xl font-bold">Registration Fee Required</h3>
+    <p class="text-gray-200 text-sm mt-2">Pay the joining fee to activate your provider account</p>
+</div>
+<div class="p-8">
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-6">
+        <div class="flex justify-between items-center mb-2"><span class="text-gray-600">Joining Fee</span><span class="text-2xl font-bold text-amber-700">50,000 UGX</span></div>
+        <p class="text-xs text-amber-600">One-time payment. Your provider account will be activated immediately.</p>
+    </div>
+    <div class="bg-gray-50 rounded-2xl p-4 mb-6">
+        <div class="flex justify-between items-center"><span class="text-gray-600">Wallet Balance</span><span id="prompt-balance" class="font-semibold">0 UGX</span></div>
+    </div>
+    <button onclick="payRegistrationFee()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold mb-3"><i class="fa-solid fa-check-circle"></i> Pay 50,000 UGX</button>
+    <button onclick="closeModal('payment-prompt-modal'); showDepositModal();" class="w-full border border-gray-300 text-gray-600 py-4 rounded-2xl font-semibold mb-2"><i class="fa-solid fa-plus-circle"></i> Deposit First</button>
+    <button onclick="closeModal('payment-prompt-modal')" class="w-full text-sm text-gray-400 py-2 hover:text-gray-600">Later</button>
+</div></div></div>
+
 <div id="add-review-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 modal p-5">
 <div class="bg-white w-full max-w-md rounded-3xl p-8">
     <h3 class="text-2xl font-bold mb-6">Write a Review</h3>
@@ -761,7 +781,7 @@ function handleSessionExpired() {
 // --- STATE ---
 let currentUser = null;
 let allUsers = [];
-let userBalance = 2000000;
+let userBalance = 0;
 let userPaymentMethods = [];
 let savedAddresses = [];
 let favoriteProviders = [];
@@ -842,18 +862,9 @@ async function _doEncryptSave() {
                 localStorage.removeItem("havengoState_plain");
                 return;
             }
-            if (respData.error) { alert(respData.error); return; }
-            if (respData.session_expired) { handleSessionExpired(); return; }
-        } catch(e) {}
-        alert("Failed to submit application on server. Please try again.");
-        return;
-    }
-
-    // Backend unavailable — online-only, cannot submit
-    alert("Cannot submit application: Server is currently unavailable. Please try again later.");
-}
+        }
         localStorage.setItem("havengoState_plain", JSON.stringify(state));
-    } finally { _encryptPending = false; }
+    } catch(e) {} finally { _encryptPending = false; }
 }
 function buildAppState() {
     return {
@@ -1093,11 +1104,12 @@ async function performSignup() {
             if (regData.success) {
                 currentUser = regData.user;
                 window.__HAVENGO_JWT__ = regData.token;
-                userBalance = regData.user.balance !== undefined ? regData.user.balance : 2000000;
+                userBalance = regData.user.balance !== undefined ? regData.user.balance : 0;
                 closeAuthModal();
                 updateProfileWithUser();
                 renderProfilePage();
                 updateProfilePicCursor();
+                globalNotifications = [];
                 addNotification("\uD83C\uDF89", "Account Created", "Welcome to HavenGo, " + firstname + "!");
                 fetchBackendNotifications();
                 addActivity("signup", "Created your HavenGo account");
@@ -1165,11 +1177,12 @@ async function verifySignupCode() {
         if (regData.success) {
             currentUser = regData.user;
             window.__HAVENGO_JWT__ = regData.token;
-            userBalance = regData.user.balance !== undefined ? regData.user.balance : 2000000;
+            userBalance = regData.user.balance !== undefined ? regData.user.balance : 0;
             closeAuthModal();
             updateProfileWithUser();
             renderProfilePage();
             updateProfilePicCursor();
+            globalNotifications = [];
             addNotification("\uD83C\uDF89", "Account Created", "Welcome to HavenGo, " + signupVerificationData.firstname + "!");
             fetchBackendNotifications();
             addActivity("signup", "Created your HavenGo account");
@@ -1286,72 +1299,6 @@ async function performLogin() {
         return;
     }
     addInAppAlert("error", "Cannot log in: Server is currently unavailable. Please try again later.");
-}
-
-    var isAdminCred = identifier === "thermypetson@gmail.com" || identifier === "0757532066";
-
-    var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    var backendAvail = await checkBackend();
-
-    if (backendAvail) {
-        // For admin credentials, try admin login first
-        if (isAdminCred) {
-            try {
-                var adminResp = await fetch(apiUrl + "/auth/admin/login", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ identifier: identifier, password: password })
-                });
-                var adminData = await adminResp.json();
-                if (adminData.success) {
-                    window.__HAVENGO_JWT__ = adminData.token;
-                    closeAuthModal();
-                    adminLoginSuccess();
-                    return;
-                }
-            } catch(e) {}
-            // Admin login failed — fall through to customer login
-        }
-
-        // Customer login
-        try {
-            var resp = await fetch(apiUrl + "/auth/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ identifier: identifier, password: password })
-            });
-            var data = await resp.json();
-            if (data.success) {
-                currentUser = data.user;
-                window.__HAVENGO_JWT__ = data.token;
-                userBalance = data.user.balance !== undefined ? data.user.balance : userBalance;
-                closeAuthModal();
-                updateProfileWithUser();
-                renderProfilePage();
-                updateProfilePicCursor();
-                addNotification("\uD83D\uDD13", "Logged In", "Welcome back, " + data.user.firstname + "!");
-                fetchBackendNotifications();
-                fetchCustomerBookings();
-                saveAppState();
-                return;
-            }
-            // Backend returned a proper error response
-            if (data.user_not_found) {
-                alert("Your account no longer exists on the server. Please sign up again.");
-                return;
-            }
-            if (data.error) {
-                alert(data.error);
-                return;
-            }
-        } catch(e) {
-            // Network error — backend unreachable
-            alert("Cannot log in: Server is currently unavailable. Please try again later.");
-            return;
-        }
-    }
-
-    alert("Cannot log in: Server is currently unavailable. Please try again later.");
 }
 
 function logout() {
@@ -2738,6 +2685,9 @@ async function enterProviderDashboard(provider) {
     renderProviderDashboard();
     fetchBackendNotifications();
     addNotification("\uD83D\uDD10", "Provider Login", provider.name + " logged into dashboard");
+    if (!provider.registration_fee_paid) {
+        setTimeout(function() { showProviderPaymentPrompt(); }, 1000);
+    }
 
     // Start provider polling every 30s for cross-browser task sync
     if (window.__providerPollInterval) clearInterval(window.__providerPollInterval);
@@ -3093,7 +3043,13 @@ async function requestPriceChange(serviceId, serviceName) {
 
 async function payRegistrationFee() {
     if (!currentLoggedProvider) return;
-    if (!confirm("Pay 50,000 UGX registration fee to activate your account?")) return;
+    if (userBalance < 50000) {
+        addInAppAlert("error", "Insufficient balance. Please deposit at least 50,000 UGX to pay the registration fee.");
+        closeModal("payment-prompt-modal");
+        showDepositModal();
+        return;
+    }
+    if (!confirm("Pay 50,000 UGX registration fee from your wallet to activate your provider account?")) return;
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
     if (window.__HAVENGO_JWT__) {
         try {
@@ -3103,20 +3059,26 @@ async function payRegistrationFee() {
             });
             if (resp.ok) {
                 currentLoggedProvider.registration_fee_paid = 1;
+                userBalance -= 50000;
                 renderProviderDashboard();
+                renderProfilePage();
                 addNotification("\u2705", "Registration Complete", "Your account is now active. You can receive orders!");
-                alert("Payment successful! Your account is now active. You can start receiving orders.");
+                addInAppAlert("success", "Payment successful! Your provider account is now active.");
+                closeModal("payment-prompt-modal");
                 saveAppState();
                 return;
             }
+            var data = await resp.json();
+            if (data.error) { addInAppAlert("error", data.error); return; }
         } catch(e) {}
     }
-    // Offline fallback
-    currentLoggedProvider.registration_fee_paid = 1;
-    renderProviderDashboard();
-    addNotification("\u2705", "Registration Complete", "Your account is now active. You can receive orders!");
-    alert("Payment successful! (Offline mode) Your account is now active.");
-    saveAppState();
+    addInAppAlert("error", "Payment failed: Server is currently unavailable. Please try again later.");
+}
+
+function showProviderPaymentPrompt() {
+    var balanceEl = document.getElementById("prompt-balance");
+    if (balanceEl) balanceEl.textContent = userBalance.toLocaleString() + " UGX";
+    document.getElementById("payment-prompt-modal").classList.remove("hidden");
 }
 
 async function loginAsAdmin() {
@@ -3364,18 +3326,20 @@ async function verifyProvider(id) {
     var headers = { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" };
     try {
         var resp = await fetch(apiUrl + "/admin/providers/verify/" + id, { method: "POST", headers: headers });
-        if (!resp.ok) { alert("Failed to verify provider on server"); return; }
+        if (!resp.ok) { addInAppAlert("error", "Failed to verify provider on server"); return; }
         for (var i = 0; i < registeredProviders.length; i++) {
             if (registeredProviders[i].id === id) {
                 registeredProviders[i].verified = true;
-                addNotification("\u2705", "Provider Verified", registeredProviders[i].name + " has been verified by admin.");
+                var pname = registeredProviders[i].name;
+                addNotification("\u2705", "Provider Verified", pname + " has been verified by admin.");
+                addInAppAlert("success", pname + " has been verified! They will be notified to pay the joining fee.");
                 break;
             }
         }
         renderAdminDashboard();
         renderAllProviderLists();
         saveAppState();
-    } catch(e) { alert("Network error verifying provider"); }
+    } catch(e) { addInAppAlert("error", "Network error verifying provider"); }
 }
 
 async function rejectProvider(id) {
@@ -3384,15 +3348,16 @@ async function rejectProvider(id) {
     var headers = { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" };
     try {
         var resp = await fetch(apiUrl + "/admin/providers/reject/" + id, { method: "POST", headers: headers });
-        if (!resp.ok) { alert("Failed to reject provider on server"); return; }
+        if (!resp.ok) { addInAppAlert("error", "Failed to reject provider on server"); return; }
         var name = "";
         for (var i = 0; i < registeredProviders.length; i++) {
             if (registeredProviders[i].id === id) { name = registeredProviders[i].name; registeredProviders.splice(i, 1); break; }
         }
         addNotification("\u274C", "Provider Rejected", name + "'s application has been rejected.");
+        addInAppAlert("info", name + "'s application has been rejected.");
         renderAdminDashboard();
         saveAppState();
-    } catch(e) { alert("Network error rejecting provider"); }
+    } catch(e) { addInAppAlert("error", "Network error rejecting provider"); }
 }
 
 async function adminDeleteProvider(id) {
@@ -3401,15 +3366,16 @@ async function adminDeleteProvider(id) {
     var headers = { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" };
     try {
         var resp = await fetch(apiUrl + "/admin/providers/" + id, { method: "DELETE", headers: headers });
-        if (!resp.ok) { alert("Failed to delete provider on server"); return; }
+        if (!resp.ok) { addInAppAlert("error", "Failed to delete provider on server"); return; }
         var name = "";
         for (var i = 0; i < registeredProviders.length; i++) {
             if (registeredProviders[i].id === id) { name = registeredProviders[i].name; registeredProviders.splice(i, 1); break; }
         }
         addNotification("\uD83D\uDDD1\uFE0F", "Provider Deleted", name + " has been deleted by admin.");
+        addInAppAlert("info", name + " has been deleted.");
         renderAdminDashboard();
         saveAppState();
-    } catch(e) { alert("Network error deleting provider"); }
+    } catch(e) { addInAppAlert("error", "Network error deleting provider"); }
 }
 
 function renderAdminPriceRequests() {
