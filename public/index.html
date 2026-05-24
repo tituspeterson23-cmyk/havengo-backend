@@ -1109,11 +1109,24 @@ async function performSignup() {
     document.getElementById("signup-submit-btn").disabled = true;
     document.getElementById("signup-submit-btn").innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending Code...';
     signupVerificationData = { firstname: firstname, lastname: lastname, phone: phone, email: email, password: password, code: generatedCode };
-    document.getElementById("display-verification-code").textContent = generatedCode;
+    var codeDisplay = document.getElementById("display-verification-code");
+    if (codeDisplay) codeDisplay.textContent = generatedCode;
+    var codeInput = document.getElementById("verification-code");
+    if (codeInput) {
+        codeInput.value = generatedCode;
+        codeInput.readOnly = true;
+        codeInput.classList.add("bg-gray-50", "text-emerald-700", "font-bold");
+    }
     document.getElementById("verification-section").classList.remove("hidden");
     document.getElementById("signup-submit-btn").classList.add("hidden");
-    document.getElementById("verification-code").focus();
-    addInAppAlert("info", "Your verification code: " + generatedCode);
+    if (codeInput) codeInput.focus();
+    addInAppAlert("info", "\u2709\uFE0F Your verification code: " + generatedCode);
+    // Auto-verify after a brief moment so the user can see the code
+    setTimeout(function() {
+        if (document.getElementById("verification-section") && !document.getElementById("verification-section").classList.contains("hidden")) {
+            verifySignupCode();
+        }
+    }, 800);
     // Also send to backend so future email/SMS integration works
     try {
         await fetch(apiUrl + "/auth/send-verification-code", {
@@ -1125,12 +1138,15 @@ async function performSignup() {
 }
 
 async function verifySignupCode() {
+    if (window.__HAVENGO_VERIFYING__) return;
+    window.__HAVENGO_VERIFYING__ = true;
     var code = document.getElementById("verification-code").value.trim();
     if (!code || code.length !== 6) {
+        window.__HAVENGO_VERIFYING__ = false;
         addInAppAlert("error", "Please enter the 6-digit verification code");
         return;
     }
-    if (!signupVerificationData) { addInAppAlert("error", "Session expired. Please start signup again."); return; }
+    if (!signupVerificationData) { window.__HAVENGO_VERIFYING__ = false; addInAppAlert("error", "Session expired. Please start signup again."); return; }
 
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
     document.getElementById("verify-code-btn").disabled = true;
@@ -1151,6 +1167,7 @@ async function verifySignupCode() {
         if (code === signupVerificationData.code) {
             verified = true;
         } else {
+            window.__HAVENGO_VERIFYING__ = false;
             addInAppAlert("error", "Invalid verification code");
             document.getElementById("verify-code-btn").disabled = false;
             document.getElementById("verify-code-btn").innerHTML = "Verify";
@@ -1171,6 +1188,7 @@ async function verifySignupCode() {
         });
         var regData = await regResp.json();
         if (regData.success) {
+            window.__HAVENGO_VERIFYING__ = false;
             currentUser = regData.user;
             window.__HAVENGO_JWT__ = regData.token;
             userBalance = regData.user.balance !== undefined ? regData.user.balance : 2000000;
@@ -1197,6 +1215,7 @@ async function verifySignupCode() {
     } catch(e) {
         addInAppAlert("error", "Registration failed. Please try again.");
     }
+    window.__HAVENGO_VERIFYING__ = false;
     document.getElementById("verify-code-btn").disabled = false;
     document.getElementById("verify-code-btn").innerHTML = "Verify";
 }
@@ -1205,22 +1224,34 @@ async function resendSignupCode() {
     if (!signupVerificationData) { addInAppAlert("error", "Session expired. Please start signup again."); return; }
     document.getElementById("resend-code-btn").disabled = true;
     document.getElementById("resend-code-btn").innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+    // Regenerate code locally
+    var newCode = Math.floor(100000 + Math.random() * 900000).toString();
+    signupVerificationData.code = newCode;
+    var codeDisplay = document.getElementById("display-verification-code");
+    if (codeDisplay) codeDisplay.textContent = newCode;
+    var codeInput = document.getElementById("verification-code");
+    if (codeInput) {
+        codeInput.value = newCode;
+        codeInput.readOnly = true;
+    }
+    addInAppAlert("info", "\u2709\uFE0F New verification code: " + newCode);
     try {
         var resp = await fetch(HAVENGO_BACKEND_URL + "/api/auth/send-verification-code", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ identifier: signupVerificationData.email, type: "email" })
+            body: JSON.stringify({ identifier: signupVerificationData.email, type: "email", code: newCode })
         });
         var data = await resp.json();
-        if (data.success || data.code) {
-            addInAppAlert("success", "Verification code resent to " + signupVerificationData.email);
-        } else {
-            addInAppAlert("error", "Failed to resend code");
-        }
-    } catch(e) {
-        addInAppAlert("error", "Network error");
-    }
+    } catch(e) {}
     document.getElementById("resend-code-btn").disabled = false;
+    document.getElementById("resend-code-btn").innerHTML = "Get new code";
+    addInAppAlert("success", "New verification code generated");
+    // Auto-verify again
+    setTimeout(function() {
+        if (document.getElementById("verification-section") && !document.getElementById("verification-section").classList.contains("hidden")) {
+            verifySignupCode();
+        }
+    }, 800);
     document.getElementById("resend-code-btn").innerHTML = "Resend";
 }
 
