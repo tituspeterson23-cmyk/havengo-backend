@@ -700,20 +700,20 @@
 <div id="payment-prompt-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 modal p-5">
 <div class="bg-white max-w-md w-full rounded-3xl overflow-hidden">
 <div class="hero-gradient p-8 text-white text-center">
-    <div class="text-5xl mb-4">💳</div>
+    <div class="text-5xl mb-4">📱</div>
     <h3 class="text-2xl font-bold">Registration Fee Required</h3>
-    <p class="text-gray-200 text-sm mt-2">Pay the joining fee to activate your provider account</p>
+    <p class="text-gray-200 text-sm mt-2">Pay the joining fee via Mobile Money to activate your account</p>
 </div>
 <div class="p-8">
     <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5 mb-6">
         <div class="flex justify-between items-center mb-2"><span class="text-gray-600">Joining Fee</span><span class="text-2xl font-bold text-amber-700">50,000 UGX</span></div>
-        <p class="text-xs text-amber-600">One-time payment. Your provider account will be activated immediately.</p>
+        <p class="text-xs text-amber-600">One-time payment. Your account will be activated immediately.</p>
     </div>
-    <div class="bg-gray-50 rounded-2xl p-4 mb-6">
-        <div class="flex justify-between items-center"><span class="text-gray-600">Wallet Balance</span><span id="prompt-balance" class="font-semibold">0 UGX</span></div>
+    <div class="mb-6">
+        <label class="font-medium block mb-2">Mobile Money Number</label>
+        <input id="payment-phone-input" type="tel" class="w-full border rounded-2xl px-5 py-4 outline-none focus:border-emerald-600" placeholder="07XX XXX XXX" value="">
     </div>
-    <button onclick="payRegistrationFee()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold mb-3"><i class="fa-solid fa-check-circle"></i> Pay 50,000 UGX</button>
-    <button onclick="closeModal('payment-prompt-modal'); showDepositModal();" class="w-full border border-gray-300 text-gray-600 py-4 rounded-2xl font-semibold mb-2"><i class="fa-solid fa-plus-circle"></i> Deposit First</button>
+    <button onclick="payRegistrationFee()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold mb-3"><i class="fa-solid fa-mobile-screen"></i> Pay 50,000 UGX via Mobile Money</button>
     <button onclick="closeModal('payment-prompt-modal')" class="w-full text-sm text-gray-400 py-2 hover:text-gray-600">Later</button>
 </div></div></div>
 
@@ -3296,22 +3296,22 @@ async function requestPriceChange(serviceId, serviceName) {
 
 async function payRegistrationFee() {
     if (!currentLoggedProvider) return;
+    var phone = document.getElementById("payment-phone-input").value.trim();
+    if (!phone || phone.length < 8) { addInAppAlert("error", "Please enter your Mobile Money phone number"); return; }
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
     if (window.__HAVENGO_JWT__) {
         try {
+            addInAppAlert("info", "Processing Mobile Money payment from " + phone + "...");
             var resp = await fetch(apiUrl + "/provider/pay-registration-fee", {
                 method: "POST",
                 headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }
             });
             if (resp.ok) {
                 currentLoggedProvider.registration_fee_paid = 1;
-                // Credit 50k to provider earnings as joining bonus
-                var bonus = 50000;
-                providerEarningsMap[currentLoggedProvider.name] = (providerEarningsMap[currentLoggedProvider.name] || 0) + bonus;
                 renderProviderDashboard();
                 renderProfilePage();
-                addNotification("\u2705", "Registration Complete", "Your account is now active. You received 50,000 UGX joining bonus!");
-                addInAppAlert("success", "Account activated! 50,000 UGX joining bonus has been credited to your earnings.");
+                addNotification("\u2705", "Registration Complete", "Your account is now active. You can receive orders!");
+                addInAppAlert("success", "Payment of 50,000 UGX from " + phone + " successful! Your provider account is now active.");
                 closeModal("payment-prompt-modal");
                 saveAppState();
                 return;
@@ -3324,8 +3324,7 @@ async function payRegistrationFee() {
 }
 
 function showProviderPaymentPrompt() {
-    var balanceEl = document.getElementById("prompt-balance");
-    if (balanceEl) balanceEl.textContent = userBalance.toLocaleString() + " UGX";
+    document.getElementById("payment-phone-input").value = currentLoggedProvider.phone || "";
     document.getElementById("payment-prompt-modal").classList.remove("hidden");
 }
 
@@ -5049,7 +5048,6 @@ window.onload = function() {
     populateMultiServiceSelect();
     populateBitmojiSelect();
 
-    // Add welcome notification for demo
     addNotification("\uD83D\uDC4B", "Welcome to HavenGo", "Browse services or sign up to get started!");
 
     // All data-dependent renders (bookings, profile, provider lists, notif count)
