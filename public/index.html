@@ -241,10 +241,11 @@
                 <div><label class="font-medium block mb-2">Confirm Password</label><input id="signup-confirm-password" type="password" class="w-full border rounded-2xl px-5 py-4 outline-none focus:border-emerald-600"></div>
                 <div id="verification-section" class="hidden space-y-4">
                     <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-700">
-                        <i class="fa-solid fa-envelope"></i> A verification code has been sent to your email. Enter it below to complete signup.
+                        <i class="fa-solid fa-shield"></i> Your verification code is: <strong id="display-verification-code" class="text-lg tracking-widest">------</strong>
                     </div>
+                    <p class="text-xs text-gray-500 text-center">Enter the 6-digit code below to complete signup.</p>
                     <div class="flex gap-3"><input id="verification-code" type="text" placeholder="Enter 6-digit code" maxlength="6" class="flex-1 border rounded-2xl px-5 py-4 outline-none focus:border-emerald-600 text-center text-2xl tracking-widest"><button id="verify-code-btn" onclick="verifySignupCode()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-4 rounded-2xl font-semibold whitespace-nowrap">Verify</button></div>
-                    <p class="text-xs text-gray-500 text-center">Didn't receive the code? <button id="resend-code-btn" onclick="resendSignupCode()" class="text-emerald-600 font-medium bg-transparent border-none cursor-pointer">Resend</button></p>
+                    <p class="text-xs text-gray-500 text-center">Code not working? <button id="resend-code-btn" onclick="resendSignupCode()" class="text-emerald-600 font-medium bg-transparent border-none cursor-pointer">Get new code</button></p>
                 </div>
                 <button id="signup-submit-btn" onclick="(async()=>{await performSignup()})()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-3xl font-semibold">Create Account</button>
             </div>
@@ -334,18 +335,18 @@
 <div class="max-w-7xl mx-auto px-5 py-10">
 <div class="flex items-center justify-between mb-10"><h2 class="text-4xl font-bold">All Services</h2><select class="border rounded-xl px-4 py-3"><option>Sort By</option><option>Most Popular</option><option>Lowest Price</option><option>Highest Rated</option></select></div>
 <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Deep Home Cleaning & Maintenance</h3><span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs">Premium</span></div><p class="text-gray-600 mb-4">Professional deep cleaning, pest control, sofa & carpet shampooing, appliance repair, and on-call handymen.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">85k</p></div><div class="text-right"><p class="text-yellow-500">★★★★★</p><p class="text-sm text-gray-500">4.9 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('cleaning-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-cleaning-providers"></i></button><div id="cleaning-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Mobile Spa & Wellness</h3><span class="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-xs">Luxury</span></div><p class="text-gray-600 mb-4">Full mobile spa: nails, massages, makeup artistry, hair styling — all at your home.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">95k</p></div><div class="text-right"><p class="text-yellow-500">★★★★★</p><p class="text-sm text-gray-500">4.8 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('spa-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-spa-providers"></i></button><div id="spa-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1584515933487-779824d29309?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Family & Pet Care</h3><span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs">Trusted</span></div><p class="text-gray-600 mb-4">Vetted babysitters, elderly care companions, dog walkers, and professional pet groomers.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">70k</p></div><div class="text-right"><p class="text-yellow-500">★★★★★</p><p class="text-sm text-gray-500">4.7 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('family-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-family-providers"></i></button><div id="family-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Errands & Logistics</h3><span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs">Convenient</span></div><p class="text-gray-600 mb-4">Laundry pick-up/drop-off, grocery runners, local packing & moving, catering services, and reliable househelp.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">45k</p></div><div class="text-right"><p class="text-yellow-500">★★★★★</p><p class="text-sm text-gray-500">4.6 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('errands-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-errands-providers"></i></button><div id="errands-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Catering & Ushering</h3><span class="bg-violet-100 text-violet-700 px-3 py-1 rounded-full text-xs">Events</span></div><p class="text-gray-600 mb-4">Professional catering for events, parties, corporate functions and experienced ushers & event support staff.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">150k</p></div><div class="text-right"><p class="text-yellow-500">★★★★★</p><p class="text-sm text-gray-500">4.8 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('catering-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-catering-providers"></i></button><div id="catering-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Kids Activities & Tutoring</h3><span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs">Fun & Learn</span></div><p class="text-gray-600 mb-4">Professional home tutors, art & craft sessions, storytelling, music lessons and kids yoga & fitness activities.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">60k</p></div><div class="text-right"><p class="text-yellow-500">★★★★★</p><p class="text-sm text-gray-500">4.8 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('kids-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-kids-providers"></i></button><div id="kids-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1586771107445-b3e6f27b0293?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Home Care Nursing</h3><span class="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-xs">Health</span></div><p class="text-gray-600 mb-4">Qualified home care nurses for elderly care, post-surgery recovery, medication management, wound care and patient monitoring at home.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">80k</p></div><div class="text-right"><p class="text-yellow-500">★★★★★</p><p class="text-sm text-gray-500">4.9 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('nursing-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-nursing-providers"></i></button><div id="nursing-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">AC & Appliance Repair</h3><span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs">Technical</span></div><p class="text-gray-600 mb-4">Expert repair for air conditioners, refrigerators, washing machines, ovens and other home appliances.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">55k</p></div><div class="text-right"><p class="text-yellow-500">★★★★★</p><p class="text-sm text-gray-500">4.9 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('appliance-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-appliance-providers"></i></button><div id="appliance-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Gardening & Landscaping</h3><span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs">Green Thumb</span></div><p class="text-gray-600 mb-4">Lawn care, plant maintenance, landscaping design, hedge trimming and garden setup services.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">65k</p></div><div class="text-right"><p class="text-yellow-500">★★★★★</p><p class="text-sm text-gray-500">4.7 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('gardening-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-gardening-providers"></i></button><div id="gardening-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Mobile Hair Styling</h3><span class="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs">Beauty</span></div><p class="text-gray-600 mb-4">Professional hairstylists traveling directly to your home with tools for knotless braids, weaves, and more.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">75k</p></div><div class="text-right"><p class="text-yellow-500">★★★★★</p><p class="text-sm text-gray-500">4.9 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('hair-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-hair-providers"></i></button><div id="hair-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Event Infrastructure Hire</h3><span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs">Events</span></div><p class="text-gray-600 mb-4">Tents, plastic & executive chairs, sound systems, PA setups for your events.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">250k</p></div><div class="text-right"><p class="text-yellow-500">★★★★★</p><p class="text-sm text-gray-500">4.8 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('event-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-event-providers"></i></button><div id="event-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1581235720704-06d3acfcb36f?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Mobile Auto Care & Detailing</h3><span class="bg-cyan-100 text-cyan-700 px-3 py-1 rounded-full text-xs">Vehicle</span></div><p class="text-gray-600 mb-4">Professional car washing and detailing at your home or office.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">65k</p></div><div class="text-right"><p class="text-yellow-500">★★★★★</p><p class="text-sm text-gray-500">4.7 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('auto-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-auto-providers"></i></button><div id="auto-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Deep Home Cleaning & Maintenance</h3><span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs">Premium</span></div><p class="text-gray-600 mb-4">Professional deep cleaning, pest control, sofa & carpet shampooing, appliance repair, and on-call handymen.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">85k</p></div><div class="text-right"><div id="stars-cleaning" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-cleaning" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('cleaning-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-cleaning-providers"></i></button><div id="cleaning-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Mobile Spa & Wellness</h3><span class="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-xs">Luxury</span></div><p class="text-gray-600 mb-4">Full mobile spa: nails, massages, makeup artistry, hair styling — all at your home.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">95k</p></div><div class="text-right"><div id="stars-spa" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-spa" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('spa-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-spa-providers"></i></button><div id="spa-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1584515933487-779824d29309?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Family & Pet Care</h3><span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs">Trusted</span></div><p class="text-gray-600 mb-4">Vetted babysitters, elderly care companions, dog walkers, and professional pet groomers.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">70k</p></div><div class="text-right"><div id="stars-family" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-family" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('family-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-family-providers"></i></button><div id="family-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Errands & Logistics</h3><span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs">Convenient</span></div><p class="text-gray-600 mb-4">Laundry pick-up/drop-off, grocery runners, local packing & moving, catering services, and reliable househelp.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">45k</p></div><div class="text-right"><div id="stars-errands" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-errands" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('errands-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-errands-providers"></i></button><div id="errands-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Catering & Ushering</h3><span class="bg-violet-100 text-violet-700 px-3 py-1 rounded-full text-xs">Events</span></div><p class="text-gray-600 mb-4">Professional catering for events, parties, corporate functions and experienced ushers & event support staff.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">150k</p></div><div class="text-right"><div id="stars-catering" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-catering" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('catering-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-catering-providers"></i></button><div id="catering-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Kids Activities & Tutoring</h3><span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs">Fun & Learn</span></div><p class="text-gray-600 mb-4">Professional home tutors, art & craft sessions, storytelling, music lessons and kids yoga & fitness activities.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">60k</p></div><div class="text-right"><div id="stars-kids" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-kids" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('kids-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-kids-providers"></i></button><div id="kids-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1580281657526-8f0d50a5e43e?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Home Care Nursing</h3><span class="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-xs">Health</span></div><p class="text-gray-600 mb-4">Qualified home care nurses for elderly care, post-surgery recovery, medication management, wound care and patient monitoring at home.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">80k</p></div><div class="text-right"><div id="stars-nursing" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-nursing" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('nursing-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-nursing-providers"></i></button><div id="nursing-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">AC & Appliance Repair</h3><span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs">Technical</span></div><p class="text-gray-600 mb-4">Expert repair for air conditioners, refrigerators, washing machines, ovens and other home appliances.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">55k</p></div><div class="text-right"><div id="stars-appliance" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-appliance" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('appliance-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-appliance-providers"></i></button><div id="appliance-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Gardening & Landscaping</h3><span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs">Green Thumb</span></div><p class="text-gray-600 mb-4">Lawn care, plant maintenance, landscaping design, hedge trimming and garden setup services.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">65k</p></div><div class="text-right"><div id="stars-gardening" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-gardening" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('gardening-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-gardening-providers"></i></button><div id="gardening-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Mobile Hair Styling</h3><span class="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs">Beauty</span></div><p class="text-gray-600 mb-4">Professional hairstylists traveling directly to your home with tools for knotless braids, weaves, and more.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">75k</p></div><div class="text-right"><div id="stars-hair" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-hair" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('hair-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-hair-providers"></i></button><div id="hair-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Event Infrastructure Hire</h3><span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs">Events</span></div><p class="text-gray-600 mb-4">Tents, plastic & executive chairs, sound systems, PA setups for your events.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">250k</p></div><div class="text-right"><div id="stars-event" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-event" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('event-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-event-providers"></i></button><div id="event-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1581235720704-06d3acfcb36f?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Mobile Auto Care & Detailing</h3><span class="bg-cyan-100 text-cyan-700 px-3 py-1 rounded-full text-xs">Vehicle</span></div><p class="text-gray-600 mb-4">Professional car washing and detailing at your home or office.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">65k</p></div><div class="text-right"><div id="stars-auto" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-auto" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('auto-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-auto-providers"></i></button><div id="auto-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
 </div></div></div>
 
 <div id="provider-tasks" class="page">
@@ -1115,10 +1116,12 @@ async function performSignup() {
         var codeData = await codeResp.json();
         if (codeData.success || codeData.code) {
             signupVerificationData = { firstname: firstname, lastname: lastname, phone: phone, email: email, password: password };
+            var displayCode = codeData.code || "------";
+            document.getElementById("display-verification-code").textContent = displayCode;
             document.getElementById("verification-section").classList.remove("hidden");
             document.getElementById("signup-submit-btn").classList.add("hidden");
             document.getElementById("verification-code").focus();
-            addInAppAlert("info", "Verification code sent to " + email);
+            addInAppAlert("info", "Your verification code: " + displayCode);
         } else {
             addInAppAlert("error", "Failed to send verification code");
             document.getElementById("signup-submit-btn").disabled = false;
@@ -1339,6 +1342,7 @@ function logout() {
         userNotificationsMap[currentUser.email] = globalNotifications.slice();
     }
     globalNotifications = [];
+    userActivity = [];
     window.__HAVENGO_JWT__ = null;
     customerBitmoji = null;
     profilePicSrc = "https://images.unsplash.com/photo-1531123897720-8f129e1688f7?w=400";
@@ -1401,8 +1405,9 @@ function requestAccountDeletion() {
     } else {
         deletionRequests.push({ identifier: identifier, requestedAt: Date.now() });
     }
+    userActivity = [];
     addNotification("\uD83D\uDDD1\uFE0F", "Account Deletion Scheduled", "Your account will be permanently deleted in 15 days. Log in to cancel.");
-    alert("Deletion scheduled. Your account will be permanently deleted in 15 days. Log in within 15 days to cancel.");
+    addInAppAlert("info", "Deletion scheduled. Your account will be permanently deleted in 15 days.");
     saveAppState();
     logout();
 }
@@ -1442,8 +1447,9 @@ function requestProviderAccountDeletion() {
     } else {
         deletionRequests.push({ identifier: identifier, requestedAt: Date.now() });
     }
+    userActivity = [];
     addNotification("\uD83D\uDDD1\uFE0F", "Account Deletion Scheduled", currentLoggedProvider.name + "'s account will be permanently deleted in 15 days.");
-    alert("Deletion scheduled. Your account will be permanently deleted in 15 days. Log in within 15 days to cancel.");
+    addInAppAlert("info", "Deletion scheduled. Your account will be permanently deleted in 15 days.");
     // Direct logout without confirm dialog (already confirmed above)
     if (currentLoggedProvider && currentLoggedProvider.email) {
         userNotificationsMap[currentLoggedProvider.email] = globalNotifications.slice();
@@ -1684,11 +1690,29 @@ function initMap(lat, lng) {
         mapSelectedLat = pos.lat; mapSelectedLng = pos.lng;
         updateMapCoords(pos.lat, pos.lng);
     });
-    // Try GPS location
-    if (!lat) { getGpsLocation(false); }
+    // Request GPS location — browser will prompt user
+    if (!lat) {
+        requestGpsPermission();
+    }
     updateMapCoords(defaultLat, defaultLng);
-    // Ensure map fills container after render
     setTimeout(function() { mapInstance.invalidateSize(); }, 500);
+}
+
+function requestGpsPermission() {
+    if (!navigator.geolocation) { addInAppAlert("error", "GPS not supported on this device"); return; }
+    var btn = document.getElementById("map-track-btn");
+    if (btn) {
+        btn.classList.remove("hidden");
+        btn.innerHTML = '<i class="fa-solid fa-location-dot"></i> Enable Location';
+        btn.onclick = function() {
+            getGpsLocation(true);
+            btn.innerHTML = '<i class="fa-solid fa-location-dot"></i> Location Enabled';
+            btn.disabled = true;
+            btn.classList.add("opacity-50");
+            // Start live tracking after enabling
+            startMapTracking();
+        };
+    }
 }
 
 function getGpsLocation(panTo) {
@@ -1703,7 +1727,15 @@ function getGpsLocation(panTo) {
                 updateMapCoords(lat, lng);
             }
         }
-    }, function() {}, { enableHighAccuracy: true, timeout: 10000 });
+    }, function(err) {
+        if (err.code === 1) {
+            addInAppAlert("warning", "Location access denied. Enable it in your browser settings to use live map features.");
+        } else if (err.code === 2) {
+            addInAppAlert("error", "GPS signal unavailable. Try moving to an open area.");
+        } else if (err.code === 3) {
+            addInAppAlert("info", "Waiting for GPS signal... Click 'Enable Location' to try again.");
+        }
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
 }
 
 function updateMapCoords(lat, lng) {
@@ -4124,8 +4156,9 @@ function rateBooking(bookingId) {
         if (numRating >= 1 && numRating <= 5) {
             userRatings.push({ providerName: booking.providerName || "Provider", rating: numRating, taskName: booking.serviceName });
             renderAllProviderLists();
+            renderServiceRatings();
             addNotification("\u2B50", "Rating Submitted", "You rated " + (booking.providerName || "Provider") + " " + numRating + " stars!");
-            alert("Thank you! Your rating of " + numRating + " stars has been recorded.");
+            addInAppAlert("success", "Thank you! Your rating of " + numRating + " stars has been recorded.");
         } else {
             alert("Rating must be between 1 and 5.");
         }
@@ -4329,13 +4362,14 @@ async function loadChatFromStorage(taskId) {
                             }
                         }
                     }
-                    // Replace with backend messages + local-only messages
-                    chatConversations[taskId] = backendMsgs.map(function(bm) {
+                    // Replace with backend messages + local-only messages, sorted by time
+                    var combined = backendMsgs.map(function(bm) {
                         var sender = bm.sender === "Admin" ? "admin" : bm.sender;
-                        // Map customer's actual name back to "customer" for proper side rendering
                         if (currentUser && sender === currentUser.name) sender = "customer";
-                        return { id: bm.id, text: bm.message, sender: sender, time: new Date(bm.created_at).getTime(), created_at: bm.created_at };
+                        return { id: bm.id, text: bm.message, sender: sender, time: new Date(bm.created_at).getTime() };
                     }).concat(localOnly);
+                    combined.sort(function(a, b) { return (a.time || 0) - (b.time || 0); });
+                    chatConversations[taskId] = combined;
                     checkNewChatMessages(taskId);
                     var currentRole = currentAdmin ? "admin" : (currentLoggedProvider ? "provider" : "customer");
                     renderChatMessages(chatConversations[taskId], currentRole);
@@ -4699,7 +4733,7 @@ function renderAllProviderLists() {
         for (var i = 0; i < providers.length; i++) {
             var p = providers[i];
             var avgRating = getAvgRating(p.name);
-            var displayRating = avgRating !== null ? avgRating : (p.rating || 4.5);
+            var displayRating = avgRating !== null ? avgRating : (p.rating || 0);
             var stars = "";
             var r = Math.floor(displayRating);
             for (var s = 0; s < r; s++) stars += "\u2605";
@@ -4780,10 +4814,9 @@ function setReviewStars(n) {
 
 async function submitReview() {
     var text = sanitizeInput(document.getElementById("review-text").value.trim());
-    if (!text) { alert("Please write a review"); return; }
-    if (currentReviewStars === 0) { alert("Please select a rating"); return; }
+    if (!text) { addInAppAlert("error", "Please write a review"); return; }
+    if (currentReviewStars === 0) { addInAppAlert("error", "Please select a rating"); return; }
 
-    // Try backend first
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
     var backendOk = await checkBackend();
     if (backendOk && window.__HAVENGO_JWT__) {
@@ -4796,14 +4829,14 @@ async function submitReview() {
             if (resp.ok) {
                 closeModal("add-review-modal");
                 await loadReviews();
+                renderServiceRatings();
                 addNotification("\u2B50", "New Review Added", "Thank you for your feedback!");
-                alert("Review submitted successfully!");
+                addInAppAlert("success", "Review submitted successfully!");
                 return;
             }
         } catch(e) {}
     }
 
-    // Fallback: local mode
     reviews.push({
         name: currentUser ? (currentUser.name || currentUser.firstname + " " + currentUser.lastname) : "Guest User",
         img: profilePicSrc,
@@ -4812,9 +4845,10 @@ async function submitReview() {
     });
     closeModal("add-review-modal");
     renderReviews();
+    renderServiceRatings();
     saveAppState();
     addNotification("\u2B50", "New Review Added", "Thank you for your feedback!");
-    alert("Review submitted successfully!");
+    addInAppAlert("success", "Review submitted successfully!");
 }
 
 async function loadReviews() {
@@ -4834,6 +4868,35 @@ async function loadReviews() {
     }
     // No backend — reviews already loaded from localStorage
     renderReviews();
+}
+
+function renderServiceRatings() {
+    var serviceIds = ["cleaning","spa","family","errands","catering","kids","nursing","appliance","gardening","hair","event","auto"];
+    for (var si = 0; si < serviceIds.length; si++) {
+        var sid = serviceIds[si];
+        var total = 0, count = 0;
+        for (var ri = 0; ri < userRatings.length; ri++) {
+            var r = userRatings[ri];
+            if (r.taskName && r.taskName.toLowerCase().indexOf(sid) !== -1) {
+                total += r.rating; count++;
+            }
+        }
+        // Also check reviews array for service-name matches
+        for (var vi = 0; vi < reviews.length; vi++) {
+            var rv = reviews[vi];
+            if (rv.serviceName && rv.serviceName.toLowerCase().indexOf(sid.replace("-"," ")) !== -1) {
+                total += rv.rating; count++;
+            }
+        }
+        var avg = count > 0 ? (total / count) : 0;
+        var fullStars = Math.round(avg);
+        var starStr = "";
+        for (var s = 0; s < 5; s++) { starStr += s < fullStars ? "\u2605" : "\u2606"; }
+        var starsEl = document.getElementById("stars-" + sid);
+        var ratingEl = document.getElementById("rating-" + sid);
+        if (starsEl) starsEl.textContent = starStr;
+        if (ratingEl) ratingEl.textContent = avg > 0 ? avg.toFixed(1) + " Rating (" + count + ")" : "0.0 Rating";
+    }
 }
 
 // Fetch verified providers from backend for service listing
@@ -5047,6 +5110,7 @@ window.onload = function() {
     loadReviews();
     populateMultiServiceSelect();
     populateBitmojiSelect();
+    renderServiceRatings();
 
     addNotification("\uD83D\uDC4B", "Welcome to HavenGo", "Browse services or sign up to get started!");
 
