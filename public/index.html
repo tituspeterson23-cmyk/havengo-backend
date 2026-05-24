@@ -1066,6 +1066,7 @@ async function performSignup() {
 
     // Backend unavailable — online-only, cannot sign up
     alert("Cannot create account: Server is currently unavailable. Please try again later.");
+}
 
 async function performLogin() {
     var identifier = sanitizeInput(document.getElementById("login-identifier").value.trim());
@@ -4018,6 +4019,7 @@ async function submitProviderApplication(event) {
 
     // Backend unavailable — online-only, cannot submit
     alert("Cannot submit application: Server is currently unavailable. Please try again later.");
+}
 
 // ============================================================
 // PROVIDER LISTS ON SERVICES PAGE
