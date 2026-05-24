@@ -833,7 +833,16 @@ async function _doEncryptSave() {
                 localStorage.removeItem("havengoState_plain");
                 return;
             }
-        }
+            if (respData.error) { alert(respData.error); return; }
+            if (respData.session_expired) { handleSessionExpired(); return; }
+        } catch(e) {}
+        alert("Failed to submit application on server. Please try again.");
+        return;
+    }
+
+    // Backend unavailable — online-only, cannot submit
+    alert("Cannot submit application: Server is currently unavailable. Please try again later.");
+}
         localStorage.setItem("havengoState_plain", JSON.stringify(state));
     } finally { _encryptPending = false; }
 }
@@ -4041,10 +4050,45 @@ async function submitProviderApplication(event) {
         return;
     }
 
+    // Show consent form before submission
+    showProviderConsentForm({
+        name: name, phone: phone, email: email, businessName: businessName,
+        exp: exp, password: password, confirmPassword: confirmPassword,
+        location: location, bio: bio, selectedOptions: selectedOptions
+    });
+}
+
+function showProviderConsentForm(data) {
+    var modal = document.getElementById("provider-consent-modal");
+    if (!modal) {
+        modal = document.createElement("div");
+        modal.id = "provider-consent-modal";
+        modal.className = "hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 modal p-5";
+        modal.innerHTML = '<div class="bg-white w-full max-w-lg rounded-3xl overflow-hidden max-h-[90vh] overflow-y-auto"><div class="hero-gradient text-white p-6"><h2 class="text-2xl font-bold">Provider Consent & Agreement</h2></div><div class="p-6 space-y-4"><div class="bg-amber-50 border border-amber-200 rounded-2xl p-4"><h3 class="font-semibold text-amber-800 mb-2"><i class="fa-solid fa-handshake"></i> Please read and accept the following:</h3><ul class="text-sm text-amber-700 space-y-2 list-disc list-inside"><li><strong>15% Service Fee:</strong> A 15% platform fee will be deducted from all payments received for services rendered through HavenGo.</li><li><strong>Joining Fee: 50,000 UGX</strong> A one-time registration fee of 50,000 UGX is required after admin verification to activate your account.</li><li><strong>Terms & Conditions:</strong> You agree to abide by HavenGo\'s terms of service, code of conduct, and quality standards.</li><li><strong>Diligent Service:</strong> You commit to serving customers diligently, professionally, and in a timely manner.</li><li><strong>Verification:</strong> Your application will be reviewed by admin. Once verified, you will be notified to pay the joining fee.</li></ul></div><div class="flex items-start gap-3 p-4 rounded-2xl bg-gray-50"><input type="checkbox" id="consent-agree" class="w-5 h-5 mt-1"><label for="consent-agree" class="text-sm text-gray-700">I have read and agree to all the terms above, including the 15% service fee and the 50,000 UGX joining fee.</label></div><div class="flex gap-3"><button id="consent-submit-btn" onclick="submitProviderWithConsent()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold"><i class="fa-solid fa-check"></i> Accept & Submit</button><button onclick="closeProviderConsent()" class="flex-1 border border-gray-300 text-gray-600 py-4 rounded-2xl font-semibold">Cancel</button></div></div></div>';
+        document.body.appendChild(modal);
+    }
+    modal._consentData = data;
+    document.getElementById("consent-agree").checked = false;
+    modal.classList.remove("hidden");
+}
+
+function closeProviderConsent() {
+    document.getElementById("provider-consent-modal").classList.add("hidden");
+}
+
+async function submitProviderWithConsent() {
+    if (!document.getElementById("consent-agree").checked) {
+        alert("Please accept the consent terms to continue");
+        return;
+    }
+    closeProviderConsent();
+    var consentData = document.getElementById("provider-consent-modal")._consentData;
+    if (!consentData) return;
+
     var serviceList = [];
-    for (var i = 0; i < selectedOptions.length; i++) {
+    for (var i = 0; i < consentData.selectedOptions.length; i++) {
         for (var j = 0; j < services.length; j++) {
-            if (services[j].id === selectedOptions[i]) {
+            if (services[j].id === consentData.selectedOptions[i]) {
                 serviceList.push(services[j]);
                 break;
             }
@@ -4052,28 +4096,27 @@ async function submitProviderApplication(event) {
     }
     var serviceNames = serviceList.map(function(s) { return s.name; });
 
-    // Try backend first
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
     var backendOk = await checkBackend();
 
     if (backendOk) {
-        var nameParts = name.split(" ");
-        var firstname = nameParts[0] || name;
-        var lastname = nameParts.slice(1).join(" ") || nameParts[0] || name;
+        var nameParts = consentData.name.split(" ");
+        var firstname = nameParts[0] || consentData.name;
+        var lastname = nameParts.slice(1).join(" ") || nameParts[0] || consentData.name;
         try {
             var resp = await fetch(apiUrl + "/provider/register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    firstname: firstname, lastname: lastname, email: email, phone: phone,
-                    businessName: businessName, services: serviceNames,
-                    password: password, confirmPassword: confirmPassword,
-                    bitmoji: selectedBitmoji, location: location, bio: bio, experience: exp
+                    firstname: firstname, lastname: lastname, email: consentData.email, phone: consentData.phone,
+                    businessName: consentData.businessName, services: serviceNames,
+                    password: consentData.password, confirmPassword: consentData.confirmPassword,
+                    bitmoji: selectedBitmoji, location: consentData.location, bio: consentData.bio, experience: consentData.exp
                 })
             });
-            var data = await resp.json();
-            if (data.success) {
-                addNotification("\uD83C\uDF89", "Provider Application Submitted", name + " applied as a provider in " + (serviceList.length > 0 ? serviceList[0].name : "General") + ".");
+            var respData = await resp.json();
+            if (respData.success) {
+                addNotification("\uD83C\uDF89", "Provider Application Submitted", consentData.name + " applied as a provider in " + (serviceList.length > 0 ? serviceList[0].name : "General") + ".");
                 document.getElementById("provider-form").reset();
                 document.getElementById("prov-name").value = "";
                 document.getElementById("prov-phone").value = "";
