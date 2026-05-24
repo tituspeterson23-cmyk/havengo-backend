@@ -1064,31 +1064,8 @@ async function performSignup() {
         return;
     }
 
-    // Fallback: local-only signup
-    var hashedPass = await hashPassword(password);
-    if (allUsers.find(function(u) { return u.email === email || u.phone === phone; })) {
-        alert("An account with this email or phone already exists");
-        return;
-    }
-    var user = { firstname: firstname, lastname: lastname, phone: phone, email: email, password: hashedPass, name: firstname + " " + lastname };
-    allUsers.push(user);
-    currentUser = user;
-    closeAuthModal();
-    updateProfileWithUser();
-    renderProfilePage();
-    updateProfilePicCursor();
-    addNotification("\uD83C\uDF89", "Account Created", "Welcome to HavenGo, " + firstname + "!");
-    addActivity("signup", "Created your HavenGo account");
-    alert("Account created successfully! Welcome " + firstname + "!");
-    saveAppState();
-    // Clear signup form
-    document.getElementById("signup-firstname").value = "";
-    document.getElementById("signup-lastname").value = "";
-    document.getElementById("signup-phone").value = "";
-    document.getElementById("signup-email").value = "";
-    document.getElementById("signup-password").value = "";
-    document.getElementById("signup-confirm-password").value = "";
-}
+    // Backend unavailable — online-only, cannot sign up
+    alert("Cannot create account: Server is currently unavailable. Please try again later.");
 
 async function performLogin() {
     var identifier = sanitizeInput(document.getElementById("login-identifier").value.trim());
@@ -1135,11 +1112,6 @@ async function performLogin() {
             if (data.success) {
                 currentUser = data.user;
                 window.__HAVENGO_JWT__ = data.token;
-                // Sync to local users array for offline fallback
-                var existing = allUsers.find(function(u) { return u.email === data.user.email; });
-                if (!existing) {
-                    allUsers.push({ firstname: data.user.firstname, lastname: data.user.lastname, phone: data.user.phone, email: data.user.email, password: "", name: data.user.firstname + " " + data.user.lastname });
-                }
                 closeAuthModal();
                 updateProfileWithUser();
                 renderProfilePage();
@@ -1147,44 +1119,26 @@ async function performLogin() {
                 addNotification("\uD83D\uDD13", "Logged In", "Welcome back, " + data.user.firstname + "!");
                 fetchBackendNotifications();
                 fetchCustomerBookings();
+                saveAppState();
                 return;
             }
-        } catch(e) {}
-        // Backend login failed — fall through to local check
-    }
-
-    var hashedInput = await hashPassword(password);
-    var user = null;
-    for (var i = 0; i < allUsers.length; i++) {
-        if ((allUsers[i].email === identifier || allUsers[i].phone === identifier) && allUsers[i].password === hashedInput) {
-            user = allUsers[i];
-            break;
-        }
-    }
-    if (!user) {
-        // Check if admin credentials (offline mode)
-        if (isAdminCred && hashedInput === ADMIN_PASSWORD_HASH) {
-            closeAuthModal();
-            adminLoginSuccess();
+            // Backend returned a proper error response
+            if (data.user_not_found) {
+                alert("Your account no longer exists on the server. Please sign up again.");
+                return;
+            }
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+        } catch(e) {
+            // Network error — backend unreachable
+            alert("Cannot log in: Server is currently unavailable. Please try again later.");
             return;
         }
-        alert("Invalid credentials. Please try again.");
-        return;
     }
 
-    currentUser = user;
-    closeAuthModal();
-    if (user.email && userNotificationsMap[user.email]) {
-        globalNotifications = userNotificationsMap[user.email].slice();
-        delete userNotificationsMap[user.email];
-    }
-    checkAccountDeletionOnLogin(user.email || user.phone);
-    updateProfileWithUser();
-    renderProfilePage();
-    updateProfilePicCursor();
-    addNotification("\uD83D\uDD13", "Logged In", "Welcome back, " + user.firstname + "!");
-    fetchCustomerBookings();
-    saveAppState();
+    alert("Cannot log in: Server is currently unavailable. Please try again later.");
 }
 
 function logout() {
@@ -2203,7 +2157,7 @@ function calculateDynamicPrice(serviceId) {
 
 async function placeOrder(event) {
     event.preventDefault();
-    if (!currentUser) { alert("Please login first to place an order"); showAuthModal("login"); return; }
+    if (!window.__HAVENGO_JWT__) { alert("Please login first to place an order"); showAuthModal("login"); return; }
     if (!currentService) return;
     var finalPrice = calculateDynamicPrice(currentService.id);
     if (userBalance < finalPrice) { alert("Insufficient balance. Please deposit at least UGX " + finalPrice.toLocaleString() + " to book this service."); closeModal("checkout-modal"); showDepositModal(); return; }
@@ -2289,54 +2243,11 @@ async function placeOrder(event) {
         return;
     }
 
-    // Fallback: local-only
-    var booking = {
-        id: Date.now(),
-        serviceId: currentService.id,
-        serviceName: currentService.name,
-        price: finalPrice,
-        date: date, time: time, address: address, instructions: instructions,
-        status: "Pending",
-        customerName: currentUser ? (currentUser.name || currentUser.firstname + " " + currentUser.lastname) : "Guest User",
-        customerPhone: currentUser ? currentUser.phone : "+256 777 062 518",
-        providerName: assignedProvider
-    };
-    bookings.push(booking);
-
-    // Add to provider tasks
-    var assignedProvider = currentSelectedProvider || "";
-    if (!assignedProvider) {
-        for (var pi = 0; pi < registeredProviders.length; pi++) {
-            var rp = registeredProviders[pi];
-            if (rp.services) {
-                for (var ps = 0; ps < rp.services.length; ps++) {
-                    if (rp.services[ps].id === currentService.id) { assignedProvider = rp.name; break; }
-                }
-            }
-            if (assignedProvider) break;
-        }
+    if (!backendOk) {
+        alert("Cannot place order: Server is currently unavailable. Please try again later.");
+        return;
     }
-    providerTasks.push({
-        id: booking.id,
-        serviceName: booking.serviceName,
-        customerName: booking.customerName,
-        customerPhone: booking.customerPhone,
-        address: booking.address,
-        date: booking.date,
-        time: booking.time,
-        price: booking.price,
-        status: "pending_confirmation",
-        instructions: booking.instructions,
-        providerName: currentSelectedProvider || ""
-    });
-
-    closeModal("checkout-modal");
-    renderBookings();
-    renderProviderDashboard();
-    addNotification("\uD83D\uDCCB", "New Booking Placed", currentService.name + " on " + date + " at " + time);
-    addActivity("booking", "Booked " + currentService.name + " for " + date);
-    alert("Order placed successfully! Your provider will be notified.");
-    saveAppState();
+    alert("Failed to place order on server. Please try again.");
 }
 
 // Fetch customer bookings from backend for cross-browser sync
@@ -2349,39 +2260,36 @@ async function fetchCustomerBookings() {
         if (resp.ok) {
             var data = await resp.json();
             var allTasks = (data.active || []).concat(data.completed || []);
-            if (allTasks.length > 0) {
-                for (var bi = 0; bi < allTasks.length; bi++) {
-                    var b = allTasks[bi];
-                    var exists = bookings.some(function(lb) { return lb.id === b.id || lb.id === b.task_id; });
-                    if (!exists) {
-                        var bookingDate = "", bookingTime = "";
-                        if (b.details) {
-                            var dateMatch = b.details.match(/Date:\s*([^|]+)/);
-                            var timeMatch = b.details.match(/Time:\s*([^|]+)/);
-                            if (dateMatch) bookingDate = dateMatch[1].trim();
-                            if (timeMatch) bookingTime = timeMatch[1].trim();
-                        }
-                        var status = b.status || "Pending";
-                        if (status === "pending_confirmation") status = "Pending";
-                        else if (status === "active") status = "In Progress";
-                        bookings.push({
-                            id: b.id || b.task_id,
-                            serviceId: b.service_id || "",
-                            serviceName: b.service_name || "Service",
-                            price: b.price || 0,
-                            date: bookingDate,
-                            time: bookingTime,
-                            address: b.address || "",
-                            status: status,
-                            customerName: currentUser ? currentUser.name : "",
-                            customerPhone: currentUser ? currentUser.phone : "",
-                            providerName: b.provider_name || "",
-                            details: b.details || ""
-                        });
-                    }
+            // Replace local bookings with backend data (online-only)
+            bookings = [];
+            for (var bi = 0; bi < allTasks.length; bi++) {
+                var b = allTasks[bi];
+                var bookingDate = "", bookingTime = "";
+                if (b.details) {
+                    var dateMatch = b.details.match(/Date:\s*([^|]+)/);
+                    var timeMatch = b.details.match(/Time:\s*([^|]+)/);
+                    if (dateMatch) bookingDate = dateMatch[1].trim();
+                    if (timeMatch) bookingTime = timeMatch[1].trim();
                 }
-                renderBookings();
+                var status = b.status || "Pending";
+                if (status === "pending_confirmation") status = "Pending";
+                else if (status === "active") status = "In Progress";
+                bookings.push({
+                    id: b.id || b.task_id,
+                    serviceId: b.service_id || "",
+                    serviceName: b.service_name || "Service",
+                    price: b.price || 0,
+                    date: bookingDate,
+                    time: bookingTime,
+                    address: b.address || "",
+                    status: status,
+                    customerName: currentUser ? currentUser.name : "",
+                    customerPhone: currentUser ? currentUser.phone : "",
+                    providerName: b.provider_name || "",
+                    details: b.details || ""
+                });
             }
+            renderBookings();
         }
     } catch(e) {}
 }
@@ -2473,49 +2381,7 @@ async function loginAsProvider() {
         // Backend failed, fall through to local
     }
 
-    var hashedInput = await hashPassword(passVal);
-    var provider = null;
-    for (var i = 0; i < registeredProviders.length; i++) {
-        if ((registeredProviders[i].phone === idVal || registeredProviders[i].email === idVal) && registeredProviders[i].password === hashedInput) {
-            provider = registeredProviders[i];
-            break;
-        }
-    }
-
-    if (!provider) {
-        // Demo login
-        if (registeredProviders.length === 0) {
-            var demoHashed = await hashPassword("password");
-            var demoProvider = {
-                id: 1,
-                name: "Aisha Nabbanja",
-                service: "Deep Cleaning & Maintenance",
-                location: "Kampala",
-                phone: "0777123456",
-                email: "aisha@havengo.ug",
-                password: demoHashed,
-                bitmoji: "\uD83D\uDC69\u200D\uD83D\uDD27",
-                bio: "Experienced provider with over 6 years of professional home service experience.",
-                verified: true
-            };
-            registeredProviders.push(demoProvider);
-            if ((idVal === "aisha@havengo.ug" || idVal === "0777123456") && hashedInput === demoHashed) {
-                currentLoggedProvider = demoProvider;
-                enterProviderDashboard(demoProvider);
-                return;
-            }
-        }
-        alert("Invalid credentials. Try aisha@havengo.ug / password");
-        return;
-    }
-
-    if (!provider.verified) {
-        alert("Your account is pending admin verification. Please wait for an administrator to approve your application before logging in.");
-        return;
-    }
-
-    currentLoggedProvider = provider;
-    enterProviderDashboard(provider);
+    alert("Cannot log in: Server is currently unavailable. Please try again later.");
 }
 
 async function enterProviderDashboard(provider) {
@@ -2539,47 +2405,43 @@ async function enterProviderDashboard(provider) {
             var tasksResp = await fetch(apiUrl + "/provider/tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ } });
             if (tasksResp.ok) {
                 var backendTasks = await tasksResp.json();
+                providerTasks = [];
                 for (var ti = 0; ti < backendTasks.length; ti++) {
                     var bt = backendTasks[ti];
-                    var existing = providerTasks.some(function(pt) { return pt.id === bt.id; });
-                    if (!existing) {
-                        providerTasks.push({
-                            id: bt.id,
-                            serviceId: bt.service_id,
-                            serviceName: bt.service_name,
-                            customerName: "",
-                            customerPhone: "",
-                            address: bt.address || "",
-                            date: "",
-                            time: "",
-                            price: bt.price,
-                            instructions: bt.details || "",
-                            providerName: bt.provider_name || "",
-                            status: bt.status
-                        });
-                    }
+                    providerTasks.push({
+                        id: bt.id,
+                        serviceId: bt.service_id,
+                        serviceName: bt.service_name,
+                        customerName: "",
+                        customerPhone: "",
+                        address: bt.address || "",
+                        date: "",
+                        time: "",
+                        price: bt.price,
+                        instructions: bt.details || "",
+                        providerName: bt.provider_name || "",
+                        status: bt.status
+                    });
                 }
             }
             var compResp = await fetch(apiUrl + "/provider/completed-tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ } });
             if (compResp.ok) {
                 var backendCompleted = await compResp.json();
+                completedTasks = [];
                 for (var ci = 0; ci < backendCompleted.length; ci++) {
                     var bc = backendCompleted[ci];
-                    var existing = completedTasks.some(function(ct) { return ct.id === bc.id; });
-                    if (!existing) {
-                        completedTasks.push({
-                            id: bc.id,
-                            taskId: bc.task_id,
-                            serviceName: bc.service_name,
-                            customerName: bc.customer_email,
-                            price: bc.price,
-                            providerName: bc.provider_name,
-                            date: bc.completed_at,
-                            paid: bc.paid
-                        });
-                        if (bc.paid && bc.provider_name) {
-                            providerEarningsMap[bc.provider_name] = (providerEarningsMap[bc.provider_name] || 0) + Math.round(bc.price * 0.85);
-                        }
+                    completedTasks.push({
+                        id: bc.id,
+                        taskId: bc.task_id,
+                        serviceName: bc.service_name,
+                        customerName: bc.customer_email,
+                        price: bc.price,
+                        providerName: bc.provider_name,
+                        date: bc.completed_at,
+                        paid: bc.paid
+                    });
+                    if (bc.paid && bc.provider_name) {
+                        providerEarningsMap[bc.provider_name] = (providerEarningsMap[bc.provider_name] || 0) + Math.round(bc.price * 0.85);
                     }
                 }
             }
@@ -2599,37 +2461,31 @@ async function enterProviderDashboard(provider) {
             var tasksResp = await fetch(apiUrl + "/provider/tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ } });
             if (tasksResp.ok) {
                 var backendTasks = await tasksResp.json();
-                var newTaskCount = 0;
+                var prevCount = providerTasks.length;
+                providerTasks = [];
                 for (var ti = 0; ti < backendTasks.length; ti++) {
                     var bt = backendTasks[ti];
-                    var existing = providerTasks.some(function(pt) { return pt.id === bt.id; });
-                    if (!existing) {
-                        providerTasks.push({
-                            id: bt.id, serviceId: bt.service_id, serviceName: bt.service_name,
-                            customerName: bt.customer_email || "", customerPhone: "", address: bt.address || "",
-                            date: "", time: "", price: bt.price, instructions: bt.details || "",
-                            providerName: bt.provider_name || "", status: bt.status
-                        });
-                        newTaskCount++;
-                    }
+                    providerTasks.push({
+                        id: bt.id, serviceId: bt.service_id, serviceName: bt.service_name,
+                        customerName: bt.customer_email || "", customerPhone: "", address: bt.address || "",
+                        date: "", time: "", price: bt.price, instructions: bt.details || "",
+                        providerName: bt.provider_name || "", status: bt.status
+                    });
                 }
-                if (newTaskCount > 0) {
-                    addNotification("\uD83D\uDCE2", "New Order Received", "You have " + newTaskCount + " new order(s) to review!");
-                    if (!document.getElementById("chat-modal").classList.contains("hidden")) {}
+                if (providerTasks.length > prevCount) {
+                    addNotification("\uD83D\uDCE2", "New Order Received", "You have " + (providerTasks.length - prevCount) + " new order(s) to review!");
                 }
                 var compResp = await fetch(apiUrl + "/provider/completed-tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ } });
                 if (compResp.ok) {
                     var backendCompleted = await compResp.json();
+                    completedTasks = [];
                     for (var ci = 0; ci < backendCompleted.length; ci++) {
                         var bc = backendCompleted[ci];
-                        var existing = completedTasks.some(function(ct) { return ct.id === bc.id; });
-                        if (!existing) {
-                            completedTasks.push({
-                                id: bc.id, taskId: bc.task_id, serviceName: bc.service_name,
-                                customerName: bc.customer_email, price: bc.price,
-                                providerName: bc.provider_name, date: bc.completed_at, paid: bc.paid
-                            });
-                        }
+                        completedTasks.push({
+                            id: bc.id, taskId: bc.task_id, serviceName: bc.service_name,
+                            customerName: bc.customer_email, price: bc.price,
+                            providerName: bc.provider_name, date: bc.completed_at, paid: bc.paid
+                        });
                     }
                 }
                 renderProviderDashboard();
@@ -4160,45 +4016,8 @@ async function submitProviderApplication(event) {
         return;
     }
 
-    // Fallback: local-only
-    var hashedPass = await hashPassword(password);
-
-    var newProvider = {
-        id: registeredProviders.length + 1,
-        name: name, phone: phone, email: email, businessName: businessName, password: hashedPass, location: location, bio: bio,
-        experience: parseInt(exp),
-        bitmoji: selectedBitmoji,
-        service: serviceList.length > 0 ? serviceList[0].name : "General Services",
-        services: serviceList,
-        verified: false
-    };
-
-    registeredProviders.push(newProvider);
-    saveAppState();
-
-    // Show notification
-    addNotification("\uD83C\uDF89", "Provider Application Submitted", name + " applied as a provider in " + (serviceList.length > 0 ? serviceList[0].name : "General") + ".");
-    document.getElementById("provider-form").reset();
-    // Clear all provider form fields
-    document.getElementById("prov-name").value = "";
-    document.getElementById("prov-phone").value = "";
-    document.getElementById("prov-email").value = "";
-    document.getElementById("prov-business").value = "";
-    document.getElementById("prov-exp").value = "";
-    document.getElementById("prov-password").value = "";
-    document.getElementById("prov-confirm-password").value = "";
-    document.getElementById("prov-location").value = "";
-    document.getElementById("prov-bio").value = "";
-    document.getElementById("multi-service-select").selectedIndex = -1;
-    document.getElementById("agree-terms").checked = false;
-    selectedBitmoji = null;
-    document.getElementById("bitmoji-select").textContent = "\uD83D\uDC64";
-    navigateTo("provider-tasks");
-    alert("Application submitted successfully! Your account is now pending admin verification. You will be able to login once an administrator approves your application.");
-    addNotification("\uD83C\uDF89", "Provider Application Submitted", "Your application is pending admin verification. You'll be notified once approved.");
-    navigateTo("home");
-    saveAppState();
-}
+    // Backend unavailable — online-only, cannot submit
+    alert("Cannot submit application: Server is currently unavailable. Please try again later.");
 
 // ============================================================
 // PROVIDER LISTS ON SERVICES PAGE

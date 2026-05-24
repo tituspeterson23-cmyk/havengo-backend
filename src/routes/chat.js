@@ -74,13 +74,16 @@ router.post('/send', (req, res) => {
   const encrypted = encrypt(message);
   db.prepare('INSERT INTO chat_messages (conversation_id, sender, message, encrypted) VALUES (?, ?, ?, 1)')
     .run(conversationId, sanitize(s), encrypted);
-  // Notify admin when customer sends a message
+  // Notify admin when customer or provider sends a message
+  const adminEmail = db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
   if (sender === 'Customer' || s === 'Customer') {
-    const adminEmail = db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
     if (adminEmail) {
       db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
         .run(adminEmail, '💬', 'New Customer Message', req.user.email + ' sent a message', 'chat');
     }
+  } else if (req.user.role === 'provider' && adminEmail) {
+    db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+      .run(adminEmail, '💬', 'New Provider Message', req.user.email + ' sent a message', 'chat');
   }
   res.json({ success: true });
 });
