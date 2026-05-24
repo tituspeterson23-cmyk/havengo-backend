@@ -4669,6 +4669,36 @@ async function submitProviderWithConsent() {
 // PROVIDER LISTS ON SERVICES PAGE
 // ============================================================
 
+function updateServiceRatings() {
+    var serviceRatings = {};
+    for (var si = 0; si < services.length; si++) {
+        serviceRatings[services[si].id] = [];
+    }
+    for (var ri = 0; ri < userRatings.length; ri++) {
+        var r = userRatings[ri];
+        for (var si = 0; si < services.length; si++) {
+            if (r.taskName && r.taskName.indexOf(services[si].name) !== -1) {
+                serviceRatings[services[si].id].push(r.rating);
+                break;
+            }
+        }
+    }
+    for (var si = 0; si < services.length; si++) {
+        var sid = services[si].id;
+        var ratings = serviceRatings[sid];
+        var avg = ratings.length > 0 ? ratings.reduce(function(a, b) { return a + b; }, 0) / ratings.length : 0;
+        var fullStars = Math.floor(avg);
+        var emptyStars = 5 - fullStars;
+        var starsStr = "";
+        for (var s = 0; s < fullStars; s++) starsStr += "\u2605";
+        for (var s = 0; s < emptyStars; s++) starsStr += "\u2606";
+        var starsEl = document.getElementById("stars-" + sid);
+        var ratingEl = document.getElementById("rating-" + sid);
+        if (starsEl) starsEl.textContent = starsStr;
+        if (ratingEl) ratingEl.textContent = (avg > 0 ? avg.toFixed(1) : "0.0") + " Rating";
+    }
+}
+
 function renderAllProviderLists() {
     var providerMap = {
         "cleaning-providers": [], "spa-providers": [], "family-providers": [], "errands-providers": [],
@@ -4758,6 +4788,7 @@ function renderAllProviderLists() {
         }
         el.innerHTML = html;
     }
+    updateServiceRatings();
 }
 
 function toggleFavoriteProvider(email, name) {
