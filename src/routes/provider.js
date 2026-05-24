@@ -63,7 +63,28 @@ router.post('/login', async (req, res) => {
     const db = getDb();
     const provider = db.prepare('SELECT * FROM providers WHERE email = ? OR phone = ?').get(identifier, identifier);
     if (!provider) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+      if (req.body.restoring && req.body.firstname && req.body.email && req.body.phone && req.body.businessName && req.body.services) {
+        const hash = await hashPassword(password);
+        const servicesStr = Array.isArray(req.body.services) ? req.body.services.join(',') : req.body.services;
+        db.prepare('INSERT INTO providers (firstname, lastname, email, phone, business_name, services, password_hash, bitmoji, verified, location, bio) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)')
+          .run(sanitize(req.body.firstname), sanitize(req.body.lastname || ''), sanitize(req.body.email), sanitize(req.body.phone), sanitize(req.body.businessName), servicesStr, hash, sanitize(req.body.bitmoji || '🔧'), sanitize(req.body.location || ''), sanitize(req.body.bio || ''));
+        const newProvider = db.prepare('SELECT * FROM providers WHERE email = ?').get(sanitize(req.body.email));
+        if (newProvider) {
+          const { generateToken } = require('../auth');
+          const token = generateToken({ email: newProvider.email, role: 'provider', providerId: newProvider.id, firstname: newProvider.firstname });
+          return res.json({
+            success: true, token,
+            provider: {
+              id: newProvider.id, firstname: newProvider.firstname, lastname: newProvider.lastname,
+              email: newProvider.email, phone: newProvider.phone, business_name: newProvider.business_name,
+              services: newProvider.services, bitmoji: newProvider.bitmoji, total_earnings: newProvider.total_earnings,
+              location: newProvider.location || '', bio: newProvider.bio || '', experience: newProvider.experience || 0,
+              registration_fee_paid: newProvider.registration_fee_paid || 0
+            }
+          });
+        }
+      }
+      return res.status(401).json({ user_not_found: true, error: 'Invalid credentials' });
     }
     if (!provider.verified) {
       return res.status(403).json({ error: 'Account pending admin verification' });
@@ -84,7 +105,8 @@ router.post('/login', async (req, res) => {
         id: provider.id, firstname: provider.firstname, lastname: provider.lastname,
         email: provider.email, phone: provider.phone, business_name: provider.business_name,
         services: provider.services, bitmoji: provider.bitmoji, total_earnings: provider.total_earnings,
-        location: provider.location || '', bio: provider.bio || '', experience: provider.experience || 0
+        location: provider.location || '', bio: provider.bio || '', experience: provider.experience || 0,
+        registration_fee_paid: provider.registration_fee_paid || 0
       }
     });
   } catch (e) {
@@ -119,8 +141,12 @@ router.post('/confirm-task/:taskId', (req, res) => {
   const db = getDb();
   const taskId = parseInt(req.params.taskId);
   if (!taskId) return res.status(400).json({ error: 'Invalid task ID' });
-  const result = db.prepare("UPDATE tasks SET status = 'active' WHERE id = ? AND status = 'pending_confirmation'").run(taskId);
-  if (result.changes === 0) return res.status(404).json({ error: 'Task not found or already confirmed' });
+  const task = db.prepare("SELECT * FROM tasks WHERE id = ? AND status = 'pending_confirmation'").get(taskId);
+  if (!task) return res.status(404).json({ error: 'Task not found or already confirmed' });
+  db.prepare("UPDATE tasks SET status = 'active' WHERE id = ? AND status = 'pending_confirmation'").run(taskId);
+  // Notify customer
+  db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+    .run(task.customer_email, '✅', 'Order Accepted', 'Your ' + task.service_name + ' order has been accepted by ' + task.provider_name + ' and is now in progress.', 'order');
   res.json({ success: true, message: 'Task confirmed' });
 });
 
@@ -142,7 +168,9 @@ router.post('/complete-task/:taskId', (req, res) => {
     .run(task.id, task.customer_email, task.provider_name, req.user.providerId, task.price, now);
   // Delete original task
   db.prepare('DELETE FROM tasks WHERE id = ?').run(task.id);
-  // Update task status in completed_tasks (already created above)
+  // Notify customer
+  db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+    .run(task.customer_email, '🎉', 'Task Completed', 'Your ' + task.service_name + ' has been completed by ' + task.provider_name + '. Please confirm payment.', 'order');
 
   res.json({ success: true, message: 'Task marked complete' });
 });
@@ -193,7 +221,7 @@ router.get('/dashboard-stats', (req, res) => {
 // Notifications
 router.get('/notifications', (req, res) => {
   const db = getDb();
-  const notifs = db.prepare("SELECT * FROM notifications WHERE user_email = ? AND (expiry IS NULL OR expiry > datetime('now')) ORDER BY created_at DESC LIMIT 50").all(req.user.email);
+  const notifs = db.prepare("SELECT * FROM notifications WHERE user_email = ? AND read = 0 AND (expiry IS NULL OR expiry > datetime('now')) ORDER BY created_at DESC LIMIT 50").all(req.user.email);
   res.json(notifs);
 });
 
@@ -203,22 +231,82 @@ router.post('/notifications/clear', (req, res) => {
   res.json({ success: true });
 });
 
-// DELETE /api/provider/account
+// DELETE /api/provider/account — provider self-deletion
 router.delete('/account', (req, res) => {
   const db = getDb();
   const provider = db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
-  // Insert deletion request with 15-day expiry
-  db.prepare("INSERT INTO deletion_requests (user_email, user_type, provider_name, business_name, created_at, expires_at) VALUES (?, 'provider', ?, ?, datetime('now'), datetime('now', '+15 days'))")
-    .run(provider.email, provider.firstname + ' ' + provider.lastname, provider.business_name);
-  // Immediately soft-delete: mark as unverified so they disappear from services
-  db.prepare('UPDATE providers SET verified = 0, deleted_at = datetime("now") WHERE email = ?').run(provider.email);
-  // Remove pending tasks for this provider
-  const pendingTasks = db.prepare("SELECT id FROM tasks WHERE provider_name = ? AND status = 'pending_confirmation'").all(provider.business_name);
-  for (const t of pendingTasks) {
-    db.prepare('DELETE FROM tasks WHERE id = ?').run(t.id);
+  // Delete provider and all associated data
+  db.prepare('DELETE FROM providers WHERE email = ?').run(req.user.email);
+  db.prepare("DELETE FROM tasks WHERE provider_name = ?").run(provider.business_name);
+  db.prepare("DELETE FROM completed_tasks WHERE provider_name = ?").run(provider.business_name);
+  db.prepare("DELETE FROM pending_payments WHERE provider_name = ?").run(provider.business_name);
+  db.prepare("DELETE FROM notifications WHERE user_email = ?").run(req.user.email);
+  // Delete chat messages in provider conversations
+  db.prepare("DELETE FROM chat_messages WHERE conversation_id LIKE ?").run('provider-admin-' + req.user.email + '%');
+  db.prepare("DELETE FROM chat_messages WHERE conversation_id = ?").run(provider.business_name);
+  res.json({ success: true, message: 'Account deleted' });
+});
+
+router.post('/notifications/mark-seen', (req, res) => {
+  const db = getDb();
+  db.prepare("UPDATE notifications SET read = 1 WHERE user_email = ? AND read = 0").run(req.user.email);
+  res.json({ success: true });
+});
+
+// POST /api/provider/pay-registration-fee
+router.post('/pay-registration-fee', (req, res) => {
+  const db = getDb();
+  const provider = db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
+  if (!provider) return res.status(404).json({ error: 'Provider not found' });
+  if (provider.registration_fee_paid) return res.json({ success: true, message: 'Fee already paid' });
+  db.prepare('UPDATE providers SET registration_fee_paid = 1 WHERE email = ?').run(req.user.email);
+  // Clear the verification notification
+  db.prepare("DELETE FROM notifications WHERE user_email = ? AND type = 'provider_verified'").run(req.user.email);
+  res.json({ success: true, message: 'Registration fee paid. You can now receive orders.' });
+});
+
+// POST /api/provider/withdraw
+router.post('/withdraw', (req, res) => {
+  const { amount } = req.body;
+  const amt = parseFloat(amount);
+  if (isNaN(amt) || amt <= 0) return res.status(400).json({ error: 'Invalid amount' });
+
+  const db = getDb();
+  const provider = db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
+  if (!provider) return res.status(404).json({ error: 'Provider not found' });
+
+  const availableEarnings = provider.total_earnings || 0;
+  if (amt > availableEarnings) {
+    return res.status(400).json({ error: 'Insufficient earnings. Available: UGX ' + availableEarnings.toLocaleString() });
   }
-  res.json({ success: true, message: 'Account queued for deletion. You have 15 days to cancel.' });
+
+  const fee = amt * 0.005;
+  const totalDeduction = amt + fee;
+  if (totalDeduction > availableEarnings) {
+    return res.status(400).json({ error: 'Amount plus fee exceeds available earnings' });
+  }
+
+  db.prepare('UPDATE providers SET total_earnings = total_earnings - ? WHERE email = ?').run(totalDeduction, req.user.email);
+  res.json({ success: true, message: amt + ' UGX withdrawal processed. Fee: ' + fee + ' UGX' });
+});
+
+// POST /api/provider/cancel-task/:taskId — provider cancels order with reason
+router.post('/cancel-task/:taskId', (req, res) => {
+  const db = getDb();
+  const taskId = parseInt(req.params.taskId);
+  const { reason } = req.body;
+  if (!taskId) return res.status(400).json({ error: 'Invalid task ID' });
+  if (!reason) return res.status(400).json({ error: 'Cancellation reason is required' });
+  const task = db.prepare("SELECT * FROM tasks WHERE id = ? AND status IN ('pending_confirmation', 'active')").get(taskId);
+  if (!task) return res.status(404).json({ error: 'Active task not found' });
+  const provider = db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
+  if (!provider) return res.status(404).json({ error: 'Provider not found' });
+  db.prepare('DELETE FROM tasks WHERE id = ?').run(taskId);
+  // Notify customer
+  db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+    .run(task.customer_email, '❌', 'Order Cancelled', 'Your ' + task.service_name + ' order was cancelled by ' + provider.business_name + '. Reason: ' + sanitize(reason) + '. Please place with a different provider.', 'order_cancelled');
+  res.json({ success: true, message: 'Task cancelled', reason: reason });
 });
 
 module.exports = router;

@@ -367,6 +367,10 @@
             <div class="bg-white rounded-3xl p-6"><p class="text-gray-500">This Month's Earnings</p><p id="monthly-earnings" class="text-5xl font-bold text-emerald-600 mt-2">0</p><p class="text-xs text-emerald-600">UGX</p></div>
             <div class="bg-white rounded-3xl p-6"><p class="text-gray-500">Completion Rate</p><p id="completion-rate" class="text-5xl font-bold text-emerald-600 mt-2">0%</p></div>
         </div>
+        <div id="registration-fee-banner" class="hidden mb-6 bg-amber-50 border border-amber-300 rounded-3xl p-6 flex items-center justify-between">
+            <div><p class="font-semibold text-amber-800"><i class="fa-solid fa-gem mr-2"></i>Registration Fee Required</p><p class="text-sm text-amber-700">Pay the 50,000 UGX registration fee to start receiving orders and access all features.</p></div>
+            <button onclick="payRegistrationFee()" class="bg-amber-600 hover:bg-amber-700 text-white px-6 py-3 rounded-2xl font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-credit-card"></i> Pay 50,000 UGX</button>
+        </div>
         <div class="flex gap-4 mb-6 border-b flex-wrap">
             <button onclick="switchProviderTab(0)" id="tab-0" class="tab-button px-6 py-3 border-b-2 border-emerald-600 font-medium">Active Tasks</button>
             <button onclick="switchProviderTab(1)" id="tab-1" class="tab-button px-6 py-3 text-gray-500">Completed</button>
@@ -458,7 +462,7 @@
         <div class="flex justify-between items-center mb-6"><h3 class="font-semibold text-xl">Account Balance</h3><div class="text-right"><p class="text-2xl font-bold text-emerald-600" id="profile-account-balance">2,000,000 UGX</p><p class="text-xs text-gray-500">Available for payments</p></div></div>
         <div class="flex gap-2 mb-4">
             <button onclick="showDepositModal()" class="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-semibold"><i class="fa-solid fa-plus"></i> Deposit</button>
-            <button onclick="showPaymentsPending()" class="flex-1 border border-emerald-600 text-emerald-700 py-4 rounded-2xl font-semibold"><i class="fa-solid fa-credit-card"></i> Pay</button>
+            <button onclick="showPaymentsPending()" class="flex-1 border border-emerald-600 text-emerald-700 py-4 rounded-2xl font-semibold relative"><i class="fa-solid fa-credit-card"></i> Pay<span id="pending-payment-count" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">0</span></button>
             <button onclick="showCustomerWithdrawModal()" class="flex-1 bg-amber-600 text-white py-4 rounded-2xl font-semibold"><i class="fa-solid fa-wallet"></i> Withdraw</button>
         </div>
         <div id="payment-countdown" class="hidden mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl">
@@ -720,6 +724,26 @@ async function checkBackend() {
     } catch(e) { clearTimeout(timer); return false; }
 }
 
+function handleSessionExpired() {
+    if (window.__HAVENGO_JWT__) {
+        window.__HAVENGO_JWT__ = null;
+        currentUser = null;
+        currentLoggedProvider = null;
+        currentAdmin = null;
+        globalNotifications = [];
+        chatConversations = {};
+        localStorage.removeItem("havengoState");
+        localStorage.removeItem("havengoState_plain");
+        try { localStorage.removeItem("encKey"); } catch(e) {}
+        alert("Your session has expired. Please login again.");
+        navigateTo("home");
+        updateProfileWithUser();
+        renderProfilePage();
+        renderAllProviderLists();
+        updateNotifCount();
+    }
+}
+
 // --- STATE ---
 let currentUser = null;
 let allUsers = [];
@@ -812,7 +836,8 @@ function buildAppState() {
         userPaymentMethods: userPaymentMethods, savedAddresses: savedAddresses,
         pendingPayments: pendingPayments, globalNotifications: globalNotifications,
         userNotificationsMap: userNotificationsMap, userActivity: userActivity,
-        profilePicSrc: profilePicSrc, registeredProviders: registeredProviders,
+        profilePicSrc: profilePicSrc, customerBitmoji: customerBitmoji,
+        registeredProviders: registeredProviders,
         bookings: bookings, providerTasks: providerTasks, completedTasks: completedTasks,
         earnings: earnings, providerEarningsMap: providerEarningsMap,
         priceChangeRequests: priceChangeRequests, deletionRequests: deletionRequests,
@@ -820,7 +845,9 @@ function buildAppState() {
         hAvengoJwt: window.__HAVENGO_JWT__ || null,
         currentLoggedProvider: currentLoggedProvider,
         currentAdmin: currentAdmin,
-        currentPage: window.__currentPage || null
+        currentPage: window.__currentPage || null,
+        providerTab: window.__providerTab !== undefined ? window.__providerTab : 0,
+        adminTab: window.__adminTab !== undefined ? window.__adminTab : 0
     };
 }
 function saveAppState() {
@@ -856,6 +883,7 @@ function applyState(state) {
     if (state.userNotificationsMap) userNotificationsMap = state.userNotificationsMap;
     if (state.userActivity) userActivity = state.userActivity;
     if (state.profilePicSrc) profilePicSrc = state.profilePicSrc;
+    if (state.customerBitmoji) customerBitmoji = state.customerBitmoji;
     if (state.registeredProviders) registeredProviders = state.registeredProviders;
     if (state.bookings) bookings = state.bookings;
     if (state.providerTasks) providerTasks = state.providerTasks;
@@ -870,6 +898,8 @@ function applyState(state) {
     if (state.currentLoggedProvider) currentLoggedProvider = state.currentLoggedProvider;
     if (state.currentAdmin) currentAdmin = state.currentAdmin;
     if (state.currentPage) window.__currentPage = state.currentPage;
+    if (state.providerTab !== undefined) window.__providerTab = state.providerTab;
+    if (state.adminTab !== undefined) window.__adminTab = state.adminTab;
 }
 
 // Reviews - starts empty; only customer-submitted reviews appear
@@ -893,8 +923,23 @@ const services = [
 
 const serviceEmojis = {
     cleaning: "\uD83E\uDDF9", spa: "\uD83D\uDC86", family: "\uD83D\uDC76", errands: "\uD83D\uDCE6", catering: "\uD83C\uDF7D\uFE0F",
-    kids: "\uD83C\uDFA8", appliance: "\uD83D\uDD27", gardening: "\uD83C\uDF3F", hair: "\uD83D\uDC87", event: "\uD83C\uDFAA", auto: "\uD83D\uDE97"
+    kids: "\uD83C\uDFA8", appliance: "\uD83D\uDD27", gardening: "\uD83C\uDF3F", hair: "\uD83D\uDC87", event: "\uD83C\uDFAA",     auto: "\uD83D\uDE97"
 };
+
+// Helper: parse backend services CSV string into array with id/name
+function parseProviderServices(s) {
+    if (!s) return [];
+    if (Array.isArray(s)) return s;
+    return s.split(',').map(function(name) {
+        name = name.trim();
+        for (var i = 0; i < services.length; i++) {
+            if (services[i].name.toLowerCase() === name.toLowerCase()) {
+                return { id: services[i].id, name: name };
+            }
+        }
+        return { id: name.toLowerCase().replace(/[^a-z0-9]/g, '-'), name: name };
+    });
+}
 
 // Blog posts
 const blogPosts = [
@@ -1076,8 +1121,7 @@ async function performLogin() {
                     return;
                 }
             } catch(e) {}
-            alert("Invalid admin credentials. Please try again.");
-            return;
+            // Admin login failed — fall through to customer login
         }
 
         // Customer login
@@ -1102,6 +1146,7 @@ async function performLogin() {
                 updateProfilePicCursor();
                 addNotification("\uD83D\uDD13", "Logged In", "Welcome back, " + data.user.firstname + "!");
                 fetchBackendNotifications();
+                fetchCustomerBookings();
                 return;
             }
         } catch(e) {}
@@ -1138,6 +1183,7 @@ async function performLogin() {
     renderProfilePage();
     updateProfilePicCursor();
     addNotification("\uD83D\uDD13", "Logged In", "Welcome back, " + user.firstname + "!");
+    fetchCustomerBookings();
     saveAppState();
 }
 
@@ -1147,21 +1193,23 @@ function logout() {
         userNotificationsMap[currentUser.email] = globalNotifications.slice();
     }
     globalNotifications = [];
+    window.__HAVENGO_JWT__ = null;
     customerBitmoji = null;
     profilePicSrc = "https://images.unsplash.com/photo-1531123897720-8f129e1688f7?w=400";
-    document.getElementById("profile-pic").src = profilePicSrc;
-    document.getElementById("profile-pic").classList.remove("hidden");
-    document.getElementById("profile-bitmoji-display").classList.add("hidden");
+    var pp = document.getElementById("profile-pic");
+    if (pp) { pp.src = profilePicSrc; pp.classList.remove("hidden"); }
+    var bd = document.getElementById("profile-bitmoji-display");
+    if (bd) bd.classList.add("hidden");
     currentUser = null;
     userBalance = 500000;
-    document.getElementById("profile-page").classList.add("hidden");
-    document.getElementById("nav-home").click();
+    chatConversations = {};
+    // Navigate to home
+    navigateTo("home");
     updateProfileWithUser();
     renderProfilePage();
     renderAllProviderLists();
     updateProfilePicCursor();
     updateNotifCount();
-    document.getElementById("home-page").classList.remove("hidden");
     saveAppState();
 }
 
@@ -1316,7 +1364,7 @@ function processExpiredDeletions() {
 // NOTIFICATIONS SYSTEM
 // ============================================================
 
-function addNotification(emoji, title, message) {
+function addNotification(emoji, title, message, notifId) {
     // Clean expired notifications first
     cleanupOldNotifications();
     globalNotifications.unshift({
@@ -1325,7 +1373,8 @@ function addNotification(emoji, title, message) {
         message: message || "",
         time: new Date().toLocaleString(),
         read: false,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        notifId: notifId
     });
     updateNotifCount();
 }
@@ -1555,7 +1604,7 @@ function showPaymentsPending() {
     document.getElementById("payment-confirm-modal").classList.remove("hidden");
 }
 
-function confirmPayment() {
+async function confirmPayment() {
     var pending = [];
     for (var i = 0; i < pendingPayments.length; i++) {
         if (!pendingPayments[i].paid) pending.push(pendingPayments[i]);
@@ -1568,6 +1617,26 @@ function confirmPayment() {
         alert("Insufficient balance. Please deposit funds first.");
         closeModal("payment-confirm-modal");
         return;
+    }
+
+    // Try backend first to deduct and confirm payment
+    if (window.__HAVENGO_JWT__) {
+        try {
+            var resp = await fetch(HAVENGO_BACKEND_URL + "/api/customer/confirm-payment", {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" },
+                body: JSON.stringify({ taskId: payment.taskId })
+            });
+            var data = await resp.json();
+            if (data.session_expired) { handleSessionExpired(); closeModal("payment-confirm-modal"); return; }
+            if (!data.success) {
+                alert(data.error || "Failed to confirm payment on server");
+                closeModal("payment-confirm-modal");
+                return;
+            }
+        } catch(e) {
+            // Fall through to local deduction
+        }
     }
 
     userBalance -= payment.amount;
@@ -1844,6 +1913,10 @@ function navigateTo(page) {
     window.scrollTo({ top: 0, behavior: "smooth" });
     window.__currentPage = page;
     saveAppState();
+    // Sync customer bookings from backend when navigating to bookings tab
+    if (page === "bookings" && currentUser && window.__HAVENGO_JWT__) {
+        fetchCustomerBookings();
+    }
 }
 
 var menuManuallyOpened = false;
@@ -2133,7 +2206,7 @@ async function placeOrder(event) {
     if (!currentUser) { alert("Please login first to place an order"); showAuthModal("login"); return; }
     if (!currentService) return;
     var finalPrice = calculateDynamicPrice(currentService.id);
-    if (userBalance <= 0) { alert("Insufficient balance. Please deposit at least UGX " + finalPrice.toLocaleString() + " to book this service."); closeModal("checkout-modal"); showDepositModal(); return; }
+    if (userBalance < finalPrice) { alert("Insufficient balance. Please deposit at least UGX " + finalPrice.toLocaleString() + " to book this service."); closeModal("checkout-modal"); showDepositModal(); return; }
     var date = document.getElementById("booking-date").value;
     var time = document.getElementById("booking-time").value;
     var address = sanitizeInput(document.getElementById("address-input").value.trim());
@@ -2175,7 +2248,32 @@ async function placeOrder(event) {
             });
             var orderData = await orderResp.json();
             if (orderData.success) {
-                userBalance -= finalPrice;
+                // Add to local arrays so customer sees it immediately
+                var booking = {
+                    id: orderData.taskId || orderData.id || Date.now(),
+                    serviceId: currentService.id,
+                    serviceName: currentService.name,
+                    price: finalPrice,
+                    date: date, time: time, address: address, instructions: instructions,
+                    status: "Pending",
+                    customerName: currentUser ? (currentUser.name || currentUser.firstname + " " + currentUser.lastname) : "Guest User",
+                    customerPhone: currentUser ? currentUser.phone : "+256 777 062 518",
+                    providerName: assignedProvider
+                };
+                bookings.push(booking);
+                providerTasks.push({
+                    id: booking.id,
+                    serviceName: booking.serviceName,
+                    customerName: booking.customerName,
+                    customerPhone: booking.customerPhone,
+                    address: booking.address,
+                    date: booking.date,
+                    time: booking.time,
+                    price: booking.price,
+                    status: "pending_confirmation",
+                    instructions: booking.instructions,
+                    providerName: assignedProvider
+                });
                 closeModal("checkout-modal");
                 renderBookings();
                 addNotification("\uD83D\uDCCB", "New Booking Placed", currentService.name + " on " + date + " at " + time);
@@ -2184,6 +2282,7 @@ async function placeOrder(event) {
                 saveAppState();
                 return;
             }
+            if (orderData.session_expired) { handleSessionExpired(); return; }
             if (orderData.error) { alert(orderData.error); return; }
         } catch(e) {}
         alert("Failed to place order on server. Please try again.");
@@ -2191,7 +2290,6 @@ async function placeOrder(event) {
     }
 
     // Fallback: local-only
-    userBalance -= finalPrice;
     var booking = {
         id: Date.now(),
         serviceId: currentService.id,
@@ -2239,6 +2337,53 @@ async function placeOrder(event) {
     addActivity("booking", "Booked " + currentService.name + " for " + date);
     alert("Order placed successfully! Your provider will be notified.");
     saveAppState();
+}
+
+// Fetch customer bookings from backend for cross-browser sync
+async function fetchCustomerBookings() {
+    if (!window.__HAVENGO_JWT__ || !currentUser) return;
+    try {
+        var resp = await fetch(HAVENGO_BACKEND_URL + "/api/customer/bookings", {
+            headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }
+        });
+        if (resp.ok) {
+            var data = await resp.json();
+            var allTasks = (data.active || []).concat(data.completed || []);
+            if (allTasks.length > 0) {
+                for (var bi = 0; bi < allTasks.length; bi++) {
+                    var b = allTasks[bi];
+                    var exists = bookings.some(function(lb) { return lb.id === b.id || lb.id === b.task_id; });
+                    if (!exists) {
+                        var bookingDate = "", bookingTime = "";
+                        if (b.details) {
+                            var dateMatch = b.details.match(/Date:\s*([^|]+)/);
+                            var timeMatch = b.details.match(/Time:\s*([^|]+)/);
+                            if (dateMatch) bookingDate = dateMatch[1].trim();
+                            if (timeMatch) bookingTime = timeMatch[1].trim();
+                        }
+                        var status = b.status || "Pending";
+                        if (status === "pending_confirmation") status = "Pending";
+                        else if (status === "active") status = "In Progress";
+                        bookings.push({
+                            id: b.id || b.task_id,
+                            serviceId: b.service_id || "",
+                            serviceName: b.service_name || "Service",
+                            price: b.price || 0,
+                            date: bookingDate,
+                            time: bookingTime,
+                            address: b.address || "",
+                            status: status,
+                            customerName: currentUser ? currentUser.name : "",
+                            customerPhone: currentUser ? currentUser.phone : "",
+                            providerName: b.provider_name || "",
+                            details: b.details || ""
+                        });
+                    }
+                }
+                renderBookings();
+            }
+        }
+    } catch(e) {}
 }
 
 function renderBookings() {
@@ -2306,13 +2451,16 @@ async function loginAsProvider() {
                     firstname: p.firstname,
                     lastname: p.lastname,
                     service: (typeof p.services === "string" ? p.services : "General Services"),
-                    location: "",
+                    services: parseProviderServices(p.services),
+                    location: p.location || "",
                     phone: p.phone,
                     email: p.email,
                     password: "",
                     bitmoji: p.bitmoji || "\uD83D\uDD27",
-                    bio: "",
-                    verified: true
+                    bio: p.bio || "",
+                    verified: true,
+                    business_name: p.business_name || "",
+                    registration_fee_paid: p.registration_fee_paid || 0
                 };
                 enterProviderDashboard(currentLoggedProvider);
                 return;
@@ -2379,7 +2527,7 @@ async function enterProviderDashboard(provider) {
     document.getElementById("provider-login-screen").classList.add("hidden");
     document.getElementById("provider-dashboard").classList.remove("hidden");
     document.getElementById("provider-header").classList.remove("hidden");
-    document.getElementById("logged-provider-name").textContent = provider.name;
+    document.getElementById("logged-provider-name").textContent = provider.business_name || provider.name;
     document.getElementById("logged-provider-service").textContent = provider.service + " \u2022 " + provider.location;
     document.getElementById("prov-login-id").value = "";
     document.getElementById("prov-login-pass").value = "";
@@ -2451,17 +2599,23 @@ async function enterProviderDashboard(provider) {
             var tasksResp = await fetch(apiUrl + "/provider/tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ } });
             if (tasksResp.ok) {
                 var backendTasks = await tasksResp.json();
+                var newTaskCount = 0;
                 for (var ti = 0; ti < backendTasks.length; ti++) {
                     var bt = backendTasks[ti];
                     var existing = providerTasks.some(function(pt) { return pt.id === bt.id; });
                     if (!existing) {
                         providerTasks.push({
                             id: bt.id, serviceId: bt.service_id, serviceName: bt.service_name,
-                            customerName: "", customerPhone: "", address: bt.address || "",
+                            customerName: bt.customer_email || "", customerPhone: "", address: bt.address || "",
                             date: "", time: "", price: bt.price, instructions: bt.details || "",
                             providerName: bt.provider_name || "", status: bt.status
                         });
+                        newTaskCount++;
                     }
+                }
+                if (newTaskCount > 0) {
+                    addNotification("\uD83D\uDCE2", "New Order Received", "You have " + newTaskCount + " new order(s) to review!");
+                    if (!document.getElementById("chat-modal").classList.contains("hidden")) {}
                 }
                 var compResp = await fetch(apiUrl + "/provider/completed-tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ } });
                 if (compResp.ok) {
@@ -2480,6 +2634,14 @@ async function enterProviderDashboard(provider) {
                 }
                 renderProviderDashboard();
             }
+            // Background sync provider-admin chat messages
+            var provEmail = currentLoggedProvider.email || currentLoggedProvider.name || "unknown";
+            var chatId = "provider-admin-" + provEmail;
+            if (chatConversations[chatId]) {
+                await loadChatFromStorage(chatId);
+            }
+            // Fetch backend notifications
+            fetchBackendNotifications();
         } catch(e) {}
     }, 30000);
 }
@@ -2499,10 +2661,17 @@ function switchProviderTab(n) {
     for (var i = 0; i < tabs.length; i++) {
         tabs[i].classList.toggle("hidden", i !== n);
     }
+    window.__providerTab = n;
+    saveAppState();
 }
 
 function renderProviderDashboard() {
     if (!currentLoggedProvider) return;
+    // Show/hide registration fee banner
+    var feeBanner = document.getElementById("registration-fee-banner");
+    if (feeBanner) {
+        feeBanner.classList.toggle("hidden", !!(currentLoggedProvider.registration_fee_paid));
+    }
     var provName = currentLoggedProvider.name;
     var myTasks = providerTasks.filter(function(t) { return t.providerName === provName || t.providerName === ""; });
     var myCompleted = completedTasks.filter(function(t) { return t.providerName === provName; });
@@ -2740,6 +2909,34 @@ async function requestPriceChange(serviceId, serviceName) {
     saveAppState();
 }
 
+async function payRegistrationFee() {
+    if (!currentLoggedProvider) return;
+    if (!confirm("Pay 50,000 UGX registration fee to activate your account?")) return;
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    if (window.__HAVENGO_JWT__) {
+        try {
+            var resp = await fetch(apiUrl + "/provider/pay-registration-fee", {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }
+            });
+            if (resp.ok) {
+                currentLoggedProvider.registration_fee_paid = 1;
+                renderProviderDashboard();
+                addNotification("\u2705", "Registration Complete", "Your account is now active. You can receive orders!");
+                alert("Payment successful! Your account is now active. You can start receiving orders.");
+                saveAppState();
+                return;
+            }
+        } catch(e) {}
+    }
+    // Offline fallback
+    currentLoggedProvider.registration_fee_paid = 1;
+    renderProviderDashboard();
+    addNotification("\u2705", "Registration Complete", "Your account is now active. You can receive orders!");
+    alert("Payment successful! (Offline mode) Your account is now active.");
+    saveAppState();
+}
+
 async function loginAsAdmin() {
     var idVal = document.getElementById("admin-login-id").value.trim();
     var passVal = document.getElementById("admin-login-pass").value;
@@ -2774,7 +2971,10 @@ function adminLoginSuccess() {
     // Start admin polling every 30s
     if (window.__adminPollInterval) clearInterval(window.__adminPollInterval);
     window.__adminPollInterval = setInterval(function() {
-        if (currentAdmin && window.__HAVENGO_JWT__) _syncAdminData();
+        if (currentAdmin && window.__HAVENGO_JWT__) {
+            _syncAdminData();
+            fetchBackendNotifications();
+        }
     }, 30000);
 }
 
@@ -2798,9 +2998,13 @@ async function _syncAdminData() {
                     phone: p.phone,
                     businessName: p.business_name,
                     service: p.services,
+                    services: parseProviderServices(p.services),
                     bitmoji: p.bitmoji,
                     verified: p.verified === 1,
-                    total_earnings: p.total_earnings
+                    total_earnings: p.total_earnings,
+                    location: p.location || "",
+                    bio: p.bio || "",
+                    experience: p.experience || 0
                 };
             });
         }
@@ -2834,23 +3038,6 @@ async function _syncAdminData() {
                 });
             }
         }
-        // Fetch admin notifications
-        try {
-            var notifResp = await fetch(apiUrl + "/admin/notifications", { headers: headers });
-            if (notifResp.ok) {
-                var notifs = await notifResp.json();
-                if (notifs && notifs.length > 0) {
-                    for (var ni = 0; ni < notifs.length; ni++) {
-                        var n = notifs[ni];
-                        var exists = globalNotifications.some(function(gn) { return gn.text === n.message && gn.title === n.title; });
-                        if (!exists) {
-                            globalNotifications.push({ icon: n.icon || "\uD83D\uDD14", title: n.title, text: n.message });
-                        }
-                    }
-                    updateNotifCount();
-                }
-            }
-        } catch(en) {}
         // Fetch admin conversations from backend so admin sees all chats
         try {
             var convResp = await fetch(apiUrl + "/admin/chat/conversations", { headers: headers });
@@ -2863,9 +3050,25 @@ async function _syncAdminData() {
                     var msgResp = await fetch(apiUrl + "/admin/chat/" + encodeURIComponent(cid), { headers: headers });
                     if (msgResp.ok) {
                         var msgs = await msgResp.json();
+                        // Preserve local-only messages (not yet on backend)
+                        var localOnly = [];
+                        var backendSet = {};
+                        for (var bi = 0; bi < msgs.length; bi++) {
+                            var backendSender = msgs[bi].sender === "Admin" ? "admin" : (msgs[bi].sender === "Customer" ? "customer" : msgs[bi].sender);
+                            backendSet[msgs[bi].message + "_" + backendSender] = true;
+                        }
+                        for (var li = 0; li < chatConversations[cid].length; li++) {
+                            var lm = chatConversations[cid][li];
+                            if (!backendSet[lm.text + "_" + lm.sender]) {
+                                localOnly.push(lm);
+                            }
+                        }
                         chatConversations[cid] = msgs.map(function(m) {
-                            return { text: m.message, sender: m.sender === "Admin" ? "admin" : m.sender, time: new Date(m.created_at).getTime(), created_at: m.created_at };
-                        });
+                            var sender = m.sender === "Admin" ? "admin" : m.sender;
+                            if (currentUser && sender === currentUser.name) sender = "customer";
+                            return { id: m.id, text: m.message, sender: sender, time: new Date(m.created_at).getTime(), created_at: m.created_at };
+                        }).concat(localOnly);
+                        checkNewChatMessages(cid);
                     }
                 }
             }
@@ -2879,6 +3082,7 @@ function logoutAdmin() {
     if (!confirm("Are you sure you want to logout?")) return;
     userNotificationsMap["admin"] = globalNotifications.slice();
     if (window.__adminPollInterval) clearInterval(window.__adminPollInterval);
+    window.__HAVENGO_JWT__ = null;
     currentAdmin = null;
     globalNotifications = [];
     document.getElementById("admin-dashboard").classList.add("hidden");
@@ -2892,6 +3096,7 @@ function logoutProvider() {
         userNotificationsMap[currentLoggedProvider.email] = globalNotifications.slice();
     }
     if (window.__providerPollInterval) clearInterval(window.__providerPollInterval);
+    window.__HAVENGO_JWT__ = null;
     currentLoggedProvider = null;
     globalNotifications = [];
     document.getElementById("provider-login-screen").classList.remove("hidden");
@@ -2917,6 +3122,8 @@ function switchAdminTab(n) {
     if (n === 2) renderAdminPriceRequests();
     if (n === 3) renderAdminRevenue();
     if (n === 4) renderAdminChat();
+    window.__adminTab = n;
+    saveAppState();
 }
 
 function renderAdminDashboard() {
@@ -2947,7 +3154,8 @@ function renderAdminProviders() {
     for (var i = 0; i < registeredProviders.length; i++) {
         var p = registeredProviders[i];
         var isVerified = p.verified ? "<span class=\"text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full\">Verified</span>" : "<span class=\"text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full\">Pending</span>";
-        html += "<div class=\"bg-white rounded-2xl p-5 shadow flex justify-between items-center\"><div><p class=\"font-semibold\">" + p.name + "</p><p class=\"text-sm text-gray-500\">" + (p.email || "") + " \u2022 " + (p.phone || "") + "</p><p class=\"text-xs text-gray-400\">" + (p.service || "General") + " \u2022 " + (p.location || "") + "</p></div><div>" + isVerified + " <button onclick=\"adminDeleteProvider(" + p.id + ")\" class=\"text-xs bg-red-500 text-white px-2 py-1 rounded-full ml-2 hover:bg-red-600\"><i class=\"fa-solid fa-trash-can\"></i> Delete</button></div></div>";
+        var displayName = p.business_name || p.businessName || p.name;
+        html += "<div class=\"bg-white rounded-2xl p-5 shadow flex justify-between items-center\"><div><p class=\"font-semibold\">" + displayName + "</p><p class=\"text-sm text-gray-500\">" + (p.email || "") + " \u2022 " + (p.phone || "") + "</p><p class=\"text-xs text-gray-400\">" + (p.service || "General") + " \u2022 " + (p.location || "") + "</p></div><div>" + isVerified + " <button onclick=\"adminDeleteProvider(" + p.id + ")\" class=\"text-xs bg-red-500 text-white px-2 py-1 rounded-full ml-2 hover:bg-red-600\"><i class=\"fa-solid fa-trash-can\"></i> Delete</button></div></div>";
     }
     list.innerHTML = html;
 }
@@ -2963,7 +3171,8 @@ function renderAdminVerification() {
     var html = "";
     for (var i = 0; i < unverified.length; i++) {
         var p = unverified[i];
-        html += "<div class=\"bg-white rounded-2xl p-5 shadow\"><div class=\"flex justify-between items-start\"><div><p class=\"font-semibold\">" + p.name + "</p><p class=\"text-sm text-gray-500\">" + (p.email || "") + " \u2022 " + (p.phone || "") + "</p><p class=\"text-sm text-gray-500\">Service: " + (p.service || "General") + " \u2022 " + (p.location || "") + "</p>" + (p.bio ? "<p class=\"text-xs text-gray-400 mt-1\">" + p.bio + "</p>" : "") + "</div><div class=\"flex gap-2\"><button onclick=\"verifyProvider(" + p.id + ")\" class=\"bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-check\"></i> Verify</button><button onclick=\"rejectProvider(" + p.id + ")\" class=\"bg-red-500 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-times\"></i> Reject</button></div></div></div>";
+        var displayName = p.business_name || p.businessName || p.name;
+        html += "<div class=\"bg-white rounded-2xl p-5 shadow\"><div class=\"flex justify-between items-start\"><div><p class=\"font-semibold\">" + displayName + "</p><p class=\"text-sm text-gray-500\">" + (p.email || "") + " \u2022 " + (p.phone || "") + "</p><p class=\"text-sm text-gray-500\">Service: " + (p.service || "General") + " \u2022 " + (p.location || "") + "</p>" + (p.bio ? "<p class=\"text-xs text-gray-400 mt-1\">" + p.bio + "</p>" : "") + "</div><div class=\"flex gap-2\"><button onclick=\"verifyProvider(" + p.id + ")\" class=\"bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-check\"></i> Verify</button><button onclick=\"rejectProvider(" + p.id + ")\" class=\"bg-red-500 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-times\"></i> Reject</button></div></div></div>";
     }
     list.innerHTML = html;
 }
@@ -3227,7 +3436,7 @@ async function sendCustomerAdminMessage() {
             await fetch(HAVENGO_BACKEND_URL + "/api/chat/send", {
                 method: "POST",
                 headers: { "Authorization": "Bearer " + jwt, "Content-Type": "application/json" },
-                body: JSON.stringify({ conversationId: chatId, message: text, sender: currentUser.name })
+                body: JSON.stringify({ conversationId: chatId, message: text, sender: "Customer" })
             });
         } catch(e) {}
     }
@@ -3250,7 +3459,8 @@ function renderCustomerAdminMessages() {
     for (var i = 0; i < msgs.length; i++) {
         var m = msgs[i];
         var isSent = m.sender === "customer";
-        html += "<div class=\"flex " + (isSent ? "justify-end" : "justify-start") + "\"><div class=\"" + (isSent ? "bg-emerald-600 text-white" : "bg-gray-100") + " rounded-2xl px-4 py-3 max-w-xs\"><p class=\"text-sm\">" + m.text + "</p><p class=\"text-xs mt-1 " + (isSent ? "text-emerald-100" : "text-gray-400") + "\">" + new Date(m.time).toLocaleTimeString() + "</p></div></div>";
+        var msgId = m.id || ("cadm_" + i + "_" + m.time);
+        html += "<div class=\"flex " + (isSent ? "justify-end" : "justify-start") + "\"><div class=\"" + (isSent ? "bg-emerald-600 text-white" : "bg-gray-100") + " rounded-2xl px-4 py-3 max-w-xs relative group\"><button onclick=\"deleteChatMessage('" + chatId + "','" + msgId + "'," + i + ")\" class=\"absolute -top-2 -right-2 text-xs text-red-400 hover:text-red-600 bg-white rounded-full w-5 h-5 flex items-center justify-center shadow opacity-0 group-hover:opacity-100 transition-opacity\" title=\"Delete\"><i class=\"fa-solid fa-times\"></i></button><p class=\"text-sm\">" + m.text + "</p><p class=\"text-xs mt-1 " + (isSent ? "text-emerald-100" : "text-gray-400") + "\">" + new Date(m.time).toLocaleTimeString() + "</p></div></div>";
     }
     container.innerHTML = html;
     container.scrollTop = container.scrollHeight;
@@ -3377,6 +3587,58 @@ function processCustomerWithdraw() {
     alert("Withdrawal of UGX " + netAmount.toLocaleString() + " initiated to " + phone);
 }
 
+// Provider withdraw functions
+function showWithdrawModal() {
+    if (!currentLoggedProvider) return;
+    var available = providerEarningsMap[currentLoggedProvider.name] || 0;
+    document.getElementById("withdraw-available-balance").textContent = available.toLocaleString() + " UGX";
+    document.getElementById("withdraw-amount").value = Math.min(available, 50000);
+    document.getElementById("withdraw-fee").textContent = "0 UGX";
+    document.getElementById("withdraw-receive").textContent = "0 UGX";
+    document.getElementById("withdraw-phone").value = currentLoggedProvider.phone || "";
+    document.getElementById("withdraw-modal").classList.remove("hidden");
+}
+
+function updateWithdrawFee() {
+    var amount = parseInt(document.getElementById("withdraw-amount").value) || 0;
+    var fee = Math.round(amount * 0.005);
+    var receive = amount - fee;
+    document.getElementById("withdraw-fee").textContent = fee.toLocaleString() + " UGX";
+    document.getElementById("withdraw-receive").textContent = receive.toLocaleString() + " UGX";
+}
+
+async function processWithdraw() {
+    var amount = parseInt(document.getElementById("withdraw-amount").value) || 0;
+    var phone = document.getElementById("withdraw-phone").value.trim();
+    var available = providerEarningsMap[currentLoggedProvider.name] || 0;
+
+    if (amount < 1000) { alert("Minimum withdrawal is 1,000 UGX"); return; }
+    if (amount > available) { alert("Insufficient earnings."); return; }
+    if (!phone || phone.length < 8) { alert("Enter a valid Mobile Money number"); return; }
+
+    // Try backend first
+    if (window.__HAVENGO_JWT__) {
+        try {
+            var resp = await fetch(HAVENGO_BACKEND_URL + "/api/provider/withdraw", {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" },
+                body: JSON.stringify({ amount: amount })
+            });
+            var data = await resp.json();
+            if (!data.success) { alert(data.error || "Withdrawal failed"); return; }
+        } catch(e) { /* fall through to local */ }
+    }
+
+    var fee = Math.round(amount * 0.005);
+    var netAmount = amount - fee;
+    if (!providerEarningsMap[currentLoggedProvider.name]) providerEarningsMap[currentLoggedProvider.name] = 0;
+    providerEarningsMap[currentLoggedProvider.name] -= amount + fee;
+    closeModal("withdraw-modal");
+    renderProviderDashboard();
+    addNotification("\uD83C\uDFE7", "Withdrawal Initiated", "UGX " + netAmount.toLocaleString() + " sent to " + phone);
+    alert("Withdrawal of UGX " + netAmount.toLocaleString() + " initiated to " + phone);
+}
+
 // Track payment declines for 2-minute notification
 function trackPaymentDecline() {
     if (hasPendingPayment() && paymentDeclineTime === null) {
@@ -3469,13 +3731,43 @@ function renderChatMessages(messages, currentRole) {
         var isSent = m.sender === currentRole;
         var bubbleClass = isSent ? "chat-bubble-sent ml-auto" : "chat-bubble-received";
         var timeClass = isSent ? "text-emerald-100" : "text-gray-400";
-        html += "<div class=\"chat-bubble " + bubbleClass + "\">" +
-            m.text +
+        var msgId = m.id || ("msg_" + i + "_" + m.time);
+        html += "<div class=\"chat-bubble " + bubbleClass + "\" data-msg-id=\"" + msgId + "\">" +
+            "<div class=\"flex items-start justify-between gap-2\">" +
+            "<div>" + m.text + "</div>" +
+            "<button onclick=\"deleteChatMessage('" + currentChatTaskId + "','" + msgId + "'," + i + ")\" class=\"text-xs text-red-400 hover:text-red-600 flex-shrink-0 ml-1\" title=\"Delete\"><i class=\"fa-solid fa-times\"></i></button>" +
+            "</div>" +
             "<div class=\"text-xs mt-1 " + timeClass + "\">" + new Date(m.time).toLocaleTimeString() + "</div>" +
             "</div>";
     }
     container.innerHTML = html;
     container.scrollTop = container.scrollHeight;
+}
+
+async function deleteChatMessage(convId, msgId, index) {
+    if (!confirm("Delete this message?")) return;
+    var jwt = window.__HAVENGO_JWT__;
+    // Try backend deletion
+    if (jwt && convId && msgId && !msgId.startsWith("msg_")) {
+        try {
+            var endpoint = currentAdmin ? "/admin/chat/" : "/chat/";
+            await fetch(HAVENGO_BACKEND_URL + "/api" + endpoint + encodeURIComponent(convId) + "/message/" + msgId, {
+                method: "DELETE", headers: { "Authorization": "Bearer " + jwt }
+            });
+        } catch(e) {}
+    }
+    // Remove locally
+    if (chatConversations[convId] && chatConversations[convId][index]) {
+        chatConversations[convId].splice(index, 1);
+        syncChatToStorage(convId);
+        var currentRole = currentAdmin ? "admin" : (currentLoggedProvider ? "provider" : "customer");
+        if (convId && (convId.indexOf("customer-admin") === 0 || convId.indexOf("provider-admin") === 0)) {
+            renderCustomerAdminMessages();
+        }
+        if (document.getElementById("chat-messages")) {
+            renderChatMessages(chatConversations[convId], currentRole);
+        }
+    }
 }
 
 function openChatWithProvider(taskId) {
@@ -3486,18 +3778,6 @@ function openChatWithProvider(taskId) {
     document.getElementById("chat-provider-name").textContent = (task ? task.serviceName : "Chat") + " \u2014 " + (task ? task.customerName : "Customer");
     document.getElementById("chat-provider-avatar").textContent = "\uD83D\uDCAC";
     renderChatMessages(chatConversations[taskId], "customer");
-    document.getElementById("chat-modal").classList.remove("hidden");
-    startChatPolling(taskId);
-}
-
-function openProviderChat(taskId) {
-    currentChatTaskId = taskId;
-    if (!chatConversations[taskId]) chatConversations[taskId] = [];
-    loadChatFromStorage(taskId).then(function() { renderChatMessages(chatConversations[taskId], "provider"); }).catch(function() {});
-    var task = findTask(taskId);
-    document.getElementById("chat-provider-name").textContent = task ? task.customerName : "Customer";
-    document.getElementById("chat-provider-avatar").textContent = "\uD83D\uDC64";
-    renderChatMessages(chatConversations[taskId], "provider");
     document.getElementById("chat-modal").classList.remove("hidden");
     startChatPolling(taskId);
 }
@@ -3563,7 +3843,7 @@ async function sendChatMessage() {
     var jwt = window.__HAVENGO_JWT__;
     if (jwt) {
         var convId = currentChatTaskId;
-        var chatSender = currentAdmin ? "Admin" : (currentLoggedProvider ? currentLoggedProvider.name : (currentUser ? currentUser.name : "Customer"));
+        var chatSender = currentAdmin ? "Admin" : (currentLoggedProvider ? currentLoggedProvider.name : "Customer");
         try {
             var endpoint = currentAdmin ? "/admin/chat/send" : "/chat/send";
             await fetch(apiUrl + endpoint, {
@@ -3600,21 +3880,30 @@ async function loadChatFromStorage(taskId) {
             if (resp.ok) {
                 var backendMsgs = await resp.json();
                 if (backendMsgs.length > 0) {
-                    if (!chatConversations[taskId]) chatConversations[taskId] = [];
-                    var merged = [];
-                    var existingIds = {};
-                    for (var ei = 0; ei < chatConversations[taskId].length; ei++) {
-                        var em = chatConversations[taskId][ei];
-                        var key = em.text + "_" + em.sender + "_" + (em.created_at || em.time || "");
-                        existingIds[key] = true;
-                    }
-                    for (var bi = 0; bi < backendMsgs.length; bi++) {
-                        var bm = backendMsgs[bi];
-                        var bKey = bm.message + "_" + bm.sender + "_" + bm.created_at;
-                        if (!existingIds[bKey]) {
-                            chatConversations[taskId].push({ text: bm.message, sender: bm.sender === "Admin" ? "admin" : bm.sender, time: new Date(bm.created_at).getTime(), created_at: bm.created_at });
+                    // Build set of local (text+sender) to preserve unsent messages
+                    var localOnly = [];
+                    if (chatConversations[taskId]) {
+                        var backendSet = {};
+                        for (var bi = 0; bi < backendMsgs.length; bi++) {
+                            var bm = backendMsgs[bi];
+                            var backendSender = bm.sender === "Admin" ? "admin" : (bm.sender === "Customer" ? "customer" : bm.sender);
+                            backendSet[bm.message + "_" + backendSender] = true;
+                        }
+                        for (var li = 0; li < chatConversations[taskId].length; li++) {
+                            var lm = chatConversations[taskId][li];
+                            if (!backendSet[lm.text + "_" + lm.sender]) {
+                                localOnly.push(lm);
+                            }
                         }
                     }
+                    // Replace with backend messages + local-only messages
+                    chatConversations[taskId] = backendMsgs.map(function(bm) {
+                        var sender = bm.sender === "Admin" ? "admin" : bm.sender;
+                        // Map customer's actual name back to "customer" for proper side rendering
+                        if (currentUser && sender === currentUser.name) sender = "customer";
+                        return { id: bm.id, text: bm.message, sender: sender, time: new Date(bm.created_at).getTime(), created_at: bm.created_at };
+                    }).concat(localOnly);
+                    checkNewChatMessages(taskId);
                     var currentRole = currentAdmin ? "admin" : (currentLoggedProvider ? "provider" : "customer");
                     renderChatMessages(chatConversations[taskId], currentRole);
                     return;
@@ -3642,6 +3931,28 @@ async function loadChatFromStorage(taskId) {
             }
         }
     } catch(e) {}
+}
+
+var lastChatMessageMaxId = {};
+
+function checkNewChatMessages(taskId) {
+    var msgs = chatConversations[taskId];
+    if (!msgs || msgs.length === 0) return;
+    var maxId = 0;
+    for (var mi = 0; mi < msgs.length; mi++) {
+        if (msgs[mi].id && msgs[mi].id > maxId) maxId = msgs[mi].id;
+    }
+    var prevMaxId = lastChatMessageMaxId[taskId] || 0;
+    if (maxId > prevMaxId && prevMaxId > 0) {
+        var currentRoleSender = currentAdmin ? "admin" : (currentLoggedProvider ? (currentLoggedProvider.name || currentLoggedProvider.business_name || "provider") : "customer");
+        for (var mi = 0; mi < msgs.length; mi++) {
+            if (msgs[mi].id && msgs[mi].id > prevMaxId && msgs[mi].sender !== currentRoleSender) {
+                addNotification("\uD83D\uDCAC", "New Message", msgs[mi].text.substring(0, 60));
+                break;
+            }
+        }
+    }
+    lastChatMessageMaxId[taskId] = maxId;
 }
 
 var chatPollInterval = null;
@@ -3819,7 +4130,7 @@ async function submitProviderApplication(event) {
                     firstname: firstname, lastname: lastname, email: email, phone: phone,
                     businessName: businessName, services: serviceNames,
                     password: password, confirmPassword: confirmPassword,
-                    bitmoji: selectedBitmoji
+                    bitmoji: selectedBitmoji, location: location, bio: bio, experience: exp
                 })
             });
             var data = await resp.json();
@@ -4079,8 +4390,8 @@ async function fetchVerifiedProviders() {
         var resp = await fetch(apiUrl + "/providers/verified");
         if (resp.ok) {
             var data = await resp.json();
+            var backendEmails = {};
             if (data && data.length > 0) {
-                var backendEmails = {};
                 for (var i = 0; i < data.length; i++) {
                     var bp = data[i];
                     backendEmails[bp.email] = true;
@@ -4089,24 +4400,27 @@ async function fetchVerifiedProviders() {
                         if (registeredProviders[j].email === bp.email) { existing = true; break; }
                     }
                     if (!existing) {
-                        var svcs = bp.services ? JSON.parse(bp.services) : [];
+                        var svcs = parseProviderServices(bp.services);
                         registeredProviders.push({
                             id: bp.id, name: bp.business_name || bp.name, business_name: bp.business_name,
                             email: bp.email, phone: bp.phone || "", firstname: bp.name ? bp.name.split(" ")[0] : "",
                             lastname: bp.name ? bp.name.split(" ").slice(1).join(" ") : "",
                             services: svcs, bitmoji: bp.bitmoji || "\uD83D\uDC64",
-                            verified: true, jobs: bp.jobs || 0
+                            verified: true, jobs: bp.jobs || 0,
+                            location: bp.location || "", bio: bp.bio || ""
                         });
                     }
                 }
-                // Remove providers no longer verified by backend
-                for (var ri = registeredProviders.length - 1; ri >= 0; ri--) {
-                    if (registeredProviders[ri].email && !backendEmails[registeredProviders[ri].email]) {
-                        registeredProviders.splice(ri, 1);
-                    }
-                }
-                renderAllProviderLists();
             }
+            // Remove providers no longer verified by backend
+            for (var ri = registeredProviders.length - 1; ri >= 0; ri--) {
+                var rp = registeredProviders[ri];
+                // Only remove providers that have an email (backend-sourced) but are not in backend response
+                if (rp.email && !backendEmails[rp.email] && rp.id) {
+                    registeredProviders.splice(ri, 1);
+                }
+            }
+            renderAllProviderLists();
         }
     } catch(e) {}
 }
@@ -4178,10 +4492,17 @@ function openProviderProfile(name) {
 function checkAutoPayment() {
     var now = new Date().getTime();
     var changed = false;
+    var customerPendingCount = 0;
     for (var i = 0; i < pendingPayments.length; i++) {
         var pp = pendingPayments[i];
         if (!pp.paid && pp.completedAt) {
             var elapsed = now - pp.completedAt;
+            // 2-min reminder (only once)
+            if (elapsed >= 120000 && elapsed < 180000 && !pp._reminded) {
+                pp._reminded = true;
+                addNotification("\u23F0", "Payment Due Soon", "UGX " + pp.amount.toLocaleString() + " for " + pp.taskName + " is due. Pay within 10 hours or auto-deducted.");
+            }
+            // 10-hour auto-payment
             if (elapsed >= 36000000) {
                 if (userBalance >= pp.amount) {
                     userBalance -= pp.amount;
@@ -4197,7 +4518,14 @@ function checkAutoPayment() {
                     addNotification("\u23F0", "Auto-Payment Processed", "UGX " + pp.amount.toLocaleString() + " auto-deducted for " + pp.taskName + " (10-hour window expired)");
                 }
             }
+            if (currentUser) customerPendingCount++;
         }
+    }
+    // Update pending count badge in profile
+    var pendingBadge = document.getElementById("pending-payment-count");
+    if (pendingBadge) {
+        pendingBadge.textContent = customerPendingCount;
+        pendingBadge.classList.toggle("hidden", customerPendingCount === 0);
     }
     if (changed) {
         renderProfilePage();
@@ -4214,20 +4542,31 @@ async function fetchBackendNotifications() {
     var jwt = window.__HAVENGO_JWT__;
     if (!jwt) return;
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    var route = "";
-    if (currentAdmin) route = "/admin/notifications";
-    else if (currentLoggedProvider) route = "/provider/notifications";
-    else if (currentUser) route = "/customer/notifications";
+    var route = "", markRoute = "";
+    if (currentAdmin) { route = "/admin/notifications"; markRoute = "/admin/notifications/mark-seen"; }
+    else if (currentLoggedProvider) { route = "/provider/notifications"; markRoute = "/provider/notifications/mark-seen"; }
+    else if (currentUser) { route = "/customer/notifications"; markRoute = "/customer/notifications/mark-seen"; }
     if (!route) return;
     try {
         var resp = await fetch(apiUrl + route, { headers: { "Authorization": "Bearer " + jwt } });
+        if (resp.status === 401) {
+            var errData = await resp.json().catch(function(){ return {}; });
+            if (errData.session_expired) { handleSessionExpired(); return; }
+        }
         if (resp.ok) {
             var notifs = await resp.json();
             if (notifs && notifs.length > 0) {
                 for (var ni = 0; ni < notifs.length; ni++) {
                     var n = notifs[ni];
-                    addNotification(n.icon || "\uD83D\uDCE2", n.title || "Notification", n.message || "");
+                    var exists = globalNotifications.some(function(gn) { return gn.notifId === n.id; });
+                    if (!exists) {
+                        addNotification(n.icon || "\uD83D\uDCE2", n.title || "Notification", n.message || "", n.id);
+                    }
                 }
+            }
+            // Mark as seen on backend so they aren't returned again
+            if (markRoute) {
+                fetch(apiUrl + markRoute, { method: "POST", headers: { "Authorization": "Bearer " + jwt } }).catch(function(){});
             }
         }
     } catch(e) {}
@@ -4251,18 +4590,16 @@ window.onload = function() {
     }
     createStars();
     startHeroSlider();
-    renderAllProviderLists();
-    renderBookings();
     renderBlogPosts();
     loadReviews();
-    renderProfilePage();
     populateMultiServiceSelect();
     populateBitmojiSelect();
-    updateProfileWithUser();
-    updateNotifCount();
 
     // Add welcome notification for demo
     addNotification("\uD83D\uDC4B", "Welcome to HavenGo", "Browse services or sign up to get started!");
+
+    // All data-dependent renders (bookings, profile, provider lists, notif count)
+    // happen AFTER state restore in the async block below to prevent flash of empty state
 
     // 10-hour auto-payment check (runs every 60 seconds)
     setInterval(checkAutoPayment, 60000);
@@ -4293,22 +4630,32 @@ window.onload = function() {
             renderAdminDashboard();
             _syncAdminData();
             fetchBackendNotifications();
+            updateNotifCount();
+            if (window.__adminTab !== undefined) switchAdminTab(window.__adminTab);
         }
         if (currentLoggedProvider) {
             document.getElementById("provider-login-screen").classList.add("hidden");
             document.getElementById("provider-dashboard").classList.remove("hidden");
             document.getElementById("provider-header").classList.remove("hidden");
             var prov = currentLoggedProvider;
-            document.getElementById("logged-provider-name").textContent = prov.name;
+            document.getElementById("logged-provider-name").textContent = prov.business_name || prov.name;
             document.getElementById("logged-provider-service").textContent = (prov.service || "General") + " \u2022 " + (prov.location || "");
             renderProviderDashboard();
             fetchBackendNotifications();
+            updateNotifCount();
+            if (window.__providerTab !== undefined) switchProviderTab(window.__providerTab);
         }
         if (currentUser) {
             updateProfileWithUser();
             renderProfilePage();
             updateProfilePicCursor();
             fetchBackendNotifications();
+            fetchCustomerBookings();
+            renderBookings();
+            updateNotifCount();
+        }
+        if (!currentAdmin && !currentLoggedProvider && !currentUser) {
+            updateNotifCount();
         }
         renderAllProviderLists();
         // Restore last visited page
@@ -4343,6 +4690,14 @@ window.onload = function() {
 
     // Poll verified providers every 30s for cross-browser sync
     setInterval(fetchVerifiedProviders, 30000);
+
+    // Poll customer bookings every 30s when logged in
+    setInterval(function() {
+        if (currentUser && window.__HAVENGO_JWT__) {
+            fetchCustomerBookings();
+            fetchBackendNotifications();
+        }
+    }, 30000);
 };
 </script>
 </body>

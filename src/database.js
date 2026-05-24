@@ -175,6 +175,7 @@ async function initDatabase() {
       bitmoji TEXT DEFAULT '🔧',
       verified INTEGER DEFAULT 0,
       total_earnings REAL DEFAULT 0,
+      registration_fee_paid INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -182,6 +183,7 @@ async function initDatabase() {
   try { db.run('ALTER TABLE providers ADD COLUMN location TEXT DEFAULT \'\''); } catch(e) {}
   try { db.run('ALTER TABLE providers ADD COLUMN bio TEXT DEFAULT \'\''); } catch(e) {}
   try { db.run('ALTER TABLE providers ADD COLUMN experience INTEGER DEFAULT 0'); } catch(e) {}
+  try { db.run('ALTER TABLE providers ADD COLUMN registration_fee_paid INTEGER DEFAULT 0'); } catch(e) {}
 
   db.run(`
     CREATE TABLE IF NOT EXISTS tasks (
@@ -303,6 +305,21 @@ async function initDatabase() {
       FOREIGN KEY (user_email) REFERENCES users(email)
     )
   `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS verification_codes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      identifier TEXT NOT NULL,
+      code TEXT NOT NULL,
+      type TEXT DEFAULT 'email',
+      expires_at DATETIME NOT NULL,
+      used INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  // Add read column to notifications if missing
+  try { db.run('ALTER TABLE notifications ADD COLUMN read INTEGER DEFAULT 0'); } catch(e) {}
 
   // Create indexes
   try { db.run("CREATE INDEX IF NOT EXISTS idx_chat_conv ON chat_messages(conversation_id)"); } catch(e) {}

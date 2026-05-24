@@ -10,14 +10,14 @@ router.use(authenticate, adminOnly);
 // GET /api/admin/providers - all providers
 router.get('/providers', (req, res) => {
   const db = getDb();
-  const providers = db.prepare('SELECT id, firstname, lastname, email, phone, business_name, services, bitmoji, verified, total_earnings, created_at, location, bio, experience FROM providers').all();
+  const providers = db.prepare('SELECT id, firstname, lastname, email, phone, business_name, services, bitmoji, verified, total_earnings, created_at, location, bio, experience, registration_fee_paid FROM providers').all();
   res.json(providers);
 });
 
 // GET /api/admin/providers/pending - unverified providers
 router.get('/providers/pending', (req, res) => {
   const db = getDb();
-  const pending = db.prepare("SELECT id, firstname, lastname, email, phone, business_name, services, bitmoji, created_at, location, bio, experience FROM providers WHERE verified = 0").all();
+  const pending = db.prepare("SELECT id, firstname, lastname, email, phone, business_name, services, bitmoji, created_at, location, bio, experience, registration_fee_paid FROM providers WHERE verified = 0").all();
   res.json(pending);
 });
 
@@ -26,8 +26,13 @@ router.post('/providers/verify/:id', (req, res) => {
   const db = getDb();
   const id = parseInt(req.params.id);
   if (!id) return res.status(400).json({ error: 'Invalid provider ID' });
+  const provider = db.prepare('SELECT * FROM providers WHERE id = ?').get(id);
+  if (!provider) return res.status(404).json({ error: 'Provider not found' });
   const result = db.prepare('UPDATE providers SET verified = 1 WHERE id = ?').run(id);
   if (result.changes === 0) return res.status(404).json({ error: 'Provider not found' });
+  // Notify provider that they've been verified
+  db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+    .run(provider.email, '✅', 'Application Approved', 'Your HavenGo provider application has been approved! Please log in and pay the 50,000 UGX registration fee to start receiving orders.', 'provider_verified');
   res.json({ success: true, message: 'Provider verified' });
 });
 
@@ -120,6 +125,20 @@ router.post('/chat/send', (req, res) => {
   const encrypted = encrypt(message);
   db.prepare('INSERT INTO chat_messages (conversation_id, sender, message, encrypted) VALUES (?, ?, ?, 1)')
     .run(conversationId, 'Admin', encrypted);
+  // Notify the conversation participant customer or provider
+  if (conversationId.startsWith('customer-admin-')) {
+    const userEmail = conversationId.replace('customer-admin-', '');
+    if (userEmail) {
+      db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+        .run(userEmail, '💬', 'New Message from Admin', message.substring(0, 100), 'chat');
+    }
+  } else if (conversationId.startsWith('provider-admin-')) {
+    const providerEmail = conversationId.replace('provider-admin-', '');
+    if (providerEmail) {
+      db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+        .run(providerEmail, '💬', 'New Message from Admin', message.substring(0, 100), 'chat');
+    }
+  }
   res.json({ success: true });
 });
 
@@ -145,7 +164,7 @@ router.get('/notifications', (req, res) => {
   const db = getDb();
   const adminEmail = db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
   const email = adminEmail || 'admin';
-  const notifs = db.prepare("SELECT * FROM notifications WHERE user_email = ? AND (expiry IS NULL OR expiry > datetime('now')) ORDER BY created_at DESC LIMIT 50").all(email);
+  const notifs = db.prepare("SELECT * FROM notifications WHERE user_email = ? AND read = 0 AND (expiry IS NULL OR expiry > datetime('now')) ORDER BY created_at DESC LIMIT 50").all(email);
   res.json(notifs);
 });
 
@@ -156,12 +175,92 @@ router.post('/notifications/clear', (req, res) => {
   res.json({ success: true });
 });
 
+router.post('/notifications/mark-seen', (req, res) => {
+  const db = getDb();
+  const adminEmail = db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
+  db.prepare("UPDATE notifications SET read = 1 WHERE user_email = ? AND read = 0").run(adminEmail || 'admin');
+  res.json({ success: true });
+});
+
 // DELETE /api/admin/chat/:conversationId/message/:messageId
 router.delete('/chat/:conversationId/message/:messageId', (req, res) => {
   const db = getDb();
   const msg = db.prepare('SELECT * FROM chat_messages WHERE id = ? AND conversation_id = ?').get(req.params.messageId, req.params.conversationId);
   if (!msg) return res.status(404).json({ error: 'Message not found' });
   db.prepare('DELETE FROM chat_messages WHERE id = ?').run(req.params.messageId);
+  res.json({ success: true });
+});
+
+// POST /api/admin/notify-provider — send notification to a provider
+router.post('/notify-provider', (req, res) => {
+  const { providerName, icon, title, message } = req.body;
+  if (!providerName || !title) return res.status(400).json({ error: 'Missing required fields' });
+  const db = getDb();
+  const provider = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(providerName);
+  if (provider) {
+    db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, 'price_update')")
+      .run(provider.email, icon || '📋', title, message || '');
+    res.json({ success: true });
+  } else {
+    res.status(404).json({ error: 'Provider not found' });
+  }
+});
+
+// GET /api/admin/payment-disputes — list disputed payments
+router.get('/payment-disputes', (req, res) => {
+  const db = getDb();
+  const disputes = db.prepare("SELECT * FROM pending_payments WHERE status = 'disputed'").all();
+  res.json(disputes);
+});
+
+// POST /api/admin/resolve-payment-dispute/:id — admin resolves dispute, continues payment
+router.post('/resolve-payment-dispute/:id', (req, res) => {
+  const db = getDb();
+  const id = parseInt(req.params.id);
+  const { resolution } = req.body;
+  if (!id) return res.status(400).json({ error: 'Invalid ID' });
+  const payment = db.prepare('SELECT * FROM pending_payments WHERE id = ? AND status = ?').get(id, 'disputed');
+  if (!payment) return res.status(404).json({ error: 'Disputed payment not found' });
+  if (resolution === 'release') {
+    db.prepare("UPDATE pending_payments SET status = 'pending' WHERE id = ?").run(id);
+    // Auto-process the payment now
+    const customer = db.prepare('SELECT * FROM users WHERE email = ?').get(payment.customer_email);
+    const providerAmount = payment.amount * 0.85;
+    const systemAmount = payment.amount * 0.15;
+    if (customer && customer.balance >= payment.amount) {
+      db.prepare('UPDATE users SET balance = balance - ? WHERE email = ?').run(payment.amount, payment.customer_email);
+    }
+    db.prepare('UPDATE completed_tasks SET paid = 1 WHERE task_id = ?').run(payment.task_id);
+    db.prepare("UPDATE pending_payments SET status = 'paid' WHERE id = ?").run(id);
+    db.prepare('UPDATE providers SET total_earnings = total_earnings + ? WHERE business_name = ?').run(providerAmount, payment.provider_name);
+    db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+      .run(payment.customer_email, '✅', 'Dispute Resolved', 'Your payment dispute has been resolved. UGX ' + payment.amount + ' has been processed.', 'payment');
+    const prov = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(payment.provider_name);
+    if (prov) {
+      db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+        .run(prov.email, '✅', 'Dispute Resolved', 'Payment dispute resolved. UGX ' + providerAmount + ' credited to your account.', 'payment');
+    }
+    res.json({ success: true, message: 'Payment released' });
+  } else if (resolution === 'refund') {
+    db.prepare("UPDATE pending_payments SET status = 'refunded' WHERE id = ?").run(id);
+    db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+      .run(payment.customer_email, '💰', 'Dispute Resolved - Refunded', 'Your payment dispute has been resolved. The amount UGX ' + payment.amount + ' has been refunded.', 'payment');
+    const prov = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(payment.provider_name);
+    if (prov) {
+      db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+        .run(prov.email, 'ℹ️', 'Dispute Resolved', 'Payment dispute for task #' + payment.task_id + ' has been resolved with refund.', 'payment');
+    }
+    res.json({ success: true, message: 'Payment refunded' });
+  } else {
+    res.status(400).json({ error: 'Invalid resolution. Use "release" or "refund".' });
+  }
+});
+
+// POST /api/admin/delete-notification/:id
+router.post('/delete-notification/:id', (req, res) => {
+  const db = getDb();
+  const adminEmail = db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
+  db.prepare('DELETE FROM notifications WHERE id = ? AND user_email = ?').run(parseInt(req.params.id), adminEmail || 'admin');
   res.json({ success: true });
 });
 

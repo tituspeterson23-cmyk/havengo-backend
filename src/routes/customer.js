@@ -11,7 +11,7 @@ router.use(authenticate);
 router.get('/profile', (req, res) => {
   const db = getDb();
   const user = db.prepare('SELECT id, firstname, lastname, email, phone, bitmoji, balance, created_at FROM users WHERE email = ?').get(req.user.email);
-  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (!user) return res.status(401).json({ session_expired: true, error: 'Your session has expired. Please login again.' });
   res.json(user);
 });
 
@@ -40,13 +40,10 @@ router.post('/place-order', (req, res) => {
   }
   const db = getDb();
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(req.user.email);
-  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (!user) return res.status(401).json({ session_expired: true, error: 'Your session has expired. Please login again.' });
   if (user.balance < price) {
     return res.status(400).json({ error: 'Insufficient balance. Please deposit first.' });
   }
-
-  // Deduct balance
-  db.prepare('UPDATE users SET balance = balance - ? WHERE email = ?').run(price, req.user.email);
 
   // Create task
   const pName = providerName || '';
@@ -59,6 +56,23 @@ router.post('/place-order', (req, res) => {
     if (providers.length > 0) {
       db.prepare("UPDATE tasks SET provider_name = ? WHERE id = ?")
         .run(providers[0].business_name, result.lastInsertRowid);
+    }
+  }
+
+  // Notify admin about new order
+  const adminEmail = db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
+  if (adminEmail) {
+    db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+      .run(adminEmail, '📋', 'New Order', sanitize(serviceName) + ' ordered by ' + req.user.email + ' for UGX ' + price, 'order');
+  }
+  // Notify assigned provider
+  const assignedTask = db.prepare("SELECT provider_name FROM tasks WHERE id = ?").get(result.lastInsertRowid);
+  const assignedProviderName = assignedTask ? assignedTask.provider_name : '';
+  if (assignedProviderName) {
+    const prov = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(assignedProviderName);
+    if (prov) {
+      db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+        .run(prov.email, '📋', 'New Order Assigned', 'New ' + sanitize(serviceName) + ' order assigned to you by ' + req.user.email + ' for UGX ' + price, 'order');
     }
   }
 
@@ -75,6 +89,14 @@ router.post('/confirm-payment', (req, res) => {
 
   if (!completed) return res.status(404).json({ error: 'Completed task not found or already paid' });
 
+  // Deduct from customer balance at payment confirmation time
+  const customer = db.prepare('SELECT * FROM users WHERE email = ?').get(req.user.email);
+  if (!customer) return res.status(401).json({ session_expired: true, error: 'Your session has expired. Please login again.' });
+  if (customer.balance < completed.price) {
+    return res.status(400).json({ error: 'Insufficient balance to confirm payment' });
+  }
+  db.prepare('UPDATE users SET balance = balance - ? WHERE email = ?').run(completed.price, req.user.email);
+
   const providerAmount = completed.price * 0.85;
   const systemAmount = completed.price * 0.15;
 
@@ -88,6 +110,12 @@ router.post('/confirm-payment', (req, res) => {
   // Add notifications
   db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '💰', 'Payment Confirmed', 'Payment of " + completed.price + " UGX completed. Provider credited " + providerAmount + " UGX.', 'money')")
     .run(req.user.email);
+  // Notify provider about payment
+  const prov = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(completed.provider_name);
+  if (prov) {
+    db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '💰', 'Payment Received', 'Payment of " + completed.price + " UGX received from " + req.user.email + " for " + completed.service_name + ".', 'money')")
+      .run(prov.email);
+  }
 
   res.json({ success: true, message: 'Payment confirmed!', providerAmount, systemAmount });
 });
@@ -111,7 +139,13 @@ router.post('/withdraw', (req, res) => {
 
   const db = getDb();
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(req.user.email);
-  if (!user) return res.status(404).json({ error: 'User not found' });
+  if (!user) return res.status(401).json({ session_expired: true, error: 'Your session has expired. Please login again.' });
+
+  // Check for active orders (pending_confirmation or active)
+  const activeCount = db.prepare("SELECT COUNT(*) as count FROM tasks WHERE customer_email = ? AND status IN ('pending_confirmation', 'active')").get(req.user.email);
+  if (activeCount.count > 0) {
+    return res.status(400).json({ error: 'Cannot withdraw while you have an active order in progress' });
+  }
 
   // Check for pending payments
   const pendingCount = db.prepare("SELECT COUNT(*) as count FROM pending_payments WHERE customer_email = ? AND status = 'pending'").get(req.user.email);
@@ -169,7 +203,7 @@ router.post('/cancel-deletion', (req, res) => {
 // Notifications
 router.get('/notifications', (req, res) => {
   const db = getDb();
-  const notifs = db.prepare("SELECT * FROM notifications WHERE user_email = ? AND (expiry IS NULL OR expiry > datetime('now')) ORDER BY created_at DESC LIMIT 50").all(req.user.email);
+  const notifs = db.prepare("SELECT * FROM notifications WHERE user_email = ? AND read = 0 AND (expiry IS NULL OR expiry > datetime('now')) ORDER BY created_at DESC LIMIT 50").all(req.user.email);
   res.json(notifs);
 });
 
@@ -179,11 +213,48 @@ router.post('/notifications/clear', (req, res) => {
   res.json({ success: true });
 });
 
+router.post('/notifications/mark-seen', (req, res) => {
+  const db = getDb();
+  db.prepare("UPDATE notifications SET read = 1 WHERE user_email = ? AND read = 0").run(req.user.email);
+  res.json({ success: true });
+});
+
 // GET /api/customer/pending-payments
 router.get('/pending-payments', (req, res) => {
   const db = getDb();
   const pending = db.prepare("SELECT * FROM pending_payments WHERE customer_email = ? AND status = 'pending'").all(req.user.email);
   res.json(pending);
+});
+
+// POST /api/customer/report-payment-issue — customer reports issue, admin halts auto-payment
+router.post('/report-payment-issue', (req, res) => {
+  const { taskId, reason } = req.body;
+  if (!taskId || !reason) return res.status(400).json({ error: 'Missing required fields' });
+  const db = getDb();
+  // Mark payment as disputed (auto-payment will skip disputed payments)
+  const payment = db.prepare("SELECT * FROM pending_payments WHERE task_id = ? AND customer_email = ? AND status = 'pending'").get(taskId, req.user.email);
+  if (!payment) return res.status(404).json({ error: 'Pending payment not found' });
+  db.prepare("UPDATE pending_payments SET status = 'disputed' WHERE id = ?").run(payment.id);
+  // Notify admin
+  const adminEmail = db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
+  if (adminEmail) {
+    db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+      .run(adminEmail, '⚠️', 'Payment Dispute', 'Customer ' + req.user.email + ' reported an issue with payment UGX ' + payment.amount + '. Reason: ' + sanitize(reason), 'payment_dispute');
+  }
+  // Notify provider
+  const prov = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(payment.provider_name);
+  if (prov) {
+    db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+      .run(prov.email, '⚠️', 'Payment Dispute', 'Customer reported an issue with payment for task #' + taskId + '. Admin will review.', 'payment_dispute');
+  }
+  res.json({ success: true, message: 'Issue reported. Auto-payment has been halted pending admin review.' });
+});
+
+// POST /api/customer/delete-notification/:id
+router.post('/delete-notification/:id', (req, res) => {
+  const db = getDb();
+  db.prepare('DELETE FROM notifications WHERE id = ? AND user_email = ?').run(parseInt(req.params.id), req.user.email);
+  res.json({ success: true });
 });
 
 module.exports = router;

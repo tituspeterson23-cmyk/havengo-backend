@@ -59,7 +59,7 @@ app.get('/api/health', (req, res) => {
 app.get('/api/providers/verified', (req, res) => {
   const { getDb } = require('./src/database');
   const db = getDb();
-  const providers = db.prepare("SELECT id, firstname, lastname, email, phone, business_name, services, bitmoji, total_earnings FROM providers WHERE verified = 1").all();
+  const providers = db.prepare("SELECT id, firstname, lastname, email, phone, business_name, services, bitmoji, total_earnings, registration_fee_paid FROM providers WHERE verified = 1").all();
   const mapped = providers.map(p => ({
     id: p.id, name: p.firstname + ' ' + p.lastname, business_name: p.business_name,
     email: p.email, phone: p.phone, services: p.services, bitmoji: p.bitmoji,
@@ -78,6 +78,29 @@ app.use((err, req, res, next) => {
   console.error('Server error:', err);
   res.status(500).json({ error: 'Internal server error' });
 });
+
+// Payment reminder - 2 minutes after task completion, notify customer to pay
+setInterval(() => {
+  try {
+    const db = require('./src/database').getDb();
+    const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
+    const threeMinAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+    // Find tasks where payment is pending and 2-3 minutes have passed (send reminder once)
+    const reminders = db.prepare("SELECT * FROM pending_payments WHERE status = 'pending' AND completed_at < ? AND completed_at > ?").all(twoMinAgo, threeMinAgo);
+    for (const p of reminders) {
+      db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '⏰', 'Payment Reminder', 'Payment of UGX " + p.amount + " for your task is due. Pay within 10 hours or it will be auto-deducted.', 'payment_reminder')")
+        .run(p.customer_email);
+      // Also notify provider
+      const prov = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(p.provider_name);
+      if (prov) {
+        db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '⏰', 'Payment Pending', 'Customer payment of UGX " + p.amount + " is due within 10 hours.', 'payment_reminder')")
+          .run(prov.email);
+      }
+    }
+  } catch (e) {
+    console.error('Payment reminder error:', e);
+  }
+}, 60000);
 
 // Auto-payment checker - runs every 60 seconds
 setInterval(() => {
@@ -103,6 +126,15 @@ setInterval(() => {
       const customer = db.prepare('SELECT * FROM users WHERE email = ?').get(payment.customer_email);
       if (customer && customer.balance >= customerAmount) {
         db.prepare('UPDATE users SET balance = balance - ? WHERE email = ?').run(customerAmount, payment.customer_email);
+      }
+
+      // Notify customer and provider about auto-payment
+      db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '⏰', 'Auto-Payment Completed', 'UGX " + payment.amount + " auto-deducted for completed task (10-hour window expired).', 'auto_payment')")
+        .run(payment.customer_email);
+      const provNotify = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(payment.provider_name);
+      if (provNotify) {
+        db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '💰', 'Payment Released', 'UGX " + providerAmount + " credited to your account (auto-payment).', 'auto_payment')")
+          .run(provNotify.email);
       }
 
       console.log('Auto-payment processed for task', payment.task_id);
