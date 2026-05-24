@@ -3,6 +3,7 @@ const router = express.Router();
 const crypto = require('crypto');
 const { getDb } = require('../database');
 const { hashPassword, comparePassword, generateToken, sanitize, isValidEmail, isValidPhone } = require('../auth');
+const { sendVerificationEmail } = require('../mail');
 
 // POST /api/auth/send-verification-code
 router.post('/send-verification-code', (req, res) => {
@@ -15,7 +16,20 @@ router.post('/send-verification-code', (req, res) => {
     db.prepare("UPDATE verification_codes SET used = 1 WHERE identifier = ? AND used = 0").run(identifier);
     db.prepare("INSERT INTO verification_codes (identifier, code, type, expires_at) VALUES (?, ?, ?, ?)")
       .run(identifier, code, type || 'email', expiresAt);
-    console.log('Verification code for', identifier, ':', code);
+
+    // Send email if type is email and mail is configured
+    if (type === 'email') {
+      sendVerificationEmail(identifier, code).then(sent => {
+        if (sent) {
+          console.log('Verification code emailed to', identifier);
+        } else {
+          console.log('Mail not configured, code for', identifier, ':', code);
+        }
+      });
+    } else {
+      console.log('Verification code for', identifier, ':', code);
+    }
+
     res.json({ success: true, message: 'Verification code sent', code: code });
   } catch (e) {
     console.error('Send code error:', e);
