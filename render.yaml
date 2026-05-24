@@ -19,4 +19,16 @@ services:
         value: "0757532066"
       - key: ADMIN_PASSWORD
         value: "23.Forlife"
+      - key: MAIL_HOST
+        value: ""
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_SECURE
+        value: "false"
+      - key: MAIL_USER
+        value: ""
+      - key: MAIL_PASS
+        value: ""
+      - key: MAIL_FROM
+        value: "noreply@havengo.ug"
 
