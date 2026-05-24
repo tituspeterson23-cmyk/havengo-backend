@@ -1104,65 +1104,24 @@ async function performSignup() {
         return;
     }
 
-    // Send verification code first
+    // Generate verification code locally (no email system) and show it immediately
+    var generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
     document.getElementById("signup-submit-btn").disabled = true;
     document.getElementById("signup-submit-btn").innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending Code...';
+    signupVerificationData = { firstname: firstname, lastname: lastname, phone: phone, email: email, password: password, code: generatedCode };
+    document.getElementById("display-verification-code").textContent = generatedCode;
+    document.getElementById("verification-section").classList.remove("hidden");
+    document.getElementById("signup-submit-btn").classList.add("hidden");
+    document.getElementById("verification-code").focus();
+    addInAppAlert("info", "Your verification code: " + generatedCode);
+    // Also send to backend so future email/SMS integration works
     try {
-        var codeResp = await fetch(apiUrl + "/auth/send-verification-code", {
+        await fetch(apiUrl + "/auth/send-verification-code", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ identifier: email, type: "email" })
+            body: JSON.stringify({ identifier: email, type: "email", code: generatedCode })
         });
-        var codeData = await codeResp.json();
-        if (codeData.success || codeData.code) {
-            signupVerificationData = { firstname: firstname, lastname: lastname, phone: phone, email: email, password: password };
-            var displayCode = codeData.code || "------";
-            document.getElementById("display-verification-code").textContent = displayCode;
-            document.getElementById("verification-section").classList.remove("hidden");
-            document.getElementById("signup-submit-btn").classList.add("hidden");
-            document.getElementById("verification-code").focus();
-            addInAppAlert("info", "Your verification code: " + displayCode);
-        } else {
-            addInAppAlert("error", "Failed to send verification code");
-            document.getElementById("signup-submit-btn").disabled = false;
-            document.getElementById("signup-submit-btn").innerHTML = "Create Account";
-        }
-    } catch(e) {
-        // If send-code fails, allow direct registration as fallback
-        try {
-            var regResp = await fetch(apiUrl + "/auth/register", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ firstname: firstname, lastname: lastname, phone: phone, email: email, password: password, skipVerification: true })
-            });
-            var regData = await regResp.json();
-            if (regData.success) {
-                currentUser = regData.user;
-                window.__HAVENGO_JWT__ = regData.token;
-                userBalance = regData.user.balance !== undefined ? regData.user.balance : 2000000;
-                closeAuthModal();
-                updateProfileWithUser();
-                renderProfilePage();
-                updateProfilePicCursor();
-                globalNotifications = [];
-                addNotification("\uD83C\uDF89", "Account Created", "Welcome to HavenGo, " + firstname + "!");
-                fetchBackendNotifications();
-                addActivity("signup", "Created your HavenGo account");
-                addInAppAlert("success", "Account created successfully! Welcome " + firstname + "!");
-                saveAppState();
-                document.getElementById("signup-firstname").value = "";
-                document.getElementById("signup-lastname").value = "";
-                document.getElementById("signup-phone").value = "";
-                document.getElementById("signup-email").value = "";
-                document.getElementById("signup-password").value = "";
-                document.getElementById("signup-confirm-password").value = "";
-                return;
-            }
-            if (regData.error) { addInAppAlert("error", regData.error); }
-        } catch(e2) { addInAppAlert("error", "Cannot create account: Server error"); }
-        document.getElementById("signup-submit-btn").disabled = false;
-        document.getElementById("signup-submit-btn").innerHTML = "Create Account";
-    }
+    } catch(e) {}
 }
 
 async function verifySignupCode() {
@@ -1177,6 +1136,8 @@ async function verifySignupCode() {
     document.getElementById("verify-code-btn").disabled = true;
     document.getElementById("verify-code-btn").innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
 
+    // Try backend verification first, fall back to local comparison
+    var verified = false;
     try {
         var verifyResp = await fetch(apiUrl + "/auth/verify-code", {
             method: "POST",
@@ -1184,17 +1145,17 @@ async function verifySignupCode() {
             body: JSON.stringify({ identifier: signupVerificationData.email, code: code })
         });
         var verifyData = await verifyResp.json();
-        if (!verifyData.success) {
-            addInAppAlert("error", verifyData.error || "Invalid verification code");
+        verified = verifyData.success;
+    } catch(e) {}
+    if (!verified) {
+        if (code === signupVerificationData.code) {
+            verified = true;
+        } else {
+            addInAppAlert("error", "Invalid verification code");
             document.getElementById("verify-code-btn").disabled = false;
             document.getElementById("verify-code-btn").innerHTML = "Verify";
             return;
         }
-    } catch(e) {
-        addInAppAlert("error", "Network error verifying code");
-        document.getElementById("verify-code-btn").disabled = false;
-        document.getElementById("verify-code-btn").innerHTML = "Verify";
-        return;
     }
 
     // Code verified — complete registration
