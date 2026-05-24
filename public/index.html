@@ -236,7 +236,14 @@
                 <div><label class="font-medium block mb-2">Email</label><input id="signup-email" type="email" class="w-full border rounded-2xl px-5 py-4 outline-none focus:border-emerald-600"></div>
                 <div><label class="font-medium block mb-2">Create Password</label><input id="signup-password" type="password" class="w-full border rounded-2xl px-5 py-4 outline-none focus:border-emerald-600"></div>
                 <div><label class="font-medium block mb-2">Confirm Password</label><input id="signup-confirm-password" type="password" class="w-full border rounded-2xl px-5 py-4 outline-none focus:border-emerald-600"></div>
-                <button onclick="(async()=>{await performSignup()})()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-3xl font-semibold">Create Account</button>
+                <div id="verification-section" class="hidden space-y-4">
+                    <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-700">
+                        <i class="fa-solid fa-envelope"></i> A verification code has been sent to your email. Enter it below to complete signup.
+                    </div>
+                    <div class="flex gap-3"><input id="verification-code" type="text" placeholder="Enter 6-digit code" maxlength="6" class="flex-1 border rounded-2xl px-5 py-4 outline-none focus:border-emerald-600 text-center text-2xl tracking-widest"><button id="verify-code-btn" onclick="verifySignupCode()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-4 rounded-2xl font-semibold whitespace-nowrap">Verify</button></div>
+                    <p class="text-xs text-gray-500 text-center">Didn't receive the code? <button id="resend-code-btn" onclick="resendSignupCode()" class="text-emerald-600 font-medium bg-transparent border-none cursor-pointer">Resend</button></p>
+                </div>
+                <button id="signup-submit-btn" onclick="(async()=>{await performSignup()})()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-3xl font-semibold">Create Account</button>
             </div>
             <div class="text-center mt-6"><p class="text-sm text-gray-500">Already have an account? <span onclick="switchAuthMode('login')" class="text-emerald-600 cursor-pointer font-medium">Login</span></p></div>
         </div>
@@ -244,6 +251,7 @@
 </div>
 </div>
 
+<div id="app-alerts" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm" style="display:none;"></div>
 <div id="home" class="page active">
 <header class="hero-gradient text-white py-16 md:py-20 px-6 text-center relative overflow-hidden" style="min-height:420px;max-height:520px;">
     <div class="hero-bg-slider">
@@ -762,6 +770,7 @@ let globalNotifications = [];
 let userNotificationsMap = {};
 let userActivity = [];
 let chatConversations = {};
+let signupVerificationData = null;
 let currentChatTaskId = null;
 let profilePicSrc = "https://images.unsplash.com/photo-1531123897720-8f129e1688f7?w=400";
 
@@ -1026,38 +1035,65 @@ async function performSignup() {
     const confirm = document.getElementById("signup-confirm-password").value;
 
     if (!firstname || !lastname || !phone || !email || !password) {
-        alert("Please fill in all fields");
+        addInAppAlert("error", "Please fill in all fields");
         return;
     }
     if (password !== confirm) {
-        alert("Passwords do not match");
+        addInAppAlert("error", "Passwords do not match");
         return;
     }
     if (password.length < 6) {
-        alert("Password must be at least 6 characters");
+        addInAppAlert("error", "Password must be at least 6 characters");
         return;
     }
     var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     if (!emailRegex.test(email)) {
-        alert("Please enter a valid email address");
+        addInAppAlert("error", "Please enter a valid email address");
         return;
     }
 
-    // Try backend signup first
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
     var backendOk = await checkBackend();
 
-    if (backendOk) {
+    if (!backendOk) {
+        addInAppAlert("error", "Server is currently unavailable. Please try again later.");
+        return;
+    }
+
+    // Send verification code first
+    document.getElementById("signup-submit-btn").disabled = true;
+    document.getElementById("signup-submit-btn").innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending Code...';
+    try {
+        var codeResp = await fetch(apiUrl + "/auth/send-verification-code", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier: email, type: "email" })
+        });
+        var codeData = await codeResp.json();
+        if (codeData.success || codeData.code) {
+            signupVerificationData = { firstname: firstname, lastname: lastname, phone: phone, email: email, password: password };
+            document.getElementById("verification-section").classList.remove("hidden");
+            document.getElementById("signup-submit-btn").classList.add("hidden");
+            document.getElementById("verification-code").focus();
+            addInAppAlert("info", "Verification code sent to " + email);
+        } else {
+            addInAppAlert("error", "Failed to send verification code");
+            document.getElementById("signup-submit-btn").disabled = false;
+            document.getElementById("signup-submit-btn").innerHTML = "Create Account";
+        }
+    } catch(e) {
+        // If send-code fails, allow direct registration as fallback
         try {
             var regResp = await fetch(apiUrl + "/auth/register", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ firstname: firstname, lastname: lastname, phone: phone, email: email, password: password })
+                body: JSON.stringify({ firstname: firstname, lastname: lastname, phone: phone, email: email, password: password, skipVerification: true })
             });
             var regData = await regResp.json();
             if (regData.success) {
                 currentUser = regData.user;
                 window.__HAVENGO_JWT__ = regData.token;
+                userBalance = regData.user.balance !== undefined ? regData.user.balance : 2000000;
                 closeAuthModal();
                 updateProfileWithUser();
                 renderProfilePage();
@@ -1065,9 +1101,8 @@ async function performSignup() {
                 addNotification("\uD83C\uDF89", "Account Created", "Welcome to HavenGo, " + firstname + "!");
                 fetchBackendNotifications();
                 addActivity("signup", "Created your HavenGo account");
-                alert("Account created successfully! Welcome " + firstname + "!");
+                addInAppAlert("success", "Account created successfully! Welcome " + firstname + "!");
                 saveAppState();
-                // Clear signup form
                 document.getElementById("signup-firstname").value = "";
                 document.getElementById("signup-lastname").value = "";
                 document.getElementById("signup-phone").value = "";
@@ -1076,14 +1111,108 @@ async function performSignup() {
                 document.getElementById("signup-confirm-password").value = "";
                 return;
             }
-            if (regData.error) { alert(regData.error); return; }
-        } catch(e) {}
-        alert("Signup failed on server. Please try again.");
+            if (regData.error) { addInAppAlert("error", regData.error); }
+        } catch(e2) { addInAppAlert("error", "Cannot create account: Server error"); }
+        document.getElementById("signup-submit-btn").disabled = false;
+        document.getElementById("signup-submit-btn").innerHTML = "Create Account";
+    }
+}
+
+async function verifySignupCode() {
+    var code = document.getElementById("verification-code").value.trim();
+    if (!code || code.length !== 6) {
+        addInAppAlert("error", "Please enter the 6-digit verification code");
+        return;
+    }
+    if (!signupVerificationData) { addInAppAlert("error", "Session expired. Please start signup again."); return; }
+
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    document.getElementById("verify-code-btn").disabled = true;
+    document.getElementById("verify-code-btn").innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+
+    try {
+        var verifyResp = await fetch(apiUrl + "/auth/verify-code", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier: signupVerificationData.email, code: code })
+        });
+        var verifyData = await verifyResp.json();
+        if (!verifyData.success) {
+            addInAppAlert("error", verifyData.error || "Invalid verification code");
+            document.getElementById("verify-code-btn").disabled = false;
+            document.getElementById("verify-code-btn").innerHTML = "Verify";
+            return;
+        }
+    } catch(e) {
+        addInAppAlert("error", "Network error verifying code");
+        document.getElementById("verify-code-btn").disabled = false;
+        document.getElementById("verify-code-btn").innerHTML = "Verify";
         return;
     }
 
-    // Backend unavailable — online-only, cannot sign up
-    alert("Cannot create account: Server is currently unavailable. Please try again later.");
+    // Code verified — complete registration
+    try {
+        var regResp = await fetch(apiUrl + "/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                firstname: signupVerificationData.firstname, lastname: signupVerificationData.lastname,
+                phone: signupVerificationData.phone, email: signupVerificationData.email,
+                password: signupVerificationData.password, skipVerification: true
+            })
+        });
+        var regData = await regResp.json();
+        if (regData.success) {
+            currentUser = regData.user;
+            window.__HAVENGO_JWT__ = regData.token;
+            userBalance = regData.user.balance !== undefined ? regData.user.balance : 2000000;
+            closeAuthModal();
+            updateProfileWithUser();
+            renderProfilePage();
+            updateProfilePicCursor();
+            addNotification("\uD83C\uDF89", "Account Created", "Welcome to HavenGo, " + signupVerificationData.firstname + "!");
+            fetchBackendNotifications();
+            addActivity("signup", "Created your HavenGo account");
+            addInAppAlert("success", "Account created successfully! Welcome " + signupVerificationData.firstname + "!");
+            saveAppState();
+            signupVerificationData = null;
+            document.getElementById("signup-firstname").value = "";
+            document.getElementById("signup-lastname").value = "";
+            document.getElementById("signup-phone").value = "";
+            document.getElementById("signup-email").value = "";
+            document.getElementById("signup-password").value = "";
+            document.getElementById("signup-confirm-password").value = "";
+            return;
+        }
+        if (regData.error) { addInAppAlert("error", regData.error); }
+    } catch(e) {
+        addInAppAlert("error", "Registration failed. Please try again.");
+    }
+    document.getElementById("verify-code-btn").disabled = false;
+    document.getElementById("verify-code-btn").innerHTML = "Verify";
+}
+
+async function resendSignupCode() {
+    if (!signupVerificationData) { addInAppAlert("error", "Session expired. Please start signup again."); return; }
+    document.getElementById("resend-code-btn").disabled = true;
+    document.getElementById("resend-code-btn").innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sending...';
+    try {
+        var resp = await fetch(HAVENGO_BACKEND_URL + "/api/auth/send-verification-code", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier: signupVerificationData.email, type: "email" })
+        });
+        var data = await resp.json();
+        if (data.success || data.code) {
+            addInAppAlert("success", "Verification code resent to " + signupVerificationData.email);
+        } else {
+            addInAppAlert("error", "Failed to resend code");
+        }
+    } catch(e) {
+        addInAppAlert("error", "Network error");
+    }
+    document.getElementById("resend-code-btn").disabled = false;
+    document.getElementById("resend-code-btn").innerHTML = "Resend";
 }
 
 async function performLogin() {
@@ -1091,9 +1220,73 @@ async function performLogin() {
     var password = document.getElementById("login-password").value;
 
     if (!identifier || !password) {
-        alert("Please enter your credentials");
+        addInAppAlert("error", "Please enter your credentials");
         return;
     }
+
+    var isAdminCred = identifier === "thermypetson@gmail.com" || identifier === "0757532066";
+
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var backendAvail = await checkBackend();
+
+    if (!backendAvail) {
+        addInAppAlert("error", "Cannot log in: Server is currently unavailable. Please try again later.");
+        return;
+    }
+
+    // For admin credentials, try admin login first
+    if (isAdminCred) {
+        try {
+            var adminResp = await fetch(apiUrl + "/auth/admin/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ identifier: identifier, password: password })
+            });
+            var adminData = await adminResp.json();
+            if (adminData.success) {
+                window.__HAVENGO_JWT__ = adminData.token;
+                closeAuthModal();
+                adminLoginSuccess();
+                return;
+            }
+        } catch(e) {}
+    }
+
+    // Customer login
+    try {
+        var resp = await fetch(apiUrl + "/auth/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier: identifier, password: password })
+        });
+        var data = await resp.json();
+        if (data.success) {
+            currentUser = data.user;
+            window.__HAVENGO_JWT__ = data.token;
+            userBalance = data.user.balance !== undefined ? data.user.balance : userBalance;
+            closeAuthModal();
+            updateProfileWithUser();
+            renderProfilePage();
+            updateProfilePicCursor();
+            addNotification("\uD83D\uDD13", "Logged In", "Welcome back, " + data.user.firstname + "!");
+            fetchBackendNotifications();
+            saveAppState();
+            return;
+        }
+        if (data.user_not_found) {
+            addInAppAlert("error", "Your account no longer exists on the server. Please sign up again.");
+            return;
+        }
+        if (data.error) {
+            addInAppAlert("error", data.error);
+            return;
+        }
+    } catch(e) {
+        addInAppAlert("error", "Cannot log in: Server is currently unavailable. Please try again later.");
+        return;
+    }
+    addInAppAlert("error", "Cannot log in: Server is currently unavailable. Please try again later.");
+}
 
     var isAdminCred = identifier === "thermypetson@gmail.com" || identifier === "0757532066";
 
@@ -1131,6 +1324,7 @@ async function performLogin() {
             if (data.success) {
                 currentUser = data.user;
                 window.__HAVENGO_JWT__ = data.token;
+                userBalance = data.user.balance !== undefined ? data.user.balance : userBalance;
                 closeAuthModal();
                 updateProfileWithUser();
                 renderProfilePage();
@@ -1174,7 +1368,6 @@ function logout() {
     var bd = document.getElementById("profile-bitmoji-display");
     if (bd) bd.classList.add("hidden");
     currentUser = null;
-    userBalance = 500000;
     chatConversations = {};
     // Navigate to home
     navigateTo("home");
@@ -1326,6 +1519,25 @@ function processExpiredDeletions() {
 // ============================================================
 // NOTIFICATIONS SYSTEM
 // ============================================================
+
+function addInAppAlert(type, message) {
+    var container = document.getElementById("app-alerts");
+    if (!container) return;
+    container.style.display = "flex";
+    var colors = { success: "bg-emerald-600", error: "bg-red-500", info: "bg-blue-500", warning: "bg-amber-500" };
+    var icons = { success: "fa-check-circle", error: "fa-exclamation-circle", info: "fa-info-circle", warning: "fa-exclamation-triangle" };
+    var color = colors[type] || "bg-gray-700";
+    var icon = icons[type] || "fa-bell";
+    var alertEl = document.createElement("div");
+    alertEl.className = color + " text-white px-5 py-3 rounded-2xl shadow-lg flex items-center gap-3 text-sm animate__fadeIn";
+    alertEl.innerHTML = "<i class=\"fa-solid " + icon + "\"></i><span>" + message + "</span>";
+    container.appendChild(alertEl);
+    setTimeout(function() {
+        alertEl.style.opacity = "0";
+        alertEl.style.transition = "opacity 0.5s";
+        setTimeout(function() { if (alertEl.parentNode) alertEl.parentNode.removeChild(alertEl); if (container.children.length === 0) container.style.display = "none"; }, 500);
+    }, 4000);
+}
 
 function addNotification(emoji, title, message, notifId) {
     // Clean expired notifications first
@@ -2209,25 +2421,42 @@ function calculateDynamicPrice(serviceId) {
 
 async function placeOrder(event) {
     event.preventDefault();
-    if (!window.__HAVENGO_JWT__) { alert("Please login first to place an order"); showAuthModal("login"); return; }
+    if (!window.__HAVENGO_JWT__) { addInAppAlert("info", "Please login first to place an order"); showAuthModal("login"); return; }
     if (!currentService) return;
     var finalPrice = calculateDynamicPrice(currentService.id);
-    if (userBalance < finalPrice) { alert("Insufficient balance. Please deposit at least UGX " + finalPrice.toLocaleString() + " to book this service."); closeModal("checkout-modal"); showDepositModal(); return; }
     var date = document.getElementById("booking-date").value;
     var time = document.getElementById("booking-time").value;
     var address = sanitizeInput(document.getElementById("address-input").value.trim());
     var instructions = sanitizeInput(document.getElementById("special-instructions").value.trim());
 
     if (!date || !time || !address) {
-        alert("Please fill in date, time and address");
+        addInAppAlert("error", "Please fill in date, time and address");
         return;
     }
 
     var finalPrice = calculateDynamicPrice(currentService.id);
-
-    // Try backend first
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
     var backendOk = await checkBackend();
+
+    // Fetch fresh balance from backend before placing order
+    if (backendOk && window.__HAVENGO_JWT__) {
+        try {
+            var balResp = await fetch(apiUrl + "/customer/profile", {
+                headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }
+            });
+            if (balResp.ok) {
+                var balData = await balResp.json();
+                userBalance = balData.balance !== undefined ? balData.balance : userBalance;
+            }
+        } catch(e) {}
+    }
+
+    if (userBalance < finalPrice) {
+        addInAppAlert("error", "Insufficient balance. Please deposit at least UGX " + finalPrice.toLocaleString() + " to book this service.");
+        closeModal("checkout-modal");
+        showDepositModal();
+        return;
+    }
 
     if (backendOk && window.__HAVENGO_JWT__) {
         var assignedProvider = currentSelectedProvider || "";
@@ -2254,7 +2483,6 @@ async function placeOrder(event) {
             });
             var orderData = await orderResp.json();
             if (orderData.success) {
-                // Add to local arrays so customer sees it immediately
                 var booking = {
                     id: orderData.taskId || orderData.id || Date.now(),
                     serviceId: currentService.id,
@@ -2280,26 +2508,29 @@ async function placeOrder(event) {
                     instructions: booking.instructions,
                     providerName: assignedProvider
                 });
+                // Deduct from local balance (backend already deducted)
+                if (userBalance >= finalPrice) userBalance -= finalPrice;
                 closeModal("checkout-modal");
                 renderBookings();
+                renderProfilePage();
                 addNotification("\uD83D\uDCCB", "New Booking Placed", currentService.name + " on " + date + " at " + time);
                 addActivity("booking", "Booked " + currentService.name + " for " + date);
-                alert("Order placed successfully! Your provider will be notified.");
+                addInAppAlert("success", "Order placed successfully! Your provider will be notified.");
                 saveAppState();
                 return;
             }
             if (orderData.session_expired) { handleSessionExpired(); return; }
-            if (orderData.error) { alert(orderData.error); return; }
+            if (orderData.error) { addInAppAlert("error", orderData.error); return; }
         } catch(e) {}
-        alert("Failed to place order on server. Please try again.");
+        addInAppAlert("error", "Failed to place order on server. Please try again.");
         return;
     }
 
     if (!backendOk) {
-        alert("Cannot place order: Server is currently unavailable. Please try again later.");
+        addInAppAlert("error", "Cannot place order: Server is currently unavailable. Please try again later.");
         return;
     }
-    alert("Failed to place order on server. Please try again.");
+    addInAppAlert("error", "Failed to place order on server. Please try again.");
 }
 
 // Fetch customer bookings from backend for cross-browser sync
@@ -2386,54 +2617,58 @@ async function loginAsProvider() {
     var passVal = password ? password.value : "";
 
     if (!idVal || !passVal) {
-        alert("Please enter your provider credentials");
+        addInAppAlert("error", "Please enter your provider credentials");
         return;
     }
 
-    // Try backend first
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
     var backendOk = await checkBackend();
 
-    if (backendOk) {
-        try {
-            var resp = await fetch(apiUrl + "/provider/login", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ identifier: idVal, password: passVal })
-            });
-            var data = await resp.json();
-            if (data.success) {
-                var p = data.provider;
-                window.__HAVENGO_JWT__ = data.token;
-                currentLoggedProvider = {
-                    id: p.id,
-                    name: p.firstname + " " + p.lastname,
-                    firstname: p.firstname,
-                    lastname: p.lastname,
-                    service: (typeof p.services === "string" ? p.services : "General Services"),
-                    services: parseProviderServices(p.services),
-                    location: p.location || "",
-                    phone: p.phone,
-                    email: p.email,
-                    password: "",
-                    bitmoji: p.bitmoji || "\uD83D\uDD27",
-                    bio: p.bio || "",
-                    verified: true,
-                    business_name: p.business_name || "",
-                    registration_fee_paid: p.registration_fee_paid || 0
-                };
-                enterProviderDashboard(currentLoggedProvider);
-                return;
-            }
-            if (resp.status === 403) {
-                alert("Your account is pending admin verification. Please wait for an administrator to approve your application before logging in.");
-                return;
-            }
-        } catch(e) {}
-        // Backend failed, fall through to local
+    if (!backendOk) {
+        addInAppAlert("error", "Cannot log in: Server is currently unavailable. Please try again later.");
+        return;
     }
 
-    alert("Cannot log in: Server is currently unavailable. Please try again later.");
+    try {
+        var resp = await fetch(apiUrl + "/provider/login", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier: idVal, password: passVal })
+        });
+        var data = await resp.json();
+        if (data.success) {
+            var p = data.provider;
+            window.__HAVENGO_JWT__ = data.token;
+            currentLoggedProvider = {
+                id: p.id,
+                name: p.firstname + " " + p.lastname,
+                firstname: p.firstname,
+                lastname: p.lastname,
+                service: (typeof p.services === "string" ? p.services : "General Services"),
+                services: parseProviderServices(p.services),
+                location: p.location || "",
+                phone: p.phone,
+                email: p.email,
+                password: "",
+                bitmoji: p.bitmoji || "\uD83D\uDD27",
+                bio: p.bio || "",
+                verified: true,
+                business_name: p.business_name || "",
+                registration_fee_paid: p.registration_fee_paid || 0
+            };
+            enterProviderDashboard(currentLoggedProvider);
+            return;
+        }
+        if (resp.status === 403) {
+            addInAppAlert("error", "Your account is pending admin verification. Please wait for an administrator to approve your application before logging in.");
+            return;
+        }
+        if (data.error) { addInAppAlert("error", data.error); return; }
+    } catch(e) {
+        addInAppAlert("error", "Cannot log in: Server is currently unavailable. Please try again later.");
+        return;
+    }
+    addInAppAlert("error", "Cannot log in: Server is currently unavailable. Please try again later.");
 }
 
 async function enterProviderDashboard(provider) {
@@ -3493,8 +3728,20 @@ function getNearestPaymentDeadline() {
     return nearest;
 }
 
+function hasActiveOrder() {
+    for (var i = 0; i < bookings.length; i++) {
+        if (bookings[i].status === "Pending" || bookings[i].status === "In Progress") return true;
+    }
+    return false;
+}
+
 function showCustomerWithdrawModal() {
-    if (!currentUser) { alert("Please login first"); showAuthModal("login"); return; }
+    if (!currentUser) { addInAppAlert("info", "Please login first"); showAuthModal("login"); return; }
+    // Check for active orders
+    if (hasActiveOrder()) {
+        addInAppAlert("warning", "Cannot withdraw while you have an active order in progress.");
+        return;
+    }
     document.getElementById("customer-withdraw-balance").textContent = userBalance.toLocaleString() + " UGX";
     document.getElementById("customer-withdraw-amount").value = "";
     document.getElementById("customer-withdraw-fee").textContent = "0 UGX";
@@ -3502,7 +3749,7 @@ function showCustomerWithdrawModal() {
     
     var blocked = hasPendingPayment();
     document.getElementById("withdraw-blocked-msg").classList.toggle("hidden", !blocked);
-    document.getElementById("customer-withdraw-btn").disabled = blocked;
+    document.getElementById("customer-withdraw-btn").disabled = blocked || hasActiveOrder();
     document.getElementById("customer-withdraw-btn").className = blocked ? "w-full bg-gray-400 text-white py-4 rounded-3xl font-semibold cursor-not-allowed" : "w-full bg-amber-600 hover:bg-amber-700 text-white py-4 rounded-3xl font-semibold";
     
     document.getElementById("customer-withdraw-modal").classList.remove("hidden");
@@ -3516,14 +3763,39 @@ function updateCustomerWithdrawFee() {
     document.getElementById("customer-withdraw-receive").textContent = receive.toLocaleString() + " UGX";
 }
 
-function processCustomerWithdraw() {
+async function processCustomerWithdraw() {
     var amount = parseInt(document.getElementById("customer-withdraw-amount").value) || 0;
     var phone = document.getElementById("customer-withdraw-phone").value.trim();
     
-    if (hasPendingPayment()) { alert("You have a pending payment. Please settle it before withdrawing."); return; }
-    if (amount < 1000) { alert("Minimum withdrawal is 1,000 UGX"); return; }
-    if (amount > userBalance) { alert("Insufficient balance."); return; }
-    if (!phone || phone.length < 8) { alert("Enter a valid Mobile Money number"); return; }
+    if (hasPendingPayment()) { addInAppAlert("error", "You have a pending payment. Please settle it before withdrawing."); return; }
+    if (hasActiveOrder()) { addInAppAlert("error", "Cannot withdraw while you have an active order in progress."); return; }
+    if (amount < 1000) { addInAppAlert("error", "Minimum withdrawal is 1,000 UGX"); return; }
+    if (amount > userBalance) { addInAppAlert("error", "Insufficient balance."); return; }
+    if (!phone || phone.length < 8) { addInAppAlert("error", "Enter a valid Mobile Money number"); return; }
+    
+    // Try backend first
+    if (window.__HAVENGO_JWT__) {
+        try {
+            var resp = await fetch(HAVENGO_BACKEND_URL + "/api/customer/withdraw", {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" },
+                body: JSON.stringify({ amount: amount })
+            });
+            var data = await resp.json();
+            if (data.success) {
+                var fee = Math.round(amount * 0.005);
+                var netAmount = amount - fee;
+                userBalance -= amount;
+                closeModal("customer-withdraw-modal");
+                renderProfilePage();
+                addNotification("\uD83C\uDFE7", "Withdrawal Initiated", "UGX " + netAmount.toLocaleString() + " sent to " + phone);
+                addInAppAlert("success", "Withdrawal of UGX " + netAmount.toLocaleString() + " initiated to " + phone);
+                saveAppState();
+                return;
+            }
+            if (data.error) { addInAppAlert("error", data.error); return; }
+        } catch(e) {}
+    }
     
     var fee = Math.round(amount * 0.005);
     var netAmount = amount - fee;
@@ -3531,7 +3803,8 @@ function processCustomerWithdraw() {
     closeModal("customer-withdraw-modal");
     renderProfilePage();
     addNotification("\uD83C\uDFE7", "Withdrawal Initiated", "UGX " + netAmount.toLocaleString() + " sent to " + phone);
-    alert("Withdrawal of UGX " + netAmount.toLocaleString() + " initiated to " + phone);
+    addInAppAlert("success", "Withdrawal of UGX " + netAmount.toLocaleString() + " initiated to " + phone);
+    saveAppState();
 }
 
 // Provider withdraw functions
@@ -4635,8 +4908,13 @@ window.onload = function() {
     // Auto-save every 10 seconds
     setInterval(saveAppState, 10000);
 
-    // Save on page unload
-    window.addEventListener("beforeunload", function() { saveAppState(); });
+    // Save on page unload and reset page to home for next visit
+    window.addEventListener("beforeunload", function() {
+        window.__currentPage = null;
+        window.__providerTab = 0;
+        window.__adminTab = 0;
+        saveAppState();
+    });
 
     // Backend connectivity — uses HAVENGO_BACKEND_URL (set at top of script)
     (async function() {
@@ -4655,16 +4933,24 @@ window.onload = function() {
 
     fetchVerifiedProviders();
 
-    // Poll verified providers every 30s for cross-browser sync
-    setInterval(fetchVerifiedProviders, 30000);
+    // Poll verified providers every 15s for cross-browser sync
+    setInterval(fetchVerifiedProviders, 15000);
 
-    // Poll customer bookings every 30s when logged in
+    // Auto-sync every 15s when logged in
     setInterval(function() {
         if (currentUser && window.__HAVENGO_JWT__) {
             fetchCustomerBookings();
             fetchBackendNotifications();
+            renderBookings();
+            updateProfileWithUser();
         }
-    }, 30000);
+        if (currentLoggedProvider && window.__HAVENGO_JWT__) {
+            fetchBackendNotifications();
+        }
+        if (currentAdmin && window.__HAVENGO_JWT__) {
+            fetchBackendNotifications();
+        }
+    }, 15000);
 };
 </script>
 </body>
