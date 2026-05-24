@@ -6,6 +6,8 @@
 <title>HavenGo Uganda | Premium Home Services</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 .hero-gradient{ background:linear-gradient(135deg,#0f172a 0%,#1e40af 100%); }
 .page{display:none;}
@@ -57,7 +59,8 @@
 .dark #withdraw-modal .bg-white,
 .dark #checkout-modal .bg-white,
 .dark #provider-modal .bg-white,
-.dark #auth-modal .bg-white {
+.dark #auth-modal .bg-white,
+.dark #map-modal .bg-white {
     background: #111827 !important;
     color: #f3f4f6 !important;
 }
@@ -714,6 +717,27 @@
     <button onclick="closeModal('payment-prompt-modal')" class="w-full text-sm text-gray-400 py-2 hover:text-gray-600">Later</button>
 </div></div></div>
 
+<div id="map-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/70 modal p-5">
+<div class="bg-white w-full max-w-2xl rounded-3xl overflow-hidden max-h-[90vh] flex flex-col">
+<div class="flex justify-between items-center p-5 border-b"><h3 id="map-modal-title" class="text-xl font-bold">📍 <span id="map-title-text">Location Map</span></h3><button onclick="closeMapModal()" class="text-2xl leading-none">&times;</button></div>
+<div class="relative flex-1 min-h-[400px]">
+    <div id="map-container" style="height:400px;width:100%;"></div>
+    <div id="map-search-box" class="absolute top-3 left-3 right-3 z-[1000] hidden">
+        <div class="flex gap-2"><input id="map-search-input" type="text" placeholder="Search location..." class="flex-1 border rounded-xl px-4 py-3 bg-white shadow-lg outline-none"><button onclick="searchOnMap()" class="bg-emerald-600 text-white px-4 rounded-xl shadow-lg"><i class="fa-solid fa-search"></i></button></div>
+        <div id="map-search-results" class="bg-white mt-1 rounded-xl shadow-lg max-h-40 overflow-y-auto hidden"></div>
+    </div>
+    <div id="map-location-info" class="absolute bottom-3 left-3 right-3 z-[1000] bg-white/90 backdrop-blur rounded-xl px-4 py-3 text-sm shadow-lg hidden">
+        <span id="map-coords"></span>
+        <span id="map-eta" class="ml-3 text-emerald-600 font-medium"></span>
+    </div>
+</div>
+<div class="flex gap-3 p-5 border-t">
+    <button id="map-track-btn" onclick="startMapTracking()" class="flex-1 bg-emerald-600 text-white py-3 rounded-2xl font-medium hidden"><i class="fa-solid fa-location-dot"></i> Track Live Location</button>
+    <button id="map-pin-btn" onclick="confirmMapPin()" class="flex-1 bg-blue-600 text-white py-3 rounded-2xl font-medium"><i class="fa-solid fa-check"></i> Confirm Location</button>
+    <button onclick="closeMapModal()" class="border py-3 rounded-2xl font-medium">Cancel</button>
+</div>
+</div></div>
+
 <div id="add-review-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 modal p-5">
 <div class="bg-white w-full max-w-md rounded-3xl p-8">
     <h3 class="text-2xl font-bold mb-6">Write a Review</h3>
@@ -781,7 +805,7 @@ function handleSessionExpired() {
 // --- STATE ---
 let currentUser = null;
 let allUsers = [];
-let userBalance = 0;
+let userBalance = 2000000;
 let userPaymentMethods = [];
 let savedAddresses = [];
 let favoriteProviders = [];
@@ -792,6 +816,14 @@ let userActivity = [];
 let chatConversations = {};
 let signupVerificationData = null;
 let currentChatTaskId = null;
+
+// Map state
+let mapInstance = null;
+let mapMarker = null;
+let mapTrackWatchId = null;
+let mapSelectedLat = null;
+let mapSelectedLng = null;
+let mapCallback = null;
 let profilePicSrc = "https://images.unsplash.com/photo-1531123897720-8f129e1688f7?w=400";
 
 // Provider state
@@ -1104,7 +1136,7 @@ async function performSignup() {
             if (regData.success) {
                 currentUser = regData.user;
                 window.__HAVENGO_JWT__ = regData.token;
-                userBalance = regData.user.balance !== undefined ? regData.user.balance : 0;
+                userBalance = regData.user.balance !== undefined ? regData.user.balance : 2000000;
                 closeAuthModal();
                 updateProfileWithUser();
                 renderProfilePage();
@@ -1177,7 +1209,7 @@ async function verifySignupCode() {
         if (regData.success) {
             currentUser = regData.user;
             window.__HAVENGO_JWT__ = regData.token;
-            userBalance = regData.user.balance !== undefined ? regData.user.balance : 0;
+            userBalance = regData.user.balance !== undefined ? regData.user.balance : 2000000;
             closeAuthModal();
             updateProfileWithUser();
             renderProfilePage();
@@ -1612,6 +1644,226 @@ function renderProfileNotifications() {
         "<h3 class=\"font-semibold\">All Notifications</h3>" +
         "<button onclick=\"markAllRead()\" class=\"text-sm text-emerald-600 font-medium\">Mark all read</button></div>" +
         "<div class=\"space-y-3\">" + items + "</div>";
+}
+
+// ============================================================
+// LIVE MAPS — Leaflet + OpenStreetMap
+// ============================================================
+
+function openMapModal(title, lat, lng, callback) {
+    mapCallback = callback || null;
+    document.getElementById("map-title-text").textContent = title || "Location Map";
+    document.getElementById("map-modal").classList.remove("hidden");
+    document.getElementById("map-search-box").classList.remove("hidden");
+    document.getElementById("map-location-info").classList.add("hidden");
+    document.getElementById("map-track-btn").classList.add("hidden");
+    document.getElementById("map-pin-btn").classList.remove("hidden");
+    document.getElementById("map-pin-btn").innerHTML = '<i class="fa-solid fa-check"></i> Confirm Location';
+    setTimeout(function() { initMap(lat, lng); }, 300);
+}
+
+function closeMapModal() {
+    if (mapTrackWatchId !== null) { navigator.geolocation.clearWatch(mapTrackWatchId); mapTrackWatchId = null; }
+    document.getElementById("map-modal").classList.add("hidden");
+    if (mapInstance) { mapInstance.remove(); mapInstance = null; mapMarker = null; }
+    mapSelectedLat = null; mapSelectedLng = null; mapCallback = null;
+}
+
+function initMap(lat, lng) {
+    if (mapInstance) { mapInstance.remove(); mapInstance = null; mapMarker = null; }
+    var defaultLat = lat || 0.3476;
+    var defaultLng = lng || 32.5825;
+    mapInstance = L.map("map-container").setView([defaultLat, defaultLng], 13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19, attribution: "&copy; <a href='https://openstreetmap.org/copyright'>OpenStreetMap</a>"
+    }).addTo(mapInstance);
+    mapMarker = L.marker([defaultLat, defaultLng], { draggable: true }).addTo(mapInstance);
+    mapSelectedLat = defaultLat; mapSelectedLng = defaultLng;
+    mapMarker.on("dragend", function() {
+        var pos = mapMarker.getLatLng();
+        mapSelectedLat = pos.lat; mapSelectedLng = pos.lng;
+        updateMapCoords(pos.lat, pos.lng);
+    });
+    // Try GPS location
+    if (!lat) { getGpsLocation(false); }
+    updateMapCoords(defaultLat, defaultLng);
+    // Ensure map fills container after render
+    setTimeout(function() { mapInstance.invalidateSize(); }, 500);
+}
+
+function getGpsLocation(panTo) {
+    if (!navigator.geolocation) { addInAppAlert("error", "GPS not supported on this device"); return; }
+    navigator.geolocation.getCurrentPosition(function(pos) {
+        var lat = pos.coords.latitude, lng = pos.coords.longitude;
+        if (mapInstance) {
+            if (panTo !== false) mapInstance.setView([lat, lng], 15);
+            if (mapMarker) {
+                mapMarker.setLatLng([lat, lng]);
+                mapSelectedLat = lat; mapSelectedLng = lng;
+                updateMapCoords(lat, lng);
+            }
+        }
+    }, function() {}, { enableHighAccuracy: true, timeout: 10000 });
+}
+
+function updateMapCoords(lat, lng) {
+    var info = document.getElementById("map-location-info");
+    info.classList.remove("hidden");
+    document.getElementById("map-coords").textContent = lat.toFixed(6) + ", " + lng.toFixed(6);
+    var distEl = document.getElementById("map-eta");
+    // Estimate ETA from Kampala center for reference
+    var kampalaLat = 0.3476, kampalaLng = 32.5825;
+    var d = calcDistance(lat, lng, kampalaLat, kampalaLng);
+    if (d < 1) { distEl.textContent = "Local area"; }
+    else { var mins = Math.round(d * 2); distEl.textContent = "~" + mins + " min away \u2022 " + d.toFixed(1) + " km"; }
+}
+
+function calcDistance(lat1, lng1, lat2, lng2) {
+    var R = 6371; var dLat = (lat2 - lat1) * Math.PI / 180; var dLng = (lng2 - lng1) * Math.PI / 180;
+    var a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+    var c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)); return R * c;
+}
+
+async function searchOnMap() {
+    var query = document.getElementById("map-search-input").value.trim();
+    if (!query) return;
+    try {
+        var resp = await fetch("https://nominatim.openstreetmap.org/search?format=json&q=" + encodeURIComponent(query) + "&limit=5&countrycodes=UG");
+        var results = await resp.json();
+        var list = document.getElementById("map-search-results");
+        list.classList.remove("hidden");
+        if (!results || results.length === 0) { list.innerHTML = "<div class='p-3 text-gray-500'>No results found</div>"; return; }
+        var html = "";
+        for (var i = 0; i < results.length; i++) {
+            html += "<div onclick=\"selectMapResult(" + results[i].lat + "," + results[i].lon + ",'" + results[i].display_name.replace(/'/g,"\\'") + "')\" class=\"p-3 hover:bg-gray-100 cursor-pointer border-b text-sm\">" + results[i].display_name + "</div>";
+        }
+        list.innerHTML = html;
+    } catch(e) { addInAppAlert("error", "Search failed"); }
+}
+
+function selectMapResult(lat, lng, name) {
+    document.getElementById("map-search-results").classList.add("hidden");
+    document.getElementById("map-search-input").value = name.split(",")[0];
+    if (mapInstance) { mapInstance.setView([lat, lng], 16); }
+    if (mapMarker) { mapMarker.setLatLng([lat, lng]); }
+    mapSelectedLat = lat; mapSelectedLng = lng;
+    updateMapCoords(lat, lng);
+}
+
+function startMapTracking() {
+    if (mapTrackWatchId !== null) { navigator.geolocation.clearWatch(mapTrackWatchId); mapTrackWatchId = null; return; }
+    if (!navigator.geolocation) { addInAppAlert("error", "GPS not supported"); return; }
+    document.getElementById("map-track-btn").innerHTML = '<i class="fa-solid fa-stop"></i> Stop Tracking';
+    document.getElementById("map-pin-btn").classList.add("hidden");
+    mapTrackWatchId = navigator.geolocation.watchPosition(function(pos) {
+        var lat = pos.coords.latitude, lng = pos.coords.longitude;
+        if (mapInstance) mapInstance.setView([lat, lng], 16);
+        if (mapMarker) mapMarker.setLatLng([lat, lng]);
+        mapSelectedLat = lat; mapSelectedLng = lng;
+        updateMapCoords(lat, lng);
+    }, function() {}, { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 });
+}
+
+function confirmMapPin() {
+    if (mapSelectedLat === null || mapSelectedLng === null) { addInAppAlert("error", "Please select a location on the map"); return; }
+    if (mapCallback) {
+        mapCallback(mapSelectedLat, mapSelectedLng, document.getElementById("map-search-input").value);
+    }
+    closeMapModal();
+}
+
+// Attach map address picker to address input
+function attachMapPicker() {
+    var addrInput = document.getElementById("address-input");
+    if (!addrInput) return;
+    // Add a map icon button next to the address input
+    var parent = addrInput.parentNode;
+    if (parent.querySelector(".map-pick-btn")) return;
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "map-pick-btn absolute right-3 top-1/2 -translate-y-1/2 text-emerald-600 hover:text-emerald-800 text-xl";
+    btn.innerHTML = '<i class="fa-solid fa-map-location-dot"></i>';
+    btn.title = "Pick on map";
+    btn.onclick = function() {
+        openMapModal("Pick Location", null, null, function(lat, lng, name) {
+            if (addrInput) addrInput.value = name || (lat.toFixed(6) + ", " + lng.toFixed(6));
+        });
+    };
+    parent.style.position = "relative";
+    parent.appendChild(btn);
+}
+
+// ============================================================
+// TRACKING — Live provider tracking on active orders
+// ============================================================
+
+var trackingIntervals = {};
+
+function startTracking(bookingId) {
+    var booking = null;
+    for (var i = 0; i < bookings.length; i++) {
+        if (bookings[i].id === bookingId) { booking = bookings[i]; break; }
+    }
+    if (!booking) { addInAppAlert("error", "Booking not found"); return; }
+    // Use the booking address as initial location
+    openMapModal("Tracking: " + booking.serviceName, 0.3476, 32.5825, null);
+    document.getElementById("map-search-box").classList.add("hidden");
+    document.getElementById("map-pin-btn").classList.add("hidden");
+    document.getElementById("map-track-btn").classList.remove("hidden");
+    document.getElementById("map-track-btn").innerHTML = '<i class="fa-solid fa-location-dot"></i> Start Live Tracking';
+    document.getElementById("map-track-btn").onclick = function() {
+        if (mapTrackWatchId !== null) {
+            navigator.geolocation.clearWatch(mapTrackWatchId);
+            mapTrackWatchId = null;
+            document.getElementById("map-track-btn").innerHTML = '<i class="fa-solid fa-location-dot"></i> Start Live Tracking';
+            document.getElementById("map-pin-btn").classList.remove("hidden");
+            return;
+        }
+        if (!navigator.geolocation) { addInAppAlert("error", "GPS not supported"); return; }
+        document.getElementById("map-track-btn").innerHTML = '<i class="fa-solid fa-stop"></i> Stop Tracking';
+        document.getElementById("map-pin-btn").classList.add("hidden");
+        mapTrackWatchId = navigator.geolocation.watchPosition(function(pos) {
+            var lat = pos.coords.latitude, lng = pos.coords.longitude;
+            if (mapInstance) mapInstance.setView([lat, lng], 16);
+            if (mapMarker) mapMarker.setLatLng([lat, lng]);
+            mapSelectedLat = lat; mapSelectedLng = lng;
+            updateMapCoords(lat, lng);
+            // Broadcast position to provider if available (for provider tracking customer)
+            saveTrackingPosition(bookingId, lat, lng, "customer");
+        }, function() {}, { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 });
+    };
+}
+
+// Provider shares their live location on an active task
+function startProviderTracking(taskId) {
+    if (!navigator.geolocation) { addInAppAlert("error", "GPS not supported"); return; }
+    if (trackingIntervals[taskId]) {
+        navigator.geolocation.clearWatch(trackingIntervals[taskId]);
+        delete trackingIntervals[taskId];
+        addInAppAlert("info", "Location sharing stopped");
+        return;
+    }
+    addInAppAlert("success", "Sharing your live location. Customer can now track you!");
+    trackingIntervals[taskId] = navigator.geolocation.watchPosition(function(pos) {
+        var lat = pos.coords.latitude, lng = pos.coords.longitude;
+        saveTrackingPosition(taskId, lat, lng, "provider");
+    }, function() {}, { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 });
+}
+
+function saveTrackingPosition(orderId, lat, lng, role) {
+    if (!window.__HAVENGO_JWT__) return;
+    fetch(HAVENGO_BACKEND_URL + "/api/tracking/update", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId: orderId, lat: lat, lng: lng, role: role })
+    }).catch(function(){});
+}
+
+function fetchTrackingPosition(orderId, role) {
+    if (!window.__HAVENGO_JWT__) return null;
+    return fetch(HAVENGO_BACKEND_URL + "/api/tracking/" + orderId + "?role=" + role, {
+        headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }
+    }).then(function(r) { return r.ok ? r.json() : null; }).catch(function(){ return null; });
 }
 
 // ============================================================
@@ -2235,6 +2487,7 @@ function showCheckout() {
     document.getElementById("booking-time").value = "09:00";
 
     document.getElementById("checkout-modal").classList.remove("hidden");
+    setTimeout(attachMapPicker, 100);
 }
 
 function updatePriceDisplay() {
@@ -2803,7 +3056,7 @@ function renderProviderDashboard() {
                     "</div>" +
                     "<div><span class=\"bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium\">" + t.status + "</span></div></div>" +
                     (t.status === "pending_confirmation" ? "<div class=\"mt-4 pt-4 border-t\"><button onclick=\"confirmProviderTask(" + t.id + ")\" class=\"bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-check\"></i> Confirm Order</button></div>" : "") +
-                    (t.status === "active" ? "<div class=\"mt-4 pt-4 border-t flex gap-3\"><button onclick=\"completeProviderTask(" + t.id + ")\" class=\"bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-check-double\"></i> Mark Complete</button><button onclick=\"cancelProviderTask(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-ban\"></i> Cancel Order</button></div>" : "") +
+                    (t.status === "active" ? "<div class=\"mt-4 pt-4 border-t flex gap-3 flex-wrap\"><button onclick=\"completeProviderTask(" + t.id + ")\" class=\"bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-check-double\"></i> Mark Complete</button><button onclick=\"startProviderTracking(" + t.id + ")\" class=\"bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-location-dot\"></i> Share Location</button><button onclick=\"cancelProviderTask(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-ban\"></i> Cancel Order</button></div>" : "") +
                     "</div>";
             }
             activeList.innerHTML = html;
@@ -3043,13 +3296,6 @@ async function requestPriceChange(serviceId, serviceName) {
 
 async function payRegistrationFee() {
     if (!currentLoggedProvider) return;
-    if (userBalance < 50000) {
-        addInAppAlert("error", "Insufficient balance. Please deposit at least 50,000 UGX to pay the registration fee.");
-        closeModal("payment-prompt-modal");
-        showDepositModal();
-        return;
-    }
-    if (!confirm("Pay 50,000 UGX registration fee from your wallet to activate your provider account?")) return;
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
     if (window.__HAVENGO_JWT__) {
         try {
@@ -3059,11 +3305,13 @@ async function payRegistrationFee() {
             });
             if (resp.ok) {
                 currentLoggedProvider.registration_fee_paid = 1;
-                userBalance -= 50000;
+                // Credit 50k to provider earnings as joining bonus
+                var bonus = 50000;
+                providerEarningsMap[currentLoggedProvider.name] = (providerEarningsMap[currentLoggedProvider.name] || 0) + bonus;
                 renderProviderDashboard();
                 renderProfilePage();
-                addNotification("\u2705", "Registration Complete", "Your account is now active. You can receive orders!");
-                addInAppAlert("success", "Payment successful! Your provider account is now active.");
+                addNotification("\u2705", "Registration Complete", "Your account is now active. You received 50,000 UGX joining bonus!");
+                addInAppAlert("success", "Account activated! 50,000 UGX joining bonus has been credited to your earnings.");
                 closeModal("payment-prompt-modal");
                 saveAppState();
                 return;

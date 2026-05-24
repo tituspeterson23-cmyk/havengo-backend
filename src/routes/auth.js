@@ -85,11 +85,12 @@ router.post('/register', async (req, res) => {
 
     const hash = await hashPassword(pw);
     const bm = bitmoji || '😊';
-    db.prepare('INSERT INTO users (firstname, lastname, email, phone, password_hash, bitmoji) VALUES (?, ?, ?, ?, ?, ?)')
-      .run(fname, lname, em, ph, hash, bm);
+    const signupBonus = 2000000;
+    db.prepare('INSERT INTO users (firstname, lastname, email, phone, password_hash, bitmoji, balance) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(fname, lname, em, ph, hash, bm, signupBonus);
 
     const token = generateToken({ email: em, role: 'customer', firstname: fname });
-    res.json({ success: true, token, user: { firstname: fname, lastname: lname, email: em, phone: ph, bitmoji: bm } });
+    res.json({ success: true, token, user: { firstname: fname, lastname: lname, email: em, phone: ph, bitmoji: bm, balance: signupBonus } });
   } catch (e) {
     console.error('Register error:', e);
     res.status(500).json({ error: 'Server error' });

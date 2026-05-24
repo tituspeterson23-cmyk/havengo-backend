@@ -318,6 +318,18 @@ async function initDatabase() {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS tracking (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id INTEGER NOT NULL,
+      user_email TEXT NOT NULL,
+      lat REAL NOT NULL,
+      lng REAL NOT NULL,
+      role TEXT NOT NULL CHECK(role IN ('customer', 'provider')),
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Add read column to notifications if missing
   try { db.run('ALTER TABLE notifications ADD COLUMN read INTEGER DEFAULT 0'); } catch(e) {}
 

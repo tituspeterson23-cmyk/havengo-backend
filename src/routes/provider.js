@@ -260,10 +260,11 @@ router.post('/pay-registration-fee', (req, res) => {
   const provider = db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
   if (provider.registration_fee_paid) return res.json({ success: true, message: 'Fee already paid' });
-  db.prepare('UPDATE providers SET registration_fee_paid = 1 WHERE email = ?').run(req.user.email);
+  const joiningBonus = 50000;
+  db.prepare('UPDATE providers SET registration_fee_paid = 1, total_earnings = COALESCE(total_earnings, 0) + ? WHERE email = ?').run(joiningBonus, req.user.email);
   // Clear the verification notification
   db.prepare("DELETE FROM notifications WHERE user_email = ? AND type = 'provider_verified'").run(req.user.email);
-  res.json({ success: true, message: 'Registration fee paid. You can now receive orders.' });
+  res.json({ success: true, message: 'Registration fee paid. You can now receive orders.', joiningBonus: joiningBonus });
 });
 
 // POST /api/provider/withdraw
