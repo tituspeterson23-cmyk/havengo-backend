@@ -16,7 +16,7 @@ function getTransporter() {
 }
 
 async function sendVerificationEmail(to, code) {
-  const from = process.env.MAIL_FROM || 'noreply@havengo.ug';
+  const from = process.env.MAIL_FROM || 'admin@havengo.netlify.app';
   const t = getTransporter();
   if (!t) {
     console.log('Mail not configured — verification code for', to, ':', code);

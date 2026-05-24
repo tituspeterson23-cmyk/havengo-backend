@@ -30,5 +30,5 @@ services:
       - key: MAIL_PASS
         value: ""
       - key: MAIL_FROM
-        value: "noreply@havengo.ug"
+        value: "admin@havengo.netlify.app"
 
