@@ -165,6 +165,11 @@
 ::-webkit-scrollbar-thumb { background: transparent; }
 * { scrollbar-width: none; }
 * { -ms-overflow-style: none; }
+/* Loading overlay */
+#loading-overlay{ position: fixed; inset: 0; z-index: 99999; background: rgba(15,23,42,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
+#loading-spinner{ width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.2); border-top-color: #34d399; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin{ to{ transform: rotate(360deg); } }
+#loading-text{ color: white; font-size: 14px; font-weight: 500; letter-spacing: 0.5px; }
 </style>
 </head>
 <body class="bg-gray-50 font-sans">
@@ -828,7 +833,7 @@ function handleSessionExpired() {
         chatConversations = {};
         localStorage.removeItem("havengoState");
         localStorage.removeItem("havengoState_plain");
-        try { localStorage.removeItem("encKey"); } catch(e) {}
+        try { localStorage.removeItem("encKey"); } catch(e) { console.warn(e); }
         addInAppAlert("error", "Your session has expired. Please login again.");
         navigateTo("home");
         updateProfileWithUser();
@@ -933,7 +938,7 @@ async function _doEncryptSave() {
             }
         }
         localStorage.setItem("havengoState_plain", JSON.stringify(state));
-    } catch(e) {} finally { _encryptPending = false; }
+    } catch(e) { console.warn(e); } finally { _encryptPending = false; }
 }
 function buildAppState() {
     return {
@@ -958,7 +963,7 @@ function buildAppState() {
 function saveAppState() {
     try {
         _doEncryptSave();
-    } catch(e) {}
+    } catch(e) { console.warn(e); }
 }
 async function loadAppState() {
     try {
@@ -975,7 +980,7 @@ async function loadAppState() {
         }
         var plain = localStorage.getItem("havengoState_plain");
         if (plain) { applyState(JSON.parse(plain)); return; }
-    } catch(e) {}
+    } catch(e) { console.warn(e); }
 }
 
 function applyState(state) {
@@ -1065,7 +1070,7 @@ function parseProviderServices(s) {
                     return { id: name.toLowerCase().replace(/[^a-z0-9]/g, '-'), name: name, basePrice: 0 };
                 });
             }
-        } catch(e) {}
+        } catch(e) { console.warn(e); }
     }
     return s.split(',').map(function(name) {
         name = name.trim();
@@ -1213,7 +1218,7 @@ async function performSignup() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ identifier: email, type: "email", code: generatedCode })
         });
-    } catch(e) {}
+    } catch(e) { console.warn(e); }
 }
 
 async function verifySignupCode() {
@@ -1241,7 +1246,7 @@ async function verifySignupCode() {
         });
         var verifyData = await verifyResp.json();
         verified = verifyData.success;
-    } catch(e) {}
+    } catch(e) { console.warn(e); }
     if (!verified) {
         if (code === signupVerificationData.code) {
             verified = true;
@@ -1323,7 +1328,7 @@ async function resendSignupCode() {
             body: JSON.stringify({ identifier: signupVerificationData.email, type: "email", code: newCode })
         });
         var data = await resp.json();
-    } catch(e) {}
+    } catch(e) { console.warn(e); }
     document.getElementById("resend-code-btn").disabled = false;
     document.getElementById("resend-code-btn").innerHTML = "Get new code";
     addInAppAlert("success", "New verification code generated");
@@ -1337,6 +1342,8 @@ async function resendSignupCode() {
 }
 
 async function performLogin() {
+    startLoading("Signing in\u2026");
+    try {
     var identifier = sanitizeInput(document.getElementById("login-identifier").value.trim());
     var password = document.getElementById("login-password").value;
 
@@ -1365,7 +1372,7 @@ async function performLogin() {
                 adminLoginSuccess();
                 return;
             }
-        } catch(e) {}
+        } catch(e) { console.warn(e); }
     }
 
     // Customer login
@@ -1405,6 +1412,7 @@ async function performLogin() {
         return;
     }
     addInAppAlert("error", "Cannot log in: Server is currently unavailable. Please try again later.");
+    } finally { stopLoading(); }
 }
 
 function logout(skipConfirm) {
@@ -1501,7 +1509,7 @@ function requestProviderAccountDeletion() {
                     await fetch(HAVENGO_BACKEND_URL + "/api/provider/account", {
                         method: "DELETE", headers: { "Authorization": "Bearer " + jwt }
                     });
-                } catch(e) {}
+                } catch(e) { console.warn(e); }
             }
         })();
 
@@ -2821,7 +2829,7 @@ async function placeOrder(event) {
             var balData = await balResp.json();
             userBalance = balData.balance !== undefined ? balData.balance : userBalance;
         }
-    } catch(e) {}
+    } catch(e) { console.warn(e); }
 
     if (userBalance < finalPrice) {
         addInAppAlert("error", "Insufficient balance. Please deposit at least UGX " + finalPrice.toLocaleString() + " to book this service.");
@@ -2940,7 +2948,7 @@ async function fetchCustomerBookings() {
             }
             renderBookings();
         }
-    } catch(e) {}
+    } catch(e) { console.warn(e); }
 }
 
 function renderBookings() {
@@ -3003,7 +3011,7 @@ function customerCancelBooking(bookingId) {
                         addInAppAlert("success", "Order cancelled. Reason sent to provider.");
                         return;
                     }
-                } catch(e) {}
+                } catch(e) { console.warn(e); }
             }
             // Fallback local
             for (var i = 0; i < bookings.length; i++) {
@@ -3028,6 +3036,8 @@ function customerCancelBooking(bookingId) {
 // ============================================================
 
 async function loginAsProvider() {
+    startLoading("Signing in\u2026");
+    try {
     var identifier = document.getElementById("prov-login-id");
     var password = document.getElementById("prov-login-pass");
     var idVal = identifier ? sanitizeInput(identifier.value.trim()) : "";
@@ -3081,9 +3091,12 @@ async function loginAsProvider() {
         return;
     }
     addInAppAlert("error", "Cannot log in: Server is currently unavailable. Please try again later.");
+    } finally { stopLoading(); }
 }
 
 async function enterProviderDashboard(provider) {
+    startLoading("Loading dashboard\u2026");
+    try {
     // Restore provider notifications
     if (provider.email && userNotificationsMap[provider.email]) {
         globalNotifications = userNotificationsMap[provider.email].slice();
@@ -3144,7 +3157,7 @@ async function enterProviderDashboard(provider) {
                     }
                 }
             }
-        } catch(e) {}
+        } catch(e) { console.warn(e); }
     }
 
     renderProviderDashboard();
@@ -3200,8 +3213,9 @@ async function enterProviderDashboard(provider) {
             }
             // Fetch backend notifications
             fetchBackendNotifications();
-        } catch(e) {}
+        } catch(e) { console.warn(e); }
     }, 30000);
+    } finally { stopLoading(); }
 }
 
 function logoutProvider() {
@@ -3344,7 +3358,7 @@ async function confirmProviderTask(taskId) {
                 saveAppState();
                 return;
             }
-        } catch(e) {}
+        } catch(e) { console.warn(e); }
     }
     // Fallback local
     for (var i = 0; i < providerTasks.length; i++) {
@@ -3511,7 +3525,7 @@ async function requestPriceChange(serviceId, serviceName) {
                 addNotification("\uD83D\uDCCB", "Price Request Submitted", "Price change for " + serviceName + " sent to admin.");
                 return;
             }
-        } catch(e) {}
+        } catch(e) { console.warn(e); }
     }
 
     priceChangeRequests.push({
@@ -3554,7 +3568,7 @@ async function payRegistrationFee() {
             }
             var data = await resp.json();
             if (data.error) { addInAppAlert("error", data.error); return; }
-        } catch(e) {}
+        } catch(e) { console.warn(e); }
     }
     addInAppAlert("error", "Payment failed: Server is currently unavailable. Please try again later.");
 }
@@ -3606,6 +3620,7 @@ function adminLoginSuccess() {
 }
 
 async function _syncAdminData() {
+    startLoading("Syncing data\u2026");
     try {
         var token = window.__HAVENGO_JWT__;
         if (!token) return;
@@ -3696,7 +3711,7 @@ async function _syncAdminData() {
                     };
                 });
             }
-        } catch(et) {}
+        } catch(et) { console.warn(et); }
         // Fetch admin conversations from backend so admin sees all chats
         try {
             var convResp = await fetch(apiUrl + "/admin/chat/conversations", { headers: headers });
@@ -3731,10 +3746,10 @@ async function _syncAdminData() {
                     }
                 }
             }
-        } catch(ec) {}
+        } catch(ec) { console.warn(ec); }
         renderAdminDashboard();
         renderAllProviderLists();
-    } catch(e) { console.log("Backend sync error:", e); }
+    } catch(e) { console.log("Backend sync error:", e); } finally { stopLoading(); }
 }
 
 function logoutAdmin() {
@@ -4193,7 +4208,7 @@ async function sendCustomerAdminMessage() {
                 headers: { "Authorization": "Bearer " + jwt, "Content-Type": "application/json" },
                 body: JSON.stringify({ conversationId: chatId, message: text, sender: "Customer" })
             });
-        } catch(e) {}
+        } catch(e) { console.warn(e); }
     }
 
     renderCustomerAdminMessages();
@@ -4342,7 +4357,7 @@ async function fetchPendingPayments() {
             renderProfilePage();
             saveAppState();
         }
-    } catch(e) {}
+    } catch(e) { console.warn(e); }
 }
 
 function startAutoPaymentCheck() {
@@ -4436,7 +4451,7 @@ async function processCustomerWithdraw() {
                 return;
             }
             if (data.error) { addInAppAlert("error", data.error); return; }
-        } catch(e) {}
+        } catch(e) { console.warn(e); }
     }
     
     var fee = Math.round(amount * 0.005);
@@ -4619,7 +4634,7 @@ async function deleteChatMessage(convId, msgId, index) {
             await fetch(HAVENGO_BACKEND_URL + "/api" + endpoint + encodeURIComponent(convId) + "/message/" + msgId, {
                 method: "DELETE", headers: { "Authorization": "Bearer " + jwt }
             });
-        } catch(e) {}
+        } catch(e) { console.warn(e); }
     }
     // Remove locally
     if (chatConversations[convId] && chatConversations[convId][index]) {
@@ -4717,7 +4732,7 @@ async function sendChatMessage() {
                 headers: { "Authorization": "Bearer " + jwt, "Content-Type": "application/json" },
                 body: JSON.stringify({ conversationId: convId, message: text, sender: chatSender })
             });
-        } catch(e) {}
+        } catch(e) { console.warn(e); }
     }
 
     renderChatMessages(chatConversations[currentChatTaskId], currentRole);
@@ -4730,7 +4745,7 @@ async function sendChatMessage() {
 function syncChatToStorage(taskId) {
     try {
         localStorage.setItem("havengo-chat-" + taskId, JSON.stringify(chatConversations[taskId] || []));
-    } catch(e) {}
+    } catch(e) { console.warn(e); }
 }
 
 async function loadChatFromStorage(taskId) {
@@ -4776,7 +4791,7 @@ async function loadChatFromStorage(taskId) {
                     return;
                 }
             }
-        } catch(e) {}
+        } catch(e) { console.warn(e); }
     }
 
     // Fallback: localStorage
@@ -4797,7 +4812,7 @@ async function loadChatFromStorage(taskId) {
                 }
             }
         }
-    } catch(e) {}
+    } catch(e) { console.warn(e); }
 }
 
 var lastChatMessageMaxId = {};
@@ -5056,7 +5071,7 @@ async function submitProviderWithConsent() {
                 return;
             }
             if (data.error) { addInAppAlert("error", data.error); return; }
-        } catch(e) {}
+        } catch(e) { console.warn(e); }
         addInAppAlert("error", "Failed to submit application on server. Please try again.");
         return;
     }
@@ -5277,7 +5292,7 @@ async function submitReview() {
                 addInAppAlert("success", "Review submitted successfully!");
                 return;
             }
-        } catch(e) {}
+        } catch(e) { console.warn(e); }
     }
 
     reviews.push({
@@ -5307,7 +5322,7 @@ async function loadReviews() {
                 renderReviews();
                 return;
             }
-        } catch(e) {}
+        } catch(e) { console.warn(e); }
     }
     // No backend — reviews already loaded from localStorage
     renderReviews();
@@ -5381,7 +5396,7 @@ async function fetchVerifiedProviders() {
             }
             renderAllProviderLists();
         }
-    } catch(e) {}
+    } catch(e) { console.warn(e); }
 }
 
 function renderReviews() {
@@ -5528,7 +5543,7 @@ async function fetchBackendNotifications() {
                 fetch(apiUrl + markRoute, { method: "POST", headers: { "Authorization": "Bearer " + jwt } }).catch(function(){});
             }
         }
-    } catch(e) {}
+    } catch(e) { console.warn(e); }
 }
 
 // ============================================================
@@ -5674,7 +5689,28 @@ window.onload = function() {
         }
     }, 15000);
 };
+
+// Loading indicator for backend cold starts
+var _loadingTimer = null;
+function startLoading(msg) {
+    stopLoading();
+    var el = document.getElementById("loading-overlay");
+    var txt = document.getElementById("loading-text");
+    if (txt) txt.textContent = msg || "Waking up server\u2026";
+    _loadingTimer = setTimeout(function() {
+        if (el) el.classList.remove("hidden");
+    }, 2000);
+}
+function stopLoading() {
+    if (_loadingTimer) { clearTimeout(_loadingTimer); _loadingTimer = null; }
+    var el = document.getElementById("loading-overlay");
+    if (el) el.classList.add("hidden");
+}
 </script>
+<div id="loading-overlay" class="hidden">
+    <div id="loading-spinner"></div>
+    <div id="loading-text">Waking up server\u2026</div>
+</div>
 </body>
 </html>
 

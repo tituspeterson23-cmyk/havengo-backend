@@ -92,7 +92,7 @@ setInterval(() => {
       db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '⏰', 'Payment Reminder', 'Payment of UGX " + p.amount + " for your task is due. Pay within 10 hours or it will be auto-deducted.', 'payment_reminder')")
         .run(p.customer_email);
       // Also notify provider
-      const prov = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(p.provider_name);
+      const prov = db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(p.provider_name, p.provider_name);
       if (prov) {
         db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '⏰', 'Payment Pending', 'Customer payment of UGX " + p.amount + " is due within 10 hours.', 'payment_reminder')")
           .run(prov.email);
@@ -121,7 +121,7 @@ setInterval(() => {
       // Update pending payment
       db.prepare("UPDATE pending_payments SET status = 'auto_paid' WHERE id = ?").run(payment.id);
       // Credit provider
-      db.prepare('UPDATE providers SET total_earnings = total_earnings + ? WHERE business_name = ?').run(providerAmount, payment.provider_name);
+      db.prepare('UPDATE providers SET total_earnings = total_earnings + ? WHERE business_name = ? OR (firstname || \' \' || lastname) = ?').run(providerAmount, payment.provider_name, payment.provider_name);
 
       // Deduct from customer (if possible)
       const customer = db.prepare('SELECT * FROM users WHERE email = ?').get(payment.customer_email);
@@ -132,7 +132,7 @@ setInterval(() => {
       // Notify customer and provider about auto-payment
       db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '⏰', 'Auto-Payment Completed', 'UGX " + payment.amount + " auto-deducted for completed task (10-hour window expired).', 'auto_payment')")
         .run(payment.customer_email);
-      const provNotify = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(payment.provider_name);
+      const provNotify = db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(payment.provider_name, payment.provider_name);
       if (provNotify) {
         db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '💰', 'Payment Released', 'UGX " + providerAmount + " credited to your account (auto-payment).', 'auto_payment')")
           .run(provNotify.email);
