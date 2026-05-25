@@ -256,6 +256,31 @@ router.post('/resolve-payment-dispute/:id', (req, res) => {
   }
 });
 
+// GET /api/admin/tasks — all active tasks (not completed/cancelled)
+router.get('/tasks', (req, res) => {
+  const db = getDb();
+  const tasks = db.prepare("SELECT * FROM tasks WHERE status IN ('pending_confirmation', 'active')").all();
+  res.json(tasks);
+});
+
+// POST /api/admin/tasks/reassign/:taskId — reassign task to another provider
+router.post('/tasks/reassign/:taskId', (req, res) => {
+  const db = getDb();
+  const { providerName } = req.body;
+  if (!providerName) return res.status(400).json({ error: 'Provider name required' });
+  const task = db.prepare("SELECT * FROM tasks WHERE id = ?").get(parseInt(req.params.taskId));
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+  if (task.status === 'completed') return res.status(400).json({ error: 'Cannot reassign completed task' });
+  db.prepare("UPDATE tasks SET provider_name = ?, status = 'pending_confirmation' WHERE id = ?").run(providerName, parseInt(req.params.taskId));
+  // Notify new provider
+  const newProv = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(providerName);
+  if (newProv) {
+    db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+      .run(newProv.email, '📋', 'Order Assigned to You', 'A new order has been assigned to you by admin. Please review and confirm.', 'task');
+  }
+  res.json({ success: true, message: 'Task reassigned to ' + providerName });
+});
+
 // POST /api/admin/delete-notification/:id
 router.post('/delete-notification/:id', (req, res) => {
   const db = getDb();

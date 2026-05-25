@@ -250,6 +250,25 @@ router.post('/report-payment-issue', (req, res) => {
   res.json({ success: true, message: 'Issue reported. Auto-payment has been halted pending admin review.' });
 });
 
+// POST /api/customer/cancel-booking/:id
+router.post('/cancel-booking/:id', (req, res) => {
+  const db = getDb();
+  const taskId = parseInt(req.params.id);
+  const task = db.prepare("SELECT * FROM tasks WHERE id = ?").get(taskId);
+  if (!task) return res.json({ success: false, error: 'Task not found' });
+  const reason = req.body.reason || 'No reason provided';
+  db.prepare("DELETE FROM tasks WHERE id = ?").run(taskId);
+  // Notify provider if assigned
+  if (task.provider_name) {
+    const prov = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(task.provider_name);
+    if (prov) {
+      db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+        .run(prov.email, '❌', 'Order Cancelled by Customer', 'Order #' + taskId + ' (' + task.service_name + ') was cancelled. Reason: ' + reason, 'cancellation');
+    }
+  }
+  res.json({ success: true, message: 'Booking cancelled' });
+});
+
 // POST /api/customer/delete-notification/:id
 router.post('/delete-notification/:id', (req, res) => {
   const db = getDb();

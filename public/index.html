@@ -594,6 +594,7 @@
             <button onclick="switchAdminTab(2)" id="admin-tab-2" class="admin-tab px-6 py-3 text-gray-500">Price Requests</button>
             <button onclick="switchAdminTab(3)" id="admin-tab-3" class="admin-tab px-6 py-3 text-gray-500">Revenue</button>
             <button onclick="switchAdminTab(4)" id="admin-tab-4" class="admin-tab px-6 py-3 text-gray-500">Chat</button>
+            <button onclick="switchAdminTab(5)" id="admin-tab-5" class="admin-tab px-6 py-3 text-gray-500">Orders</button>
         </div>
         <div id="admin-content-0" class="admin-content"><div id="admin-providers-list" class="space-y-4"></div></div>
         <div id="admin-content-1" class="admin-content hidden"><div id="admin-verification-list" class="space-y-4"></div></div>
@@ -602,6 +603,7 @@
         <div id="admin-content-4" class="admin-content hidden">
             <div class="bg-white rounded-3xl p-6"><h3 class="font-semibold mb-4">Chat with Providers</h3><div id="admin-chat-list" class="space-y-3"></div></div>
         </div>
+        <div id="admin-content-5" class="admin-content hidden"><div id="admin-orders-list" class="space-y-4"></div></div>
     </div>
 </div></div>
 
@@ -873,6 +875,7 @@ let earnings = 0;
 let providerEarningsMap = {};
 let priceChangeRequests = [];
 let deletionRequests = [];
+let adminTasks = [];
 let currentAdmin = null;
 let adminRevenueData = null;
 
@@ -1369,6 +1372,7 @@ async function performLogin() {
             addNotification("\uD83D\uDD13", "Logged In", "Welcome back, " + data.user.firstname + "!");
             fetchBackendNotifications();
             saveAppState();
+            startAutoPaymentCheck();
             return;
         }
         if (data.user_not_found) {
@@ -1386,9 +1390,8 @@ async function performLogin() {
     addInAppAlert("error", "Cannot log in: Server is currently unavailable. Please try again later.");
 }
 
-function logout() {
-    showAppConfirm("Are you sure you want to logout?", function(confirmed) {
-        if (!confirmed) return;
+function logout(skipConfirm) {
+    function doLogout() {
         if (currentUser && currentUser.email) {
             userNotificationsMap[currentUser.email] = globalNotifications.slice();
         }
@@ -1404,10 +1407,14 @@ function logout() {
         navigateTo("home");
         addInAppAlert("info", "Logged out successfully");
         renderAllProviderLists();
+        updateProfilePicCursor();
+        updateNotifCount();
+    }
+    if (skipConfirm) { doLogout(); return; }
+    showAppConfirm("Are you sure you want to logout?", function(confirmed) {
+        if (!confirmed) return;
+        doLogout();
     });
-    updateProfilePicCursor();
-    updateNotifCount();
-    saveAppState();
 }
 
 function updateProfileWithUser() {
@@ -1458,7 +1465,7 @@ function requestAccountDeletion() {
         addNotification("\uD83D\uDDD1\uFE0F", "Account Deletion Scheduled", "Your account will be permanently deleted in 15 days. Log in to cancel.");
         addInAppAlert("info", "Deletion scheduled. Your account will be permanently deleted in 15 days.");
         saveAppState();
-        logout();
+        logout(true);
     });
 }
 
@@ -2102,11 +2109,41 @@ function showPaymentsPending() {
     }
     var details = document.getElementById("pending-payment-details");
     var latest = pending[0];
+    var deadlineHtml = "";
+    if (latest.deadline) {
+        var remaining = latest.deadline - Date.now();
+        if (remaining > 0) {
+            var hours = Math.floor(remaining / 3600000);
+            var mins = Math.floor((remaining % 3600000) / 60000);
+            deadlineHtml = "<p class=\"text-xs text-amber-600 mt-1\"><i class=\"fa-solid fa-clock\"></i> Auto-deduct in: <span id=\"payment-countdown-display\">" + hours + "h " + mins + "m</span></p>";
+        } else {
+            deadlineHtml = "<p class=\"text-xs text-red-600 mt-1\"><i class=\"fa-solid fa-exclamation-triangle\"></i> Deadline passed — auto-deduct pending</p>";
+        }
+    }
     details.innerHTML = "<p class=\"font-medium\">" + (latest.taskName || "Task") + "</p>" +
         "<p class=\"text-2xl font-bold text-emerald-600 mt-2\">UGX " + (latest.amount || 0).toLocaleString() + "</p>" +
         "<p class=\"text-sm text-gray-500 mt-1\">Provider: " + (latest.providerName || "Unknown") + "</p>" +
+        deadlineHtml +
         "<p class=\"text-xs text-gray-400\">" + (latest.date || "") + "</p>";
     document.getElementById("payment-confirm-modal").classList.remove("hidden");
+    // Start countdown timer
+    if (latest.deadline && latest.deadline > Date.now()) {
+        if (window.__paymentCountdownTimer) clearInterval(window.__paymentCountdownTimer);
+        window.__paymentCountdownTimer = setInterval(function() {
+            var rem = latest.deadline - Date.now();
+            if (rem <= 0) {
+                clearInterval(window.__paymentCountdownTimer);
+                var cd = document.getElementById("payment-countdown-display");
+                if (cd) cd.textContent = "0h 0m";
+                checkAutoPayments();
+                return;
+            }
+            var h = Math.floor(rem / 3600000);
+            var m = Math.floor((rem % 3600000) / 60000);
+            var cd = document.getElementById("payment-countdown-display");
+            if (cd) cd.textContent = h + "h " + m + "m";
+        }, 10000);
+    }
 }
 
 async function confirmPayment() {
@@ -2826,8 +2863,7 @@ async function placeOrder(event) {
                     instructions: booking.instructions,
                     providerName: assignedProvider
                 });
-                // Deduct from local balance (backend already deducted)
-                if (userBalance >= finalPrice) userBalance -= finalPrice;
+                // Payment will be deducted when provider completes the task
                 closeModal("checkout-modal");
                 renderBookings();
                 renderProfilePage();
@@ -2914,9 +2950,59 @@ function renderBookings() {
             "<button onclick=\"startTracking(" + b.id + ")\" class=\"text-sm bg-emerald-600 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-location-dot\"></i> Track</button>" +
             "<button onclick=\"openChatWithProvider(" + b.id + ")\" class=\"text-sm border px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-comment\"></i> Chat</button>" +
             (b.status === "Completed" ? "<button onclick=\"rateBooking(" + b.id + ")\" class=\"text-sm bg-yellow-500 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-star\"></i> Rate</button>" : "") +
-            (b.status === "Completed" ? "<button onclick=\"showPaymentsPending()\" class=\"text-sm bg-emerald-600 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-credit-card\"></i> Pay Now</button>" : "") + "</div></div>";
+            (b.status === "Completed" ? "<button onclick=\"showPaymentsPending()\" class=\"text-sm bg-emerald-600 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-credit-card\"></i> Pay Now</button>" : "") +
+            ((b.status === "Pending" || b.status === "In Progress") ? "<button onclick=\"customerCancelBooking(" + b.id + ")\" class=\"text-sm bg-red-500 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-ban\"></i> Cancel</button>" : "") + "</div></div>";
     }
     list.innerHTML = html;
+}
+
+function customerCancelBooking(bookingId) {
+    showAppPrompt("Please provide the reason for cancelling this order:", "", function(reason) {
+        if (!reason || reason.trim() === "") { addInAppAlert("error", "A cancellation reason is required."); return; }
+        var apiUrl = HAVENGO_BACKEND_URL + "/api";
+        (async function() {
+            if (window.__HAVENGO_JWT__) {
+                try {
+                    var resp = await fetch(apiUrl + "/customer/cancel-booking/" + bookingId, {
+                        method: "POST",
+                        headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" },
+                        body: JSON.stringify({ reason: reason.trim() })
+                    });
+                    var data = await resp.json();
+                    if (data.success || resp.ok) {
+                        for (var i = 0; i < bookings.length; i++) {
+                            if (bookings[i].id === bookingId) { bookings[i].status = "Cancelled"; break; }
+                        }
+                        for (var pi = 0; pi < providerTasks.length; pi++) {
+                            if (providerTasks[pi].id === bookingId) { providerTasks.splice(pi, 1); break; }
+                        }
+                        for (var ati = 0; ati < adminTasks.length; ati++) {
+                            if (adminTasks[ati].id === bookingId) { adminTasks.splice(ati, 1); break; }
+                        }
+                        addNotification("\u274C", "Order Cancelled", "Order #" + bookingId + " cancelled. Reason: " + reason);
+                        renderBookings();
+                        saveAppState();
+                        addInAppAlert("success", "Order cancelled. Reason sent to provider.");
+                        return;
+                    }
+                } catch(e) {}
+            }
+            // Fallback local
+            for (var i = 0; i < bookings.length; i++) {
+                if (bookings[i].id === bookingId) { bookings[i].status = "Cancelled"; break; }
+            }
+            for (var pi = 0; pi < providerTasks.length; pi++) {
+                if (providerTasks[pi].id === bookingId) { providerTasks.splice(pi, 1); break; }
+            }
+            for (var ati = 0; ati < adminTasks.length; ati++) {
+                if (adminTasks[ati].id === bookingId) { adminTasks.splice(ati, 1); break; }
+            }
+            addNotification("\u274C", "Order Cancelled", "Order #" + bookingId + " cancelled. Reason: " + reason);
+            renderBookings();
+            saveAppState();
+            addInAppAlert("success", "Order cancelled. Reason sent to provider.");
+        })();
+    });
 }
 
 // ============================================================
@@ -3272,6 +3358,9 @@ async function cancelProviderTask(taskId) {
                                 break;
                             }
                         }
+                        for (var ati = 0; ati < adminTasks.length; ati++) {
+                            if (adminTasks[ati].id === taskId) { adminTasks.splice(ati, 1); break; }
+                        }
                         for (var j = 0; j < bookings.length; j++) {
                             if (bookings[j].id === taskId) {
                                 bookings[j].status = "Cancelled";
@@ -3314,6 +3403,10 @@ async function completeProviderTask(taskId) {
             } catch(e) { addInAppAlert("error", "Network error completing task"); return; }
         }
         providerTasks.splice(taskIdx, 1);
+        // Remove from admin tasks as well
+        for (var ati = 0; ati < adminTasks.length; ati++) {
+            if (adminTasks[ati].id === task.id) { adminTasks.splice(ati, 1); break; }
+        }
         var completed = {
         id: task.id,
         serviceName: task.serviceName,
@@ -3328,6 +3421,7 @@ async function completeProviderTask(taskId) {
         completedAt: Date.now()
     };
     completedTasks.push(completed);
+    var payDeadline = Date.now() + 36000000; // 10 hours
     pendingPayments.push({
         id: Date.now(),
         taskId: task.id,
@@ -3336,6 +3430,7 @@ async function completeProviderTask(taskId) {
         providerName: completed.providerName,
         customerName: task.customerName,
         completedAt: Date.now(),
+        deadline: payDeadline,
         paid: false
     });
     for (var j = 0; j < bookings.length; j++) {
@@ -3545,6 +3640,26 @@ async function _syncAdminData() {
                 });
             }
         }
+        // Fetch all active tasks for admin order tracking
+        try {
+            var tasksResp = await fetch(apiUrl + "/admin/tasks", { headers: headers });
+            if (tasksResp.ok) {
+                var bt = await tasksResp.json();
+                adminTasks = bt.map(function(t) {
+                    return {
+                        id: t.id,
+                        serviceName: t.service_name,
+                        customerName: t.customer_email || "",
+                        providerName: t.provider_name || "",
+                        address: t.address || "",
+                        price: t.price,
+                        status: t.status,
+                        details: t.details || "",
+                        createdAt: t.created_at
+                    };
+                });
+            }
+        } catch(et) {}
         // Fetch admin conversations from backend so admin sees all chats
         try {
             var convResp = await fetch(apiUrl + "/admin/chat/conversations", { headers: headers });
@@ -3634,6 +3749,7 @@ function switchAdminTab(n) {
     if (n === 2) renderAdminPriceRequests();
     if (n === 3) renderAdminRevenue();
     if (n === 4) renderAdminChat();
+    if (n === 5) renderAdminOrders();
     window.__adminTab = n;
     saveAppState();
 }
@@ -3818,6 +3934,87 @@ function adjustPriceRequest(id) {
         }
         renderAdminDashboard();
         renderAllProviderLists();
+    });
+}
+
+var adminReassigningTaskId = null;
+
+function renderAdminOrders() {
+    var list = document.getElementById("admin-orders-list");
+    if (!list) return;
+    if (adminTasks.length === 0) {
+        list.innerHTML = "<div class=\"text-center text-gray-500 py-8\"><i class=\"fa-solid fa-list-check text-4xl mb-3\"></i><p>No active orders. Completed and cancelled orders are automatically removed.</p></div>";
+        return;
+    }
+    var html = "";
+    for (var oi = 0; oi < adminTasks.length; oi++) {
+        var t = adminTasks[oi];
+        var provList = "";
+        for (var pi = 0; pi < registeredProviders.length; pi++) {
+            var provName = registeredProviders[pi].businessName || registeredProviders[pi].name;
+            provList += "<option value=\"" + provName.replace(/'/g,"&#39;") + "\">" + provName + "</option>";
+        }
+        html += "<div class=\"bg-white rounded-2xl p-5 shadow border-l-4 " + (t.status === "pending_confirmation" ? "border-amber-500" : "border-green-500") + "\">" +
+            "<div class=\"flex justify-between items-start\"><div><p class=\"font-semibold\">" + t.serviceName + "</p>" +
+            "<p class=\"text-sm text-gray-500\">Order #" + t.id + "</p>" +
+            "<p class=\"text-sm\"><strong>Customer:</strong> " + (t.customerName || "N/A") + "</p>" +
+            "<p class=\"text-sm\"><strong>Provider:</strong> " + (t.providerName || "Unassigned") + "</p>" +
+            "<p class=\"text-sm\"><strong>Address:</strong> " + (t.address || "N/A") + "</p>" +
+            "<p class=\"text-sm\"><strong>Price:</strong> UGX " + (t.price || 0).toLocaleString() + "</p>" +
+            "<p class=\"text-sm\"><strong>Status:</strong> " + t.status + "</p>" +
+            "<p class=\"text-xs text-gray-400\">Created: " + (t.createdAt || "N/A") + "</p></div>" +
+            "<div><span class=\"bg-" + (t.status === "pending_confirmation" ? "amber" : "green") + "-100 text-" + (t.status === "pending_confirmation" ? "amber" : "green") + "-700 px-3 py-1 rounded-full text-xs font-medium\">" + t.status + "</span></div></div>" +
+            "<div class=\"mt-4 pt-4 border-t flex gap-3 flex-wrap items-center\">" +
+            "<select id=\"admin-reassign-select-" + t.id + "\" class=\"border rounded-xl px-3 py-2 text-sm\"><option value=\"\">Select provider...</option>" + provList + "</select>" +
+            "<button onclick=\"adminReassignTask(" + t.id + ")\" class=\"bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-arrow-right\"></i> Assign</button>" +
+            "<button onclick=\"openAdminTaskChat(" + t.id + ",'" + (t.customerName || 'Customer').replace(/'/g,"\\'") + "')\" class=\"bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-comment\"></i> Chat</button>" +
+            "</div></div>";
+    }
+    list.innerHTML = html;
+}
+
+async function adminReassignTask(taskId) {
+    var select = document.getElementById("admin-reassign-select-" + taskId);
+    if (!select) return;
+    var providerName = select.value;
+    if (!providerName) { addInAppAlert("error", "Please select a provider"); return; }
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    if (window.__HAVENGO_JWT__) {
+        try {
+            var resp = await fetch(apiUrl + "/admin/tasks/reassign/" + taskId, {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" },
+                body: JSON.stringify({ providerName: providerName })
+            });
+            var data = await resp.json();
+            if (data.success) {
+                addInAppAlert("success", "Order #" + taskId + " assigned to " + providerName);
+                // Update local adminTasks
+                for (var i = 0; i < adminTasks.length; i++) {
+                    if (adminTasks[i].id === taskId) {
+                        adminTasks[i].providerName = providerName;
+                        adminTasks[i].status = "pending_confirmation";
+                        break;
+                    }
+                }
+                renderAdminOrders();
+                return;
+            }
+            if (data.error) { addInAppAlert("error", data.error); return; }
+        } catch(e) { addInAppAlert("error", "Network error reassigning task"); return; }
+    }
+    addInAppAlert("error", "You must be logged in as admin");
+}
+
+function openAdminTaskChat(taskId, customerName) {
+    showAppPrompt("Enter your message for the customer:", "", function(msg) {
+        if (!msg || !msg.trim()) return;
+        var chatKey = taskId.toString();
+        if (!chatConversations[chatKey]) chatConversations[chatKey] = [];
+        chatConversations[chatKey].push({ id: Date.now(), text: msg.trim(), sender: "admin", time: Date.now() });
+        addNotification("\uD83D\uDCAC", "Admin Message", "You sent a message regarding order #" + taskId);
+        saveAppState();
+        addInAppAlert("success", "Message sent regarding order #" + taskId);
     });
 }
 
@@ -4044,6 +4241,35 @@ function closeModal(id) {
 // ============================================================
 
 var paymentDeclineTime = null;
+var autoPaymentTimer = null;
+
+function checkAutoPayments() {
+    var now = Date.now();
+    for (var i = 0; i < pendingPayments.length; i++) {
+        var p = pendingPayments[i];
+        if (!p.paid && p.deadline && p.deadline <= now) {
+            if (userBalance >= p.amount) {
+                userBalance -= p.amount;
+                p.paid = true;
+                addNotification('💰', 'Auto-Payment Deducted', 'UGX ' + p.amount.toLocaleString() + ' deducted for ' + p.taskName + '. Provider has been credited.');
+                addInAppAlert('info', 'Payment of UGX ' + p.amount.toLocaleString() + ' for ' + p.taskName + ' auto-deducted (10hr deadline reached).');
+            } else {
+                p.overdue = true;
+                addNotification('⚠️', 'Payment Overdue', 'Payment for ' + p.taskName + ' is overdue. Please deposit funds.');
+                addInAppAlert('warning', 'Payment for ' + p.taskName + ' is overdue. Please deposit UGX ' + p.amount.toLocaleString() + ' to avoid penalties.');
+            }
+        }
+    }
+    renderBookings();
+    renderProfilePage();
+    saveAppState();
+}
+
+function startAutoPaymentCheck() {
+    if (autoPaymentTimer) clearInterval(autoPaymentTimer);
+    autoPaymentTimer = setInterval(checkAutoPayments, 60000); // Check every minute
+    checkAutoPayments();
+}
 
 function hasPendingPayment() {
     for (var i = 0; i < pendingPayments.length; i++) {
@@ -4057,11 +4283,8 @@ function getNearestPaymentDeadline() {
     var nearest = null;
     for (var i = 0; i < pendingPayments.length; i++) {
         var p = pendingPayments[i];
-        if (!p.paid && p.completedAt) {
-            var deadline = p.completedAt + 36000000;
-            if (deadline > now) {
-                if (nearest === null || deadline < nearest) nearest = deadline;
-            }
+        if (!p.paid && p.deadline && p.deadline > now) {
+            if (nearest === null || p.deadline < nearest) nearest = p.deadline;
         }
     }
     return nearest;
@@ -4069,7 +4292,7 @@ function getNearestPaymentDeadline() {
 
 function hasActiveOrder() {
     for (var i = 0; i < bookings.length; i++) {
-        if (bookings[i].status === "Pending" || bookings[i].status === "In Progress") return true;
+        if (bookings[i].status === "In Progress" || bookings[i].status === "Cancelled") return true;
     }
     return false;
 }
@@ -5297,6 +5520,7 @@ window.onload = function() {
             fetchCustomerBookings();
             renderBookings();
             updateNotifCount();
+            startAutoPaymentCheck();
         }
         if (!currentAdmin && !currentLoggedProvider && !currentUser) {
             updateNotifCount();
