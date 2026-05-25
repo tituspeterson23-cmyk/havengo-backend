@@ -69,7 +69,7 @@ router.post('/place-order', (req, res) => {
   const assignedTask = db.prepare("SELECT provider_name FROM tasks WHERE id = ?").get(result.lastInsertRowid);
   const assignedProviderName = assignedTask ? assignedTask.provider_name : '';
   if (assignedProviderName) {
-    const prov = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(assignedProviderName);
+    const prov = db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(assignedProviderName, assignedProviderName);
     if (prov) {
       db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
         .run(prov.email, '📋', 'New Order Assigned', 'New ' + sanitize(serviceName) + ' order assigned to you by ' + req.user.email + ' for UGX ' + price, 'order');
@@ -112,13 +112,13 @@ router.post('/confirm-payment', (req, res) => {
   // Update pending payments
   db.prepare("UPDATE pending_payments SET status = 'paid' WHERE task_id = ?").run(taskId);
   // Credit provider earnings
-  db.prepare('UPDATE providers SET total_earnings = total_earnings + ? WHERE business_name = ?').run(providerAmount, completed.provider_name);
+  db.prepare('UPDATE providers SET total_earnings = total_earnings + ? WHERE business_name = ? OR (firstname || \' \' || lastname) = ?').run(providerAmount, completed.provider_name, completed.provider_name);
 
   // Add notifications
   db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '💰', 'Payment Confirmed', 'Payment of " + completed.price + " UGX completed. Provider credited " + providerAmount + " UGX.', 'money')")
     .run(req.user.email);
   // Notify provider about payment
-  const prov = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(completed.provider_name);
+  const prov = db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(completed.provider_name, completed.provider_name);
   if (prov) {
     db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '💰', 'Payment Received', 'Payment of " + completed.price + " UGX received from " + req.user.email + " for " + completed.service_name + ".', 'money')")
       .run(prov.email);
@@ -249,7 +249,7 @@ router.post('/report-payment-issue', (req, res) => {
       .run(adminEmail, '⚠️', 'Payment Dispute', 'Customer ' + req.user.email + ' reported an issue with payment UGX ' + payment.amount + '. Reason: ' + sanitize(reason), 'payment_dispute');
   }
   // Notify provider
-  const prov = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(payment.provider_name);
+  const prov = db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(payment.provider_name, payment.provider_name);
   if (prov) {
     db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
       .run(prov.email, '⚠️', 'Payment Dispute', 'Customer reported an issue with payment for task #' + taskId + '. Admin will review.', 'payment_dispute');
@@ -267,7 +267,7 @@ router.post('/cancel-booking/:id', (req, res) => {
   db.prepare("DELETE FROM tasks WHERE id = ?").run(taskId);
   // Notify provider if assigned
   if (task.provider_name) {
-    const prov = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(task.provider_name);
+    const prov = db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(task.provider_name, task.provider_name);
     if (prov) {
       db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
         .run(prov.email, '❌', 'Order Cancelled by Customer', 'Order #' + taskId + ' (' + task.service_name + ') was cancelled. Reason: ' + reason, 'cancellation');

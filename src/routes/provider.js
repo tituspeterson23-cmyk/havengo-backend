@@ -123,8 +123,9 @@ router.get('/tasks', (req, res) => {
   const db = getDb();
   const provider = db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
-  const providerName = provider.business_name || (provider.firstname + ' ' + provider.lastname);
-  const tasks = db.prepare("SELECT * FROM tasks WHERE (provider_name = ? OR provider_name = '' OR provider_name IS NULL) AND status IN ('pending_confirmation', 'active')").all(providerName);
+  const bizName = provider.business_name;
+  const fullName = provider.firstname + ' ' + provider.lastname;
+  const tasks = db.prepare("SELECT * FROM tasks WHERE (provider_name = ? OR provider_name = ? OR provider_name = '' OR provider_name IS NULL) AND status IN ('pending_confirmation', 'active')").all(bizName, fullName);
   res.json(tasks);
 });
 
@@ -133,7 +134,9 @@ router.get('/completed-tasks', (req, res) => {
   const db = getDb();
   const provider = db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
-  const completed = db.prepare('SELECT * FROM completed_tasks WHERE provider_name = ?').all(provider.business_name);
+  const bizName = provider.business_name;
+  const fullName = provider.firstname + ' ' + provider.lastname;
+  const completed = db.prepare('SELECT * FROM completed_tasks WHERE provider_name = ? OR provider_name = ?').all(bizName, fullName);
   res.json(completed);
 });
 
@@ -181,8 +184,10 @@ router.get('/earnings', (req, res) => {
   const db = getDb();
   const provider = db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
-  const total = db.prepare("SELECT COALESCE(SUM(price * 0.85), 0) as earnings FROM completed_tasks WHERE provider_name = ? AND paid = 1").get(provider.business_name);
-  const breakdown = db.prepare("SELECT service_name, price, completed_at FROM completed_tasks WHERE provider_name = ? AND paid = 1").all(provider.business_name);
+  const bizName = provider.business_name;
+  const fullName = provider.firstname + ' ' + provider.lastname;
+  const total = db.prepare("SELECT COALESCE(SUM(price * 0.85), 0) as earnings FROM completed_tasks WHERE (provider_name = ? OR provider_name = ?) AND paid = 1").get(bizName, fullName);
+  const breakdown = db.prepare("SELECT service_name, price, completed_at FROM completed_tasks WHERE (provider_name = ? OR provider_name = ?) AND paid = 1").all(bizName, fullName);
   res.json({ totalEarnings: total.earnings, breakdown });
 });
 
@@ -212,10 +217,12 @@ router.get('/dashboard-stats', (req, res) => {
   const provider = db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
 
-  const todayTasks = db.prepare("SELECT COUNT(*) as count FROM tasks WHERE provider_name = ? AND DATE(created_at) = DATE('now')").get(provider.business_name);
-  const monthlyEarnings = db.prepare("SELECT COALESCE(SUM(price * 0.85), 0) as earnings FROM completed_tasks WHERE provider_name = ? AND paid = 1 AND strftime('%Y-%m', completed_at) = strftime('%Y-%m', 'now')").get(provider.business_name);
-  const totalCompleted = db.prepare("SELECT COUNT(*) as count FROM completed_tasks WHERE provider_name = ? AND paid = 1").get(provider.business_name);
-  const totalTasks = db.prepare("SELECT COUNT(*) as count FROM completed_tasks WHERE provider_name = ?").get(provider.business_name);
+  const bizName = provider.business_name;
+  const fullName = provider.firstname + ' ' + provider.lastname;
+  const todayTasks = db.prepare("SELECT COUNT(*) as count FROM tasks WHERE (provider_name = ? OR provider_name = ?) AND DATE(created_at) = DATE('now')").get(bizName, fullName);
+  const monthlyEarnings = db.prepare("SELECT COALESCE(SUM(price * 0.85), 0) as earnings FROM completed_tasks WHERE (provider_name = ? OR provider_name = ?) AND paid = 1 AND strftime('%Y-%m', completed_at) = strftime('%Y-%m', 'now')").get(bizName, fullName);
+  const totalCompleted = db.prepare("SELECT COUNT(*) as count FROM completed_tasks WHERE (provider_name = ? OR provider_name = ?) AND paid = 1").get(bizName, fullName);
+  const totalTasks = db.prepare("SELECT COUNT(*) as count FROM completed_tasks WHERE provider_name = ? OR provider_name = ?").get(bizName, fullName);
   const completionRate = totalTasks.count > 0 ? Math.round((totalCompleted.count / totalTasks.count) * 100) : 0;
 
   res.json({
@@ -245,13 +252,15 @@ router.delete('/account', (req, res) => {
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
   // Delete provider and all associated data
   db.prepare('DELETE FROM providers WHERE email = ?').run(req.user.email);
-  db.prepare("DELETE FROM tasks WHERE provider_name = ?").run(provider.business_name);
-  db.prepare("DELETE FROM completed_tasks WHERE provider_name = ?").run(provider.business_name);
-  db.prepare("DELETE FROM pending_payments WHERE provider_name = ?").run(provider.business_name);
+  const bizName = provider.business_name;
+  const fullName = provider.firstname + ' ' + provider.lastname;
+  db.prepare("DELETE FROM tasks WHERE provider_name = ? OR provider_name = ?").run(bizName, fullName);
+  db.prepare("DELETE FROM completed_tasks WHERE provider_name = ? OR provider_name = ?").run(bizName, fullName);
+  db.prepare("DELETE FROM pending_payments WHERE provider_name = ? OR provider_name = ?").run(bizName, fullName);
   db.prepare("DELETE FROM notifications WHERE user_email = ?").run(req.user.email);
   // Delete chat messages in provider conversations
   db.prepare("DELETE FROM chat_messages WHERE conversation_id LIKE ?").run('provider-admin-' + req.user.email + '%');
-  db.prepare("DELETE FROM chat_messages WHERE conversation_id = ?").run(provider.business_name);
+  db.prepare("DELETE FROM chat_messages WHERE conversation_id = ? OR conversation_id = ?").run(bizName, fullName);
   res.json({ success: true, message: 'Account deleted' });
 });
 
@@ -312,7 +321,7 @@ router.post('/cancel-task/:taskId', (req, res) => {
   db.prepare('DELETE FROM tasks WHERE id = ?').run(taskId);
   // Notify customer
   db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
-    .run(task.customer_email, '❌', 'Order Cancelled', 'Your ' + task.service_name + ' order was cancelled by ' + provider.business_name + '. Reason: ' + sanitize(reason) + '. Please place with a different provider.', 'order_cancelled');
+    .run(task.customer_email, '❌', 'Order Cancelled', 'Your ' + task.service_name + ' order was cancelled by ' + (provider.business_name || provider.firstname + ' ' + provider.lastname) + '. Reason: ' + sanitize(reason) + '. Please place with a different provider.', 'order_cancelled');
   res.json({ success: true, message: 'Task cancelled', reason: reason });
 });
 

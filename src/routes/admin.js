@@ -196,7 +196,7 @@ router.post('/notify-provider', (req, res) => {
   const { providerName, icon, title, message } = req.body;
   if (!providerName || !title) return res.status(400).json({ error: 'Missing required fields' });
   const db = getDb();
-  const provider = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(providerName);
+  const provider = db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(providerName, providerName);
   if (provider) {
     db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, 'price_update')")
       .run(provider.email, icon || '📋', title, message || '');
@@ -232,10 +232,10 @@ router.post('/resolve-payment-dispute/:id', (req, res) => {
     }
     db.prepare('UPDATE completed_tasks SET paid = 1 WHERE task_id = ?').run(payment.task_id);
     db.prepare("UPDATE pending_payments SET status = 'paid' WHERE id = ?").run(id);
-    db.prepare('UPDATE providers SET total_earnings = total_earnings + ? WHERE business_name = ?').run(providerAmount, payment.provider_name);
+    db.prepare('UPDATE providers SET total_earnings = total_earnings + ? WHERE business_name = ? OR (firstname || \' \' || lastname) = ?').run(providerAmount, payment.provider_name, payment.provider_name);
     db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
       .run(payment.customer_email, '✅', 'Dispute Resolved', 'Your payment dispute has been resolved. UGX ' + payment.amount + ' has been processed.', 'payment');
-    const prov = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(payment.provider_name);
+    const prov = db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(payment.provider_name, payment.provider_name);
     if (prov) {
       db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
         .run(prov.email, '✅', 'Dispute Resolved', 'Payment dispute resolved. UGX ' + providerAmount + ' credited to your account.', 'payment');
@@ -245,7 +245,7 @@ router.post('/resolve-payment-dispute/:id', (req, res) => {
     db.prepare("UPDATE pending_payments SET status = 'refunded' WHERE id = ?").run(id);
     db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
       .run(payment.customer_email, '💰', 'Dispute Resolved - Refunded', 'Your payment dispute has been resolved. The amount UGX ' + payment.amount + ' has been refunded.', 'payment');
-    const prov = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(payment.provider_name);
+    const prov = db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(payment.provider_name, payment.provider_name);
     if (prov) {
       db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
         .run(prov.email, 'ℹ️', 'Dispute Resolved', 'Payment dispute for task #' + payment.task_id + ' has been resolved with refund.', 'payment');
@@ -273,7 +273,7 @@ router.post('/tasks/reassign/:taskId', (req, res) => {
   if (task.status === 'completed') return res.status(400).json({ error: 'Cannot reassign completed task' });
   db.prepare("UPDATE tasks SET provider_name = ?, status = 'pending_confirmation' WHERE id = ?").run(providerName, parseInt(req.params.taskId));
   // Notify new provider
-  const newProv = db.prepare("SELECT email FROM providers WHERE business_name = ?").get(providerName);
+  const newProv = db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(providerName, providerName);
   if (newProv) {
     db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
       .run(newProv.email, '📋', 'Order Assigned to You', 'A new order has been assigned to you by admin. Please review and confirm.', 'task');
