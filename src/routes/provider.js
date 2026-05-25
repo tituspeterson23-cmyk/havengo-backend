@@ -200,13 +200,14 @@ router.post('/price-request', (req, res) => {
   const db = getDb();
   const provider = db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
+  var provName = provider.business_name || provider.firstname + ' ' + provider.lastname;
   db.prepare("INSERT INTO price_requests (provider_name, provider_id, service_id, current_price, requested_price) VALUES (?, ?, ?, ?, ?)")
-    .run(provider.business_name, provider.id, serviceId, currentPrice, requestedPrice);
+    .run(provName, provider.id, serviceId, currentPrice, requestedPrice);
   // Notify admin
   const adminEmail = db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
   if (adminEmail) {
     db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
-      .run(adminEmail, '💰', 'Price Change Request', provider.business_name + ' requests price change for service: UGX ' + currentPrice + ' → UGX ' + requestedPrice, 'price_request');
+      .run(adminEmail, '💰', 'Price Change Request', provName + ' requests price change for service: UGX ' + currentPrice + ' → UGX ' + requestedPrice, 'price_request');
   }
   res.json({ success: true, message: 'Price change requested' });
 });

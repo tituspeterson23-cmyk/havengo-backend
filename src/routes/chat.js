@@ -24,7 +24,7 @@ router.get('/:conversationId', (req, res) => {
       // task-based conversation — verify provider is assigned to the task
       const taskId = parseInt(convId, 10);
       if (isNaN(taskId)) return res.status(403).json({ error: 'Forbidden' });
-      const task = db.prepare("SELECT * FROM tasks WHERE id = ? AND provider_name = ?").get(taskId, provider.business_name);
+      const task = db.prepare("SELECT * FROM tasks WHERE id = ? AND (provider_name = ? OR provider_name = ?)").get(taskId, provider.business_name, provider.firstname + ' ' + provider.lastname);
       if (!task) return res.status(403).json({ error: 'Forbidden' });
     } else {
       return res.status(403).json({ error: 'Forbidden' });
@@ -61,7 +61,7 @@ router.post('/send', (req, res) => {
     } else if (!conversationId.startsWith('customer-admin-') && !conversationId.startsWith('provider-admin-')) {
       const taskId = parseInt(conversationId, 10);
       if (isNaN(taskId)) return res.status(403).json({ error: 'Forbidden' });
-      const task = db2.prepare("SELECT * FROM tasks WHERE id = ? AND provider_name = ?").get(taskId, prov.business_name);
+      const task = db2.prepare("SELECT * FROM tasks WHERE id = ? AND (provider_name = ? OR provider_name = ?)").get(taskId, prov.business_name, prov.firstname + ' ' + prov.lastname);
       if (!task) return res.status(403).json({ error: 'Forbidden' });
     } else {
       return res.status(403).json({ error: 'Forbidden' });
@@ -115,7 +115,7 @@ router.delete('/:conversationId/message/:messageId', (req, res) => {
     } else if (!convId.startsWith('customer-admin-') && !convId.startsWith('provider-admin-')) {
       const taskId = parseInt(convId, 10);
       if (isNaN(taskId)) return res.status(403).json({ error: 'Forbidden' });
-      const task = db.prepare("SELECT * FROM tasks WHERE id = ? AND provider_name = ?").get(taskId, prov.business_name);
+      const task = db.prepare("SELECT * FROM tasks WHERE id = ? AND (provider_name = ? OR provider_name = ?)").get(taskId, prov.business_name, prov.firstname + ' ' + prov.lastname);
       if (!task) return res.status(403).json({ error: 'Forbidden' });
     } else {
       return res.status(403).json({ error: 'Forbidden' });
