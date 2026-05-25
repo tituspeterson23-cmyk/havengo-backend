@@ -233,23 +233,30 @@
             <div class="text-center mt-6"><p class="text-sm text-gray-500">Don't have an account? <span onclick="switchAuthMode('signup')" class="text-emerald-600 cursor-pointer font-medium">Sign Up</span></p></div>
         </div>
         <div id="signup-form" class="hidden">
-            <div class="space-y-5">
-                <div class="grid grid-cols-2 gap-4"><div><label class="font-medium block mb-2">First Name</label><input id="signup-firstname" type="text" class="w-full border rounded-2xl px-5 py-4 outline-none focus:border-emerald-600"></div><div><label class="font-medium block mb-2">Last Name</label><input id="signup-lastname" type="text" class="w-full border rounded-2xl px-5 py-4 outline-none focus:border-emerald-600"></div></div>
-                <div><label class="font-medium block mb-2">Phone Number</label><input id="signup-phone" type="tel" class="w-full border rounded-2xl px-5 py-4 outline-none focus:border-emerald-600" placeholder="0777 062 518"></div>
-                <div><label class="font-medium block mb-2">Email</label><input id="signup-email" type="email" class="w-full border rounded-2xl px-5 py-4 outline-none focus:border-emerald-600"></div>
-                <div><label class="font-medium block mb-2">Create Password</label><input id="signup-password" type="password" class="w-full border rounded-2xl px-5 py-4 outline-none focus:border-emerald-600"></div>
-                <div><label class="font-medium block mb-2">Confirm Password</label><input id="signup-confirm-password" type="password" class="w-full border rounded-2xl px-5 py-4 outline-none focus:border-emerald-600"></div>
-                <div id="verification-section" class="hidden space-y-4">
-                    <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-700">
-                        <i class="fa-solid fa-shield"></i> Your verification code is: <strong id="display-verification-code" class="text-lg tracking-widest">------</strong>
-                    </div>
-                    <p class="text-xs text-gray-500 text-center">Enter the 6-digit code below to complete signup.</p>
-                    <div class="flex gap-3"><input id="verification-code" type="text" placeholder="Enter 6-digit code" maxlength="6" class="flex-1 border rounded-2xl px-5 py-4 outline-none focus:border-emerald-600 text-center text-2xl tracking-widest"><button id="verify-code-btn" onclick="verifySignupCode()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-4 rounded-2xl font-semibold whitespace-nowrap">Verify</button></div>
-                    <p class="text-xs text-gray-500 text-center">Code not working? <button id="resend-code-btn" onclick="resendSignupCode()" class="text-emerald-600 font-medium bg-transparent border-none cursor-pointer">Get new code</button></p>
+            <p class="text-sm text-gray-500 mb-6">Create your HavenGo account to start booking services and track your orders.</p>
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-sm font-semibold text-gray-700 block mb-1.5"><i class="fa-solid fa-user text-emerald-500 mr-1.5"></i>First Name</label><input id="signup-firstname" type="text" class="w-full border border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all bg-gray-50 focus:bg-white" placeholder="John"></div>
+                    <div><label class="text-sm font-semibold text-gray-700 block mb-1.5">Last Name</label><input id="signup-lastname" type="text" class="w-full border border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all bg-gray-50 focus:bg-white" placeholder="Doe"></div>
                 </div>
-                <button id="signup-submit-btn" onclick="(async()=>{await performSignup()})()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-3xl font-semibold">Create Account</button>
+                <div><label class="text-sm font-semibold text-gray-700 block mb-1.5"><i class="fa-solid fa-phone text-emerald-500 mr-1.5"></i>Phone Number</label><input id="signup-phone" type="tel" class="w-full border border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all bg-gray-50 focus:bg-white" placeholder="0777 062 518"></div>
+                <div><label class="text-sm font-semibold text-gray-700 block mb-1.5"><i class="fa-solid fa-envelope text-emerald-500 mr-1.5"></i>Email Address</label><input id="signup-email" type="email" class="w-full border border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all bg-gray-50 focus:bg-white" placeholder="you@example.com"></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-sm font-semibold text-gray-700 block mb-1.5"><i class="fa-solid fa-lock text-emerald-500 mr-1.5"></i>Password</label><input id="signup-password" type="password" class="w-full border border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all bg-gray-50 focus:bg-white" placeholder="Min. 6 chars"></div>
+                    <div><label class="text-sm font-semibold text-gray-700 block mb-1.5">Confirm</label><input id="signup-confirm-password" type="password" class="w-full border border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all bg-gray-50 focus:bg-white" placeholder="Repeat password"></div>
+                </div>
+                <div id="verification-section" class="hidden bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-2xl p-5 border border-blue-200 space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0"><i class="fa-solid fa-shield"></i></div>
+                        <div class="text-sm text-blue-700">Your verification code: <strong id="display-verification-code" class="text-lg tracking-widest bg-white px-3 py-1 rounded-lg border border-blue-200 inline-block mt-1">------</strong></div>
+                    </div>
+                    <p class="text-xs text-blue-500 text-center">Enter the 6-digit code below to complete signup.</p>
+                    <div class="flex gap-3"><input id="verification-code" type="text" placeholder="Enter code" maxlength="6" class="flex-1 border border-blue-200 rounded-xl px-5 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-center text-xl tracking-widest bg-white"><button id="verify-code-btn" onclick="verifySignupCode()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3.5 rounded-xl font-semibold whitespace-nowrap transition-all">Verify</button></div>
+                    <p class="text-xs text-gray-500 text-center">Code not working? <button id="resend-code-btn" onclick="resendSignupCode()" class="text-emerald-600 font-medium bg-transparent border-none cursor-pointer hover:text-emerald-700">Get new code</button></p>
+                </div>
+                <button id="signup-submit-btn" onclick="(async()=>{await performSignup()})()" class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white py-3.5 rounded-xl font-semibold transition-all shadow-lg shadow-emerald-200 hover:shadow-xl hover:shadow-emerald-300 active:scale-[0.98]"><i class="fa-solid fa-user-plus mr-2"></i>Create Account</button>
             </div>
-            <div class="text-center mt-6"><p class="text-sm text-gray-500">Already have an account? <span onclick="switchAuthMode('login')" class="text-emerald-600 cursor-pointer font-medium">Login</span></p></div>
+            <div class="text-center mt-6"><p class="text-sm text-gray-500">Already have an account? <span onclick="switchAuthMode('login')" class="text-emerald-600 cursor-pointer font-medium hover:text-emerald-700">Login</span></p></div>
         </div>
     </div>
 </div>
@@ -335,18 +342,18 @@
 <div class="max-w-7xl mx-auto px-5 py-10">
 <div class="flex items-center justify-between mb-10"><h2 class="text-4xl font-bold">All Services</h2><select class="border rounded-xl px-4 py-3"><option>Sort By</option><option>Most Popular</option><option>Lowest Price</option><option>Highest Rated</option></select></div>
 <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Deep Home Cleaning & Maintenance</h3><span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs">Premium</span></div><p class="text-gray-600 mb-4">Professional deep cleaning, pest control, sofa & carpet shampooing, appliance repair, and on-call handymen.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">85k</p></div><div class="text-right"><div id="stars-cleaning" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-cleaning" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('cleaning-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-cleaning-providers"></i></button><div id="cleaning-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Mobile Spa & Wellness</h3><span class="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-xs">Luxury</span></div><p class="text-gray-600 mb-4">Full mobile spa: nails, massages, makeup artistry, hair styling — all at your home.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">95k</p></div><div class="text-right"><div id="stars-spa" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-spa" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('spa-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-spa-providers"></i></button><div id="spa-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1584515933487-779824d29309?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Family & Pet Care</h3><span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs">Trusted</span></div><p class="text-gray-600 mb-4">Vetted babysitters, elderly care companions, dog walkers, and professional pet groomers.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">70k</p></div><div class="text-right"><div id="stars-family" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-family" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('family-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-family-providers"></i></button><div id="family-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Errands & Logistics</h3><span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs">Convenient</span></div><p class="text-gray-600 mb-4">Laundry pick-up/drop-off, grocery runners, local packing & moving, catering services, and reliable househelp.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">45k</p></div><div class="text-right"><div id="stars-errands" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-errands" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('errands-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-errands-providers"></i></button><div id="errands-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Catering & Ushering</h3><span class="bg-violet-100 text-violet-700 px-3 py-1 rounded-full text-xs">Events</span></div><p class="text-gray-600 mb-4">Professional catering for events, parties, corporate functions and experienced ushers & event support staff.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">150k</p></div><div class="text-right"><div id="stars-catering" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-catering" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('catering-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-catering-providers"></i></button><div id="catering-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Kids Activities & Tutoring</h3><span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs">Fun & Learn</span></div><p class="text-gray-600 mb-4">Professional home tutors, art & craft sessions, storytelling, music lessons and kids yoga & fitness activities.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">60k</p></div><div class="text-right"><div id="stars-kids" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-kids" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('kids-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-kids-providers"></i></button><div id="kids-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1527613426441-4da17471b66d?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Home Care Nursing</h3><span class="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-xs">Health</span></div><p class="text-gray-600 mb-4">Qualified home care nurses for elderly care, post-surgery recovery, medication management, wound care and patient monitoring at home.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">80k</p></div><div class="text-right"><div id="stars-nursing" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-nursing" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('nursing-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-nursing-providers"></i></button><div id="nursing-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">AC & Appliance Repair</h3><span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs">Technical</span></div><p class="text-gray-600 mb-4">Expert repair for air conditioners, refrigerators, washing machines, ovens and other home appliances.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">55k</p></div><div class="text-right"><div id="stars-appliance" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-appliance" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('appliance-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-appliance-providers"></i></button><div id="appliance-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Gardening & Landscaping</h3><span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs">Green Thumb</span></div><p class="text-gray-600 mb-4">Lawn care, plant maintenance, landscaping design, hedge trimming and garden setup services.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">65k</p></div><div class="text-right"><div id="stars-gardening" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-gardening" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('gardening-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-gardening-providers"></i></button><div id="gardening-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Mobile Hair Styling</h3><span class="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs">Beauty</span></div><p class="text-gray-600 mb-4">Professional hairstylists traveling directly to your home with tools for knotless braids, weaves, and more.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">75k</p></div><div class="text-right"><div id="stars-hair" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-hair" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('hair-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-hair-providers"></i></button><div id="hair-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Event Infrastructure Hire</h3><span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs">Events</span></div><p class="text-gray-600 mb-4">Tents, plastic & executive chairs, sound systems, PA setups for your events.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">250k</p></div><div class="text-right"><div id="stars-event" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-event" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('event-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-event-providers"></i></button><div id="event-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
-<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1581235720704-06d3acfcb36f?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Mobile Auto Care & Detailing</h3><span class="bg-cyan-100 text-cyan-700 px-3 py-1 rounded-full text-xs">Vehicle</span></div><p class="text-gray-600 mb-4">Professional car washing and detailing at your home or office.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">65k</p></div><div class="text-right"><div id="stars-auto" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-auto" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><button onclick="toggleProviders('auto-providers')" class="w-full flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Tap to See Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-auto-providers"></i></button><div id="auto-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Deep Home Cleaning & Maintenance</h3><span class="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs">Premium</span></div><p class="text-gray-600 mb-4">Professional deep cleaning, pest control, sofa & carpet shampooing, appliance repair, and on-call handymen.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">85k</p></div><div class="text-right"><div id="stars-cleaning" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-cleaning" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><div class="flex gap-2"><button onclick="selectService('cleaning')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-bookmark mr-1"></i> Book Now</button><button onclick="toggleProviders('cleaning-providers')" class="flex-1 flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-cleaning-providers"></i></button></div><div id="cleaning-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Mobile Spa & Wellness</h3><span class="bg-pink-100 text-pink-700 px-3 py-1 rounded-full text-xs">Luxury</span></div><p class="text-gray-600 mb-4">Full mobile spa: nails, massages, makeup artistry, hair styling — all at your home.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">95k</p></div><div class="text-right"><div id="stars-spa" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-spa" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><div class="flex gap-2"><button onclick="selectService('spa')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-bookmark mr-1"></i> Book Now</button><button onclick="toggleProviders('spa-providers')" class="flex-1 flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-spa-providers"></i></button></div><div id="spa-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1584515933487-779824d29309?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Family & Pet Care</h3><span class="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs">Trusted</span></div><p class="text-gray-600 mb-4">Vetted babysitters, elderly care companions, dog walkers, and professional pet groomers.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">70k</p></div><div class="text-right"><div id="stars-family" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-family" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><div class="flex gap-2"><button onclick="selectService('family')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-bookmark mr-1"></i> Book Now</button><button onclick="toggleProviders('family-providers')" class="flex-1 flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-family-providers"></i></button></div><div id="family-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Errands & Logistics</h3><span class="bg-amber-100 text-amber-700 px-3 py-1 rounded-full text-xs">Convenient</span></div><p class="text-gray-600 mb-4">Laundry pick-up/drop-off, grocery runners, local packing & moving, catering services, and reliable househelp.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">45k</p></div><div class="text-right"><div id="stars-errands" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-errands" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><div class="flex gap-2"><button onclick="selectService('errands')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-bookmark mr-1"></i> Book Now</button><button onclick="toggleProviders('errands-providers')" class="flex-1 flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-errands-providers"></i></button></div><div id="errands-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Catering & Ushering</h3><span class="bg-violet-100 text-violet-700 px-3 py-1 rounded-full text-xs">Events</span></div><p class="text-gray-600 mb-4">Professional catering for events, parties, corporate functions and experienced ushers & event support staff.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">150k</p></div><div class="text-right"><div id="stars-catering" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-catering" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><div class="flex gap-2"><button onclick="selectService('catering')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-bookmark mr-1"></i> Book Now</button><button onclick="toggleProviders('catering-providers')" class="flex-1 flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-catering-providers"></i></button></div><div id="catering-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1503454537195-1dcabb73ffb9?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Kids Activities & Tutoring</h3><span class="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs">Fun & Learn</span></div><p class="text-gray-600 mb-4">Professional home tutors, art & craft sessions, storytelling, music lessons and kids yoga & fitness activities.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">60k</p></div><div class="text-right"><div id="stars-kids" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-kids" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><div class="flex gap-2"><button onclick="selectService('kids')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-bookmark mr-1"></i> Book Now</button><button onclick="toggleProviders('kids-providers')" class="flex-1 flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-kids-providers"></i></button></div><div id="kids-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1527613426441-4da17471b66d?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Home Care Nursing</h3><span class="bg-teal-100 text-teal-700 px-3 py-1 rounded-full text-xs">Health</span></div><p class="text-gray-600 mb-4">Qualified home care nurses for elderly care, post-surgery recovery, medication management, wound care and patient monitoring at home.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">80k</p></div><div class="text-right"><div id="stars-nursing" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-nursing" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><div class="flex gap-2"><button onclick="selectService('nursing')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-bookmark mr-1"></i> Book Now</button><button onclick="toggleProviders('nursing-providers')" class="flex-1 flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-nursing-providers"></i></button></div><div id="nursing-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1621905252507-b35492cc74b4?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">AC & Appliance Repair</h3><span class="bg-orange-100 text-orange-700 px-3 py-1 rounded-full text-xs">Technical</span></div><p class="text-gray-600 mb-4">Expert repair for air conditioners, refrigerators, washing machines, ovens and other home appliances.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">55k</p></div><div class="text-right"><div id="stars-appliance" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-appliance" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><div class="flex gap-2"><button onclick="selectService('appliance')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-bookmark mr-1"></i> Book Now</button><button onclick="toggleProviders('appliance-providers')" class="flex-1 flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-appliance-providers"></i></button></div><div id="appliance-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Gardening & Landscaping</h3><span class="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs">Green Thumb</span></div><p class="text-gray-600 mb-4">Lawn care, plant maintenance, landscaping design, hedge trimming and garden setup services.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">65k</p></div><div class="text-right"><div id="stars-gardening" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-gardening" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><div class="flex gap-2"><button onclick="selectService('gardening')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-bookmark mr-1"></i> Book Now</button><button onclick="toggleProviders('gardening-providers')" class="flex-1 flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-gardening-providers"></i></button></div><div id="gardening-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Mobile Hair Styling</h3><span class="bg-rose-100 text-rose-700 px-3 py-1 rounded-full text-xs">Beauty</span></div><p class="text-gray-600 mb-4">Professional hairstylists traveling directly to your home with tools for knotless braids, weaves, and more.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">75k</p></div><div class="text-right"><div id="stars-hair" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-hair" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><div class="flex gap-2"><button onclick="selectService('hair')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-bookmark mr-1"></i> Book Now</button><button onclick="toggleProviders('hair-providers')" class="flex-1 flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-hair-providers"></i></button></div><div id="hair-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Event Infrastructure Hire</h3><span class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full text-xs">Events</span></div><p class="text-gray-600 mb-4">Tents, plastic & executive chairs, sound systems, PA setups for your events.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">250k</p></div><div class="text-right"><div id="stars-event" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-event" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><div class="flex gap-2"><button onclick="selectService('event')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-bookmark mr-1"></i> Book Now</button><button onclick="toggleProviders('event-providers')" class="flex-1 flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-event-providers"></i></button></div><div id="event-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
+<div class="provider-card bg-white rounded-3xl overflow-hidden shadow"><img src="https://images.unsplash.com/photo-1581235720704-06d3acfcb36f?w=1200" class="h-60 w-full object-cover"><div class="p-6"><div class="flex justify-between items-start mb-3"><h3 class="font-bold text-xl">Mobile Auto Care & Detailing</h3><span class="bg-cyan-100 text-cyan-700 px-3 py-1 rounded-full text-xs">Vehicle</span></div><p class="text-gray-600 mb-4">Professional car washing and detailing at your home or office.</p><div class="flex items-center justify-between mb-5"><div><p class="text-sm text-gray-500">Starting from</p><p class="text-3xl font-bold text-emerald-600">65k</p></div><div class="text-right"><div id="stars-auto" class="text-yellow-500">☆☆☆☆☆</div><p id="rating-auto" class="text-sm text-gray-500">0.0 Rating</p></div></div><div class="mt-6 border-t pt-6"><div class="flex gap-2"><button onclick="selectService('auto')" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-bookmark mr-1"></i> Book Now</button><button onclick="toggleProviders('auto-providers')" class="flex-1 flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all"><i class="fa-solid fa-eye"></i> Providers <i class="fa-solid fa-chevron-down text-xs ml-1 provider-chevron" id="chevron-auto-providers"></i></button></div><div id="auto-providers" class="space-y-4 mt-4 hidden"></div></div></div></div>
 </div></div></div>
 
 <div id="provider-tasks" class="page">
@@ -631,7 +638,7 @@
 <div><label class="font-medium">Selected Service</label><div id="modal-service" class="mt-2 bg-gray-100 rounded-2xl p-4"></div></div>
 <div><label class="font-medium">Estimated Price</label><div id="modal-price" class="mt-2 bg-gray-100 rounded-2xl p-4 font-bold text-emerald-600"></div></div>
 <div id="dynamic-fields" class="space-y-6"></div>
-<div class="pt-4 border-t"><button onclick="alert('Chat will be available after placing your order.')" type="button" class="w-full flex items-center justify-center gap-3 bg-white border-2 border-emerald-600 text-emerald-700 py-4 rounded-2xl font-semibold hover:bg-emerald-50"><i class="fa-solid fa-comments"></i><span>?? Chat with Provider</span></button></div>
+<div class="pt-4 border-t"><button onclick="addInAppAlert('info','Chat will be available after placing your order.')" type="button" class="w-full flex items-center justify-center gap-3 bg-white border-2 border-emerald-600 text-emerald-700 py-4 rounded-2xl font-semibold hover:bg-emerald-50"><i class="fa-solid fa-comments"></i><span>?? Chat with Provider</span></button></div>
 <div class="grid md:grid-cols-2 gap-5"><div><label class="font-medium">Select Date</label><input type="date" id="booking-date" required class="w-full mt-2 border rounded-2xl px-4 py-4 outline-none"></div><div><label class="font-medium">Select Time</label><input type="time" id="booking-time" required class="w-full mt-2 border rounded-2xl px-4 py-4 outline-none"></div></div>
 <div><label class="font-medium">Address</label><input type="text" id="address-input" placeholder="Enter your location" required class="w-full mt-2 border rounded-2xl px-4 py-4 outline-none"></div>
 <div class="mt-4"><label class="font-medium block mb-2">Pin Your Exact Location on Map</label><div class="map-container"><iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3989.757249016!2d32.5825!3d0.3136!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x177d9f2c3c3c3c3d%3A0x1b2c3d4e5f6g7h8i!2sKampala%2C%20Uganda!5e0!3m2!1sen!2sug!4v1710000000000" width="100%" height="300" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div></div>
@@ -794,7 +801,7 @@ function handleSessionExpired() {
         localStorage.removeItem("havengoState");
         localStorage.removeItem("havengoState_plain");
         try { localStorage.removeItem("encKey"); } catch(e) {}
-        alert("Your session has expired. Please login again.");
+        addInAppAlert("error", "Your session has expired. Please login again.");
         navigateTo("home");
         updateProfileWithUser();
         renderProfilePage();
@@ -1329,26 +1336,24 @@ async function performLogin() {
 }
 
 function logout() {
-    if (!confirm("Are you sure you want to logout?")) return;
-    if (currentUser && currentUser.email) {
-        userNotificationsMap[currentUser.email] = globalNotifications.slice();
-    }
-    globalNotifications = [];
-    userActivity = [];
-    window.__HAVENGO_JWT__ = null;
-    customerBitmoji = null;
-    profilePicSrc = "https://images.unsplash.com/photo-1531123897720-8f129e1688f7?w=400";
-    var pp = document.getElementById("profile-pic");
-    if (pp) { pp.src = profilePicSrc; pp.classList.remove("hidden"); }
-    var bd = document.getElementById("profile-bitmoji-display");
-    if (bd) bd.classList.add("hidden");
-    currentUser = null;
-    chatConversations = {};
-    // Navigate to home
-    navigateTo("home");
-    updateProfileWithUser();
-    renderProfilePage();
-    renderAllProviderLists();
+    showAppConfirm("Are you sure you want to logout?", function(confirmed) {
+        if (!confirmed) return;
+        if (currentUser && currentUser.email) {
+            userNotificationsMap[currentUser.email] = globalNotifications.slice();
+        }
+        globalNotifications = [];
+        userActivity = [];
+        window.__HAVENGO_JWT__ = null;
+        currentUser = null;
+        userBalance = 2000000;
+        chatConversations = {};
+        if (!document.getElementById("keep-session").checked) saveAppState();
+        closeModal("settings-modal");
+        updateProfileWithUser();
+        navigateTo("home");
+        addInAppAlert("info", "Logged out successfully");
+        renderAllProviderLists();
+    });
     updateProfilePicCursor();
     updateNotifCount();
     saveAppState();
@@ -1387,48 +1392,51 @@ function requestAccountDeletion() {
     if (!currentUser) return;
     var identifier = currentUser.email || currentUser.phone;
     if (!identifier) return;
-    if (!confirm("Are you sure? Your account will be permanently deleted in 15 days. Log in within 15 days to cancel deletion.")) return;
-    var existing = -1;
-    for (var i = 0; i < deletionRequests.length; i++) {
-        if (deletionRequests[i].identifier === identifier) { existing = i; break; }
-    }
-    if (existing !== -1) {
-        deletionRequests[existing].requestedAt = Date.now();
-    } else {
-        deletionRequests.push({ identifier: identifier, requestedAt: Date.now() });
-    }
-    userActivity = [];
-    addNotification("\uD83D\uDDD1\uFE0F", "Account Deletion Scheduled", "Your account will be permanently deleted in 15 days. Log in to cancel.");
-    addInAppAlert("info", "Deletion scheduled. Your account will be permanently deleted in 15 days.");
-    saveAppState();
-    logout();
+    showAppConfirm("Are you sure? Your account will be permanently deleted in 15 days. Log in within 15 days to cancel deletion.", function(confirmed) {
+        if (!confirmed) return;
+        var existing = -1;
+        for (var i = 0; i < deletionRequests.length; i++) {
+            if (deletionRequests[i].identifier === identifier) { existing = i; break; }
+        }
+        if (existing !== -1) {
+            deletionRequests[existing].requestedAt = Date.now();
+        } else {
+            deletionRequests.push({ identifier: identifier, requestedAt: Date.now() });
+        }
+        userActivity = [];
+        addNotification("\uD83D\uDDD1\uFE0F", "Account Deletion Scheduled", "Your account will be permanently deleted in 15 days. Log in to cancel.");
+        addInAppAlert("info", "Deletion scheduled. Your account will be permanently deleted in 15 days.");
+        saveAppState();
+        logout();
+    });
 }
 
 function requestProviderAccountDeletion() {
     if (!currentLoggedProvider) return;
     var identifier = currentLoggedProvider.email || currentLoggedProvider.phone;
     if (!identifier) return;
-    if (!confirm("Are you sure? Your account will be permanently deleted in 15 days. Log in within 15 days to cancel deletion.")) return;
+    showAppConfirm("Are you sure? Your account will be permanently deleted in 15 days. Log in within 15 days to cancel deletion.", function(confirmed) {
+        if (!confirmed) return;
 
-    // Call backend API for immediate removal
-    (async function() {
-        var jwt = window.__HAVENGO_JWT__;
-        if (jwt) {
-            try {
-                await fetch(HAVENGO_BACKEND_URL + "/api/provider/account", {
-                    method: "DELETE", headers: { "Authorization": "Bearer " + jwt }
-                });
-            } catch(e) {}
-        }
-    })();
+        // Call backend API for immediate removal
+        (async function() {
+            var jwt = window.__HAVENGO_JWT__;
+            if (jwt) {
+                try {
+                    await fetch(HAVENGO_BACKEND_URL + "/api/provider/account", {
+                        method: "DELETE", headers: { "Authorization": "Bearer " + jwt }
+                    });
+                } catch(e) {}
+            }
+        })();
 
-    // Remove from local registeredProviders immediately
-    for (var ri = registeredProviders.length - 1; ri >= 0; ri--) {
-        if (registeredProviders[ri].email === currentLoggedProvider.email) {
-            registeredProviders.splice(ri, 1);
+        // Remove from local registeredProviders immediately
+        for (var ri = registeredProviders.length - 1; ri >= 0; ri--) {
+            if (registeredProviders[ri].email === currentLoggedProvider.email) {
+                registeredProviders.splice(ri, 1);
+            }
         }
-    }
-    renderAllProviderLists();
+        renderAllProviderLists();
 
     var existing = -1;
     for (var i = 0; i < deletionRequests.length; i++) {
@@ -1442,7 +1450,6 @@ function requestProviderAccountDeletion() {
     userActivity = [];
     addNotification("\uD83D\uDDD1\uFE0F", "Account Deletion Scheduled", currentLoggedProvider.name + "'s account will be permanently deleted in 15 days.");
     addInAppAlert("info", "Deletion scheduled. Your account will be permanently deleted in 15 days.");
-    // Direct logout without confirm dialog (already confirmed above)
     if (currentLoggedProvider && currentLoggedProvider.email) {
         userNotificationsMap[currentLoggedProvider.email] = globalNotifications.slice();
     }
@@ -1455,6 +1462,7 @@ function requestProviderAccountDeletion() {
     document.getElementById("prov-login-id").value = "";
     document.getElementById("prov-login-pass").value = "";
     saveAppState();
+    });
 }
 
 function checkAccountDeletionOnLogin(identifier) {
@@ -1514,6 +1522,42 @@ function addInAppAlert(type, message) {
         alertEl.style.transition = "opacity 0.5s";
         setTimeout(function() { if (alertEl.parentNode) alertEl.parentNode.removeChild(alertEl); if (container.children.length === 0) container.style.display = "none"; }, 500);
     }, 4000);
+}
+
+var _appModalCallback = null;
+
+function showAppConfirm(message, callback) {
+    _appModalCallback = callback;
+    var overlay = document.getElementById("app-confirm-overlay");
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "app-confirm-overlay";
+        overlay.className = "hidden fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-5";
+        overlay.innerHTML = '<div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6"><p id="app-confirm-message" class="text-gray-700 mb-6 text-center"></p><div class="flex gap-3"><button id="app-confirm-yes" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold">Yes</button><button id="app-confirm-no" class="flex-1 border border-gray-300 hover:bg-gray-50 py-3 rounded-xl font-semibold">No</button></div></div>';
+        document.body.appendChild(overlay);
+        document.getElementById("app-confirm-yes").onclick = function() { document.getElementById("app-confirm-overlay").classList.add("hidden"); if (_appModalCallback) _appModalCallback(true); _appModalCallback = null; };
+        document.getElementById("app-confirm-no").onclick = function() { document.getElementById("app-confirm-overlay").classList.add("hidden"); if (_appModalCallback) _appModalCallback(false); _appModalCallback = null; };
+    }
+    document.getElementById("app-confirm-message").textContent = message;
+    overlay.classList.remove("hidden");
+}
+
+function showAppPrompt(message, defaultVal, callback) {
+    _appModalCallback = callback;
+    var overlay = document.getElementById("app-prompt-overlay");
+    if (!overlay) {
+        overlay = document.createElement("div");
+        overlay.id = "app-prompt-overlay";
+        overlay.className = "hidden fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-5";
+        overlay.innerHTML = '<div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl p-6"><p id="app-prompt-message" class="text-gray-700 mb-4 text-center"></p><input id="app-prompt-input" type="text" class="w-full border rounded-xl px-4 py-3 outline-none focus:border-emerald-500 mb-4"><div class="flex gap-3"><button id="app-prompt-ok" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-semibold">OK</button><button id="app-prompt-cancel" class="flex-1 border border-gray-300 hover:bg-gray-50 py-3 rounded-xl font-semibold">Cancel</button></div></div>';
+        document.body.appendChild(overlay);
+        document.getElementById("app-prompt-ok").onclick = function() { var val = document.getElementById("app-prompt-input").value; document.getElementById("app-prompt-overlay").classList.add("hidden"); if (_appModalCallback) _appModalCallback(val); _appModalCallback = null; };
+        document.getElementById("app-prompt-cancel").onclick = function() { document.getElementById("app-prompt-overlay").classList.add("hidden"); if (_appModalCallback) _appModalCallback(null); _appModalCallback = null; };
+    }
+    document.getElementById("app-prompt-message").textContent = message;
+    document.getElementById("app-prompt-input").value = defaultVal || "";
+    overlay.classList.remove("hidden");
+    document.getElementById("app-prompt-input").focus();
 }
 
 function addNotification(emoji, title, message, notifId) {
@@ -1895,26 +1939,21 @@ function fetchTrackingPosition(orderId, role) {
 // ============================================================
 
 function showDepositModal() {
-    if (!currentUser) { alert("Please login first to deposit funds"); showAuthModal("login"); return; }
-    document.getElementById("deposit-amount-input").value = 50000;
+    if (!currentUser) { addInAppAlert("info", "Please login first to deposit funds"); showAuthModal("login"); return; }
     document.getElementById("deposit-modal").classList.remove("hidden");
 }
 
-function setDepositAmount(amount) {
-    document.getElementById("deposit-amount-input").value = amount;
-}
-
 function processDeposit() {
-    if (!currentUser) { alert("Please login first to deposit funds"); showAuthModal("login"); return; }
+    if (!currentUser) { addInAppAlert("info", "Please login first to deposit funds"); showAuthModal("login"); return; }
     var amount = parseInt(document.getElementById("deposit-amount-input").value) || 0;
     var phone = document.getElementById("deposit-phone").value.trim();
 
     if (amount < 1000) {
-        alert("Minimum deposit is 1,000 UGX");
+        addInAppAlert("error", "Minimum deposit is 1,000 UGX");
         return;
     }
     if (!phone || phone.length < 8) {
-        alert("Please enter a valid Mobile Money number");
+        addInAppAlert("error", "Please enter a valid Mobile Money number");
         return;
     }
 
@@ -1923,7 +1962,7 @@ function processDeposit() {
     renderProfilePage();
     addNotification("\uD83D\uDCB0", "Deposit Successful", "UGX " + amount.toLocaleString() + " added to your wallet via " + phone);
     addActivity("deposit", "Deposited UGX " + amount.toLocaleString());
-    alert("Successfully deposited UGX " + amount.toLocaleString() + "!");
+    addInAppAlert("success", "Successfully deposited UGX " + amount.toLocaleString() + "!");
     saveAppState();
 }
 
@@ -1932,7 +1971,7 @@ function processDeposit() {
 // ============================================================
 
 function addPaymentMethod() {
-    if (!currentUser) { alert("Please login first to add a payment method"); showAuthModal("login"); return; }
+    if (!currentUser) { addInAppAlert("info", "Please login first to add a payment method"); showAuthModal("login"); return; }
     document.getElementById("new-payment-type").value = "MTN MoMo";
     document.getElementById("new-payment-name").value = "";
     document.getElementById("new-payment-number").value = "";
@@ -1947,7 +1986,7 @@ function submitPaymentMethod() {
     var isDefault = document.getElementById("new-payment-default").checked;
 
     if (!name || !number) {
-        alert("Please fill in all fields");
+        addInAppAlert("error", "Please fill in all fields");
         return;
     }
 
@@ -2007,7 +2046,7 @@ function showPaymentsPending() {
         if (!pendingPayments[i].paid) pending.push(pendingPayments[i]);
     }
     if (pending.length === 0) {
-        alert("No pending payments at this time.");
+        addInAppAlert("info", "No pending payments at this time.");
         return;
     }
     var details = document.getElementById("pending-payment-details");
@@ -2027,9 +2066,9 @@ async function confirmPayment() {
     if (pending.length === 0) return;
     var payment = pending[0];
 
-    if (!currentUser) { alert("Please login first to confirm payment"); showAuthModal("login"); return; }
+    if (!currentUser) { addInAppAlert("info", "Please login first to confirm payment"); showAuthModal("login"); return; }
     if (userBalance < payment.amount) {
-        alert("Insufficient balance. Please deposit funds first.");
+        addInAppAlert("error", "Insufficient balance. Please deposit funds first.");
         closeModal("payment-confirm-modal");
         return;
     }
@@ -2045,7 +2084,7 @@ async function confirmPayment() {
             var data = await resp.json();
             if (data.session_expired) { handleSessionExpired(); closeModal("payment-confirm-modal"); return; }
             if (!data.success) {
-                alert(data.error || "Failed to confirm payment on server");
+                addInAppAlert("error", data.error || "Failed to confirm payment on server");
                 closeModal("payment-confirm-modal");
                 return;
             }
@@ -2074,19 +2113,21 @@ async function confirmPayment() {
     addActivity("payment", "Paid UGX " + payment.amount.toLocaleString() + " to " + payment.providerName);
 
     // Ask for provider rating
-    var rateProvider = confirm("Payment completed! Would you like to rate " + payment.providerName + "?");
-    if (rateProvider) {
-        var rating = prompt("Rate " + payment.providerName + " (1-5 stars):", "5");
-        if (rating) {
-            var numRating = parseInt(rating);
-            if (numRating >= 1 && numRating <= 5) {
-                userRatings.push({ providerName: payment.providerName, rating: numRating, taskName: payment.taskName });
-                renderAllProviderLists();
-                addNotification("\u2B50", "Provider Rated", "You rated " + payment.providerName + " " + numRating + " stars!");
-            }
+    showAppConfirm("Payment completed! Would you like to rate " + payment.providerName + "?", function(rateProvider) {
+        if (rateProvider) {
+            showAppPrompt("Rate " + payment.providerName + " (1-5 stars):", "5", function(rating) {
+                if (rating) {
+                    var numRating = parseInt(rating);
+                    if (numRating >= 1 && numRating <= 5) {
+                        userRatings.push({ providerName: payment.providerName, rating: numRating, taskName: payment.taskName });
+                        renderAllProviderLists();
+                        addNotification("\u2B50", "Provider Rated", "You rated " + payment.providerName + " " + numRating + " stars!");
+                    }
+                }
+            });
         }
-    }
-    alert("Payment of UGX " + payment.amount.toLocaleString() + " confirmed successfully!");
+    });
+    addInAppAlert("success", "Payment of UGX " + payment.amount.toLocaleString() + " confirmed successfully!");
 }
 
 // ============================================================
@@ -2201,7 +2242,7 @@ function updateProfilePicCursor() {
 }
 
 function triggerProfilePicUpload() {
-    if (!currentUser) { alert("Please login first to update your profile picture"); showAuthModal("login"); return; }
+    if (!currentUser) { addInAppAlert("info", "Please login first to update your profile picture"); showAuthModal("login"); return; }
     document.getElementById("profile-pic-upload").click();
 }
 
@@ -2224,7 +2265,7 @@ function handleProfilePicUpload(event) {
 var customerBitmoji = null;
 
 function showCustomerBitmojiPicker() {
-    if (!currentUser) { alert("Please login first to choose a bitmoji"); showAuthModal("login"); return; }
+    if (!currentUser) { addInAppAlert("info", "Please login first to choose a bitmoji"); showAuthModal("login"); return; }
     var grid = document.getElementById("customer-bitmoji-grid");
     if (!grid) return;
     var html = "";
@@ -2307,15 +2348,19 @@ function renderSavedAddresses() {
 }
 
 function addNewAddress() {
-    if (!currentUser) { alert("Please login first to save an address"); showAuthModal("login"); return; }
-    var label = sanitizeInput(prompt("Enter a label for this address (e.g. Home, Office):"));
-    if (!label) return;
-    var address = sanitizeInput(prompt("Enter the full address:"));
-    if (!address) return;
-    savedAddresses.push({ id: Date.now(), label: label, address: address });
-    renderSavedAddresses();
-    addActivity("info", "Added new address: " + label);
-    saveAppState();
+    if (!currentUser) { addInAppAlert("info", "Please login first to save an address"); showAuthModal("login"); return; }
+    showAppPrompt("Enter a label for this address (e.g. Home, Office):", "", function(label) {
+        if (!label) return;
+        showAppPrompt("Enter the full address:", "", function(address) {
+            if (!address) return;
+            var cleanLabel = sanitizeInput(label);
+            var cleanAddress = sanitizeInput(address);
+            savedAddresses.push({ id: Date.now(), label: cleanLabel, address: cleanAddress });
+            renderSavedAddresses();
+            addActivity("info", "Added new address: " + cleanLabel);
+            saveAppState();
+        });
+    });
 }
 
 function removeAddress(id) {
@@ -3164,42 +3209,45 @@ async function confirmProviderTask(taskId) {
 }
 
 async function cancelProviderTask(taskId) {
-    var reason = prompt("Please provide the reason for cancelling this order:");
-    if (!reason || reason.trim() === "") { alert("A cancellation reason is required."); return; }
-    var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    if (window.__HAVENGO_JWT__) {
-        try {
-            var resp = await fetch(apiUrl + "/provider/cancel-task/" + taskId, {
-                method: "POST",
-                headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" },
-                body: JSON.stringify({ reason: reason.trim() })
-            });
-            var data = await resp.json();
-            if (data.success) {
-                for (var i = 0; i < providerTasks.length; i++) {
-                    if (providerTasks[i].id === taskId) {
-                        providerTasks.splice(i, 1);
-                        break;
+    showAppPrompt("Please provide the reason for cancelling this order:", "", function(reason) {
+        if (!reason || reason.trim() === "") { addInAppAlert("error", "A cancellation reason is required."); return; }
+        var apiUrl = HAVENGO_BACKEND_URL + "/api";
+        if (window.__HAVENGO_JWT__) {
+            (async function() {
+                try {
+                    var resp = await fetch(apiUrl + "/provider/cancel-task/" + taskId, {
+                        method: "POST",
+                        headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" },
+                        body: JSON.stringify({ reason: reason.trim() })
+                    });
+                    var data = await resp.json();
+                    if (data.success) {
+                        for (var i = 0; i < providerTasks.length; i++) {
+                            if (providerTasks[i].id === taskId) {
+                                providerTasks.splice(i, 1);
+                                break;
+                            }
+                        }
+                        for (var j = 0; j < bookings.length; j++) {
+                            if (bookings[j].id === taskId) {
+                                bookings[j].status = "Cancelled";
+                                break;
+                            }
+                        }
+                        addNotification("\u274C", "Order Cancelled", "Order #" + taskId + " cancelled. Reason: " + reason);
+                        renderProviderDashboard();
+                        renderBookings();
+                        saveAppState();
+                        addInAppAlert("success", "Order cancelled successfully. Customer has been notified.");
+                        return;
                     }
-                }
-                for (var j = 0; j < bookings.length; j++) {
-                    if (bookings[j].id === taskId) {
-                        bookings[j].status = "Cancelled";
-                        break;
-                    }
-                }
-                addNotification("\u274C", "Order Cancelled", "Order #" + taskId + " cancelled. Reason: " + reason);
-                renderProviderDashboard();
-                renderBookings();
-                saveAppState();
-                alert("Order cancelled successfully. Customer has been notified.");
-                return;
-            }
-            if (data.error) { alert(data.error); return; }
-        } catch(e) { alert("Network error cancelling task"); return; }
-    } else {
-        alert("You must be logged in to cancel an order");
-    }
+                    if (data.error) { addInAppAlert("error", data.error); return; }
+                } catch(e) { addInAppAlert("error", "Network error cancelling task"); return; }
+            })();
+        } else {
+            addInAppAlert("error", "You must be logged in to cancel an order");
+        }
+    });
 }
 
 async function completeProviderTask(taskId) {
@@ -3209,21 +3257,20 @@ async function completeProviderTask(taskId) {
         if (providerTasks[i].id === taskId) { task = providerTasks[i]; taskIdx = i; break; }
     }
     if (!task) return;
-    if (!confirm("Mark this task as complete? This will notify the customer to confirm payment.")) return;
-
-    var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    if (window.__HAVENGO_JWT__) {
-        try {
-            var resp = await fetch(apiUrl + "/provider/complete-task/" + taskId, {
-                method: "POST",
-                headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }
-            });
-            if (!resp.ok) { alert("Failed to complete task on server"); return; }
-        } catch(e) { alert("Network error completing task"); return; }
-    }
-
-    providerTasks.splice(taskIdx, 1);
-    var completed = {
+    showAppConfirm("Mark this task as complete? This will notify the customer to confirm payment.", async function(confirmed) {
+        if (!confirmed) return;
+        var apiUrl = HAVENGO_BACKEND_URL + "/api";
+        if (window.__HAVENGO_JWT__) {
+            try {
+                var resp = await fetch(apiUrl + "/provider/complete-task/" + taskId, {
+                    method: "POST",
+                    headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }
+                });
+                if (!resp.ok) { addInAppAlert("error", "Failed to complete task on server"); return; }
+            } catch(e) { addInAppAlert("error", "Network error completing task"); return; }
+        }
+        providerTasks.splice(taskIdx, 1);
+        var completed = {
         id: task.id,
         serviceName: task.serviceName,
         customerName: task.customerName,
@@ -3254,6 +3301,7 @@ async function completeProviderTask(taskId) {
     renderProviderDashboard();
     renderBookings();
     saveAppState();
+    });
 }
 
 function renderProviderPriceList() {
@@ -3278,7 +3326,7 @@ async function requestPriceChange(serviceId, serviceName) {
     var input = document.getElementById("price-input-" + serviceId);
     if (!input) return;
     var newPrice = parseInt(input.value);
-    if (!newPrice || newPrice < 10000) { alert("Please enter a valid price (minimum 10,000 UGX)"); return; }
+    if (!newPrice || newPrice < 10000) { addInAppAlert("error", "Please enter a valid price (minimum 10,000 UGX)"); return; }
     var currentPrice = 0;
     var services = currentLoggedProvider.services || [];
     for (var i = 0; i < services.length; i++) {
@@ -3295,7 +3343,7 @@ async function requestPriceChange(serviceId, serviceName) {
                 body: JSON.stringify({ serviceId: serviceId, currentPrice: currentPrice, requestedPrice: newPrice })
             });
             if (resp.ok) {
-                alert("Price change request submitted for " + serviceName + ". Admin will review it shortly.");
+                addInAppAlert("success", "Price change request submitted for " + serviceName + ". Admin will review it shortly.");
                 addNotification("\uD83D\uDCCB", "Price Request Submitted", "Price change for " + serviceName + " sent to admin.");
                 return;
             }
@@ -3313,7 +3361,7 @@ async function requestPriceChange(serviceId, serviceName) {
         status: "pending",
         date: new Date().toLocaleString()
     });
-    alert("Price change request submitted for " + serviceName + ". Admin will review it shortly.");
+    addInAppAlert("success", "Price change request submitted for " + serviceName + ". Admin will review it shortly.");
     addNotification("\uD83D\uDCC8", "Price Change Requested", currentLoggedProvider.name + " requested price change for " + serviceName + ": UGX " + currentPrice.toLocaleString() + " \u2192 UGX " + newPrice.toLocaleString());
     saveAppState();
 }
@@ -3359,7 +3407,7 @@ async function loginAsAdmin() {
     if ((idVal === "thermypetson@gmail.com" || idVal === "0757532066") && hashedInput === ADMIN_PASSWORD_HASH) {
         adminLoginSuccess();
     } else {
-        alert("Invalid admin credentials");
+        addInAppAlert("error", "Invalid admin credentials");
     }
 }
 
@@ -3494,31 +3542,36 @@ async function _syncAdminData() {
 }
 
 function logoutAdmin() {
-    if (!confirm("Are you sure you want to logout?")) return;
-    userNotificationsMap["admin"] = globalNotifications.slice();
-    if (window.__adminPollInterval) clearInterval(window.__adminPollInterval);
-    window.__HAVENGO_JWT__ = null;
-    currentAdmin = null;
-    globalNotifications = [];
-    document.getElementById("admin-dashboard").classList.add("hidden");
-    document.getElementById("admin-header").classList.add("hidden");
-    document.getElementById("admin-nav-link").classList.add("hidden");
+    showAppConfirm("Are you sure you want to logout?", function(confirmed) {
+        if (!confirmed) return;
+        userNotificationsMap["admin"] = globalNotifications.slice();
+        if (window.__adminPollInterval) clearInterval(window.__adminPollInterval);
+        window.__HAVENGO_JWT__ = null;
+        currentAdmin = null;
+        globalNotifications = [];
+        document.getElementById("admin-dashboard").classList.add("hidden");
+        document.getElementById("admin-header").classList.add("hidden");
+        document.getElementById("admin-nav-link").classList.add("hidden");
+    });
 }
 
 function logoutProvider() {
-    if (!confirm("Are you sure you want to logout?")) return;
-    if (currentLoggedProvider && currentLoggedProvider.email) {
-        userNotificationsMap[currentLoggedProvider.email] = globalNotifications.slice();
-    }
-    if (window.__providerPollInterval) clearInterval(window.__providerPollInterval);
-    window.__HAVENGO_JWT__ = null;
-    currentLoggedProvider = null;
-    globalNotifications = [];
-    document.getElementById("provider-login-screen").classList.remove("hidden");
-    document.getElementById("provider-dashboard").classList.add("hidden");
-    document.getElementById("provider-header").classList.add("hidden");
-    document.getElementById("prov-login-id").value = "";
-    document.getElementById("prov-login-pass").value = "";
+    showAppConfirm("Are you sure you want to logout?", function(confirmed) {
+        if (!confirmed) return;
+        if (currentLoggedProvider && currentLoggedProvider.email) {
+            userNotificationsMap[currentLoggedProvider.email] = globalNotifications.slice();
+        }
+        if (window.__providerPollInterval) clearInterval(window.__providerPollInterval);
+        window.__HAVENGO_JWT__ = null;
+        currentLoggedProvider = null;
+        globalNotifications = [];
+        document.getElementById("provider-login-screen").classList.remove("hidden");
+        document.getElementById("provider-dashboard").classList.add("hidden");
+        document.getElementById("provider-header").classList.add("hidden");
+        document.getElementById("prov-login-id").value = "";
+        document.getElementById("prov-login-pass").value = "";
+        saveAppState();
+    });
 }
 
 function switchAdminTab(n) {
@@ -3614,39 +3667,43 @@ async function verifyProvider(id) {
 }
 
 async function rejectProvider(id) {
-    if (!confirm("Reject this provider application?")) return;
-    var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    var headers = { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" };
-    try {
-        var resp = await fetch(apiUrl + "/admin/providers/reject/" + id, { method: "POST", headers: headers });
-        if (!resp.ok) { addInAppAlert("error", "Failed to reject provider on server"); return; }
-        var name = "";
-        for (var i = 0; i < registeredProviders.length; i++) {
-            if (registeredProviders[i].id === id) { name = registeredProviders[i].name; registeredProviders.splice(i, 1); break; }
-        }
-        addNotification("\u274C", "Provider Rejected", name + "'s application has been rejected.");
-        addInAppAlert("info", name + "'s application has been rejected.");
-        renderAdminDashboard();
-        saveAppState();
-    } catch(e) { addInAppAlert("error", "Network error rejecting provider"); }
+    showAppConfirm("Reject this provider application?", async function(confirmed) {
+        if (!confirmed) return;
+        var apiUrl = HAVENGO_BACKEND_URL + "/api";
+        var headers = { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" };
+        try {
+            var resp = await fetch(apiUrl + "/admin/providers/reject/" + id, { method: "POST", headers: headers });
+            if (!resp.ok) { addInAppAlert("error", "Failed to reject provider on server"); return; }
+            var name = "";
+            for (var i = 0; i < registeredProviders.length; i++) {
+                if (registeredProviders[i].id === id) { name = registeredProviders[i].name; registeredProviders.splice(i, 1); break; }
+            }
+            addNotification("\u274C", "Provider Rejected", name + "'s application has been rejected.");
+            addInAppAlert("info", name + "'s application has been rejected.");
+            renderAdminDashboard();
+            saveAppState();
+        } catch(e) { addInAppAlert("error", "Network error rejecting provider"); }
+    });
 }
 
 async function adminDeleteProvider(id) {
-    if (!confirm("Are you sure you want to permanently delete this provider account?")) return;
-    var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    var headers = { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" };
-    try {
-        var resp = await fetch(apiUrl + "/admin/providers/" + id, { method: "DELETE", headers: headers });
-        if (!resp.ok) { addInAppAlert("error", "Failed to delete provider on server"); return; }
-        var name = "";
-        for (var i = 0; i < registeredProviders.length; i++) {
-            if (registeredProviders[i].id === id) { name = registeredProviders[i].name; registeredProviders.splice(i, 1); break; }
-        }
-        addNotification("\uD83D\uDDD1\uFE0F", "Provider Deleted", name + " has been deleted by admin.");
-        addInAppAlert("info", name + " has been deleted.");
-        renderAdminDashboard();
-        saveAppState();
-    } catch(e) { addInAppAlert("error", "Network error deleting provider"); }
+    showAppConfirm("Are you sure you want to permanently delete this provider account?", async function(confirmed) {
+        if (!confirmed) return;
+        var apiUrl = HAVENGO_BACKEND_URL + "/api";
+        var headers = { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" };
+        try {
+            var resp = await fetch(apiUrl + "/admin/providers/" + id, { method: "DELETE", headers: headers });
+            if (!resp.ok) { addInAppAlert("error", "Failed to delete provider on server"); return; }
+            var name = "";
+            for (var i = 0; i < registeredProviders.length; i++) {
+                if (registeredProviders[i].id === id) { name = registeredProviders[i].name; registeredProviders.splice(i, 1); break; }
+            }
+            addNotification("\uD83D\uDDD1\uFE0F", "Provider Deleted", name + " has been deleted by admin.");
+            addInAppAlert("info", name + " has been deleted.");
+            renderAdminDashboard();
+            saveAppState();
+        } catch(e) { addInAppAlert("error", "Network error deleting provider"); }
+    });
 }
 
 function renderAdminPriceRequests() {
@@ -3696,27 +3753,28 @@ function rejectPriceRequest(id) {
 }
 
 function adjustPriceRequest(id) {
-    var newPrice = prompt("Enter adjusted price (UGX):");
-    if (!newPrice) return;
-    newPrice = parseInt(newPrice);
-    if (!newPrice || newPrice < 10000) { alert("Invalid price"); return; }
-    for (var i = 0; i < priceChangeRequests.length; i++) {
-        if (priceChangeRequests[i].id === id) {
-            priceChangeRequests[i].status = "approved";
-            priceChangeRequests[i].requestedPrice = newPrice;
-            var req = priceChangeRequests[i];
-            for (var j = 0; j < services.length; j++) {
-                if (services[j].id === req.serviceId) {
-                    services[j].basePrice = newPrice;
-                    break;
+    showAppPrompt("Enter adjusted price (UGX):", "", function(newPrice) {
+        if (!newPrice) return;
+        newPrice = parseInt(newPrice);
+        if (!newPrice || newPrice < 10000) { addInAppAlert("error", "Invalid price"); return; }
+        for (var i = 0; i < priceChangeRequests.length; i++) {
+            if (priceChangeRequests[i].id === id) {
+                priceChangeRequests[i].status = "approved";
+                priceChangeRequests[i].requestedPrice = newPrice;
+                var req = priceChangeRequests[i];
+                for (var j = 0; j < services.length; j++) {
+                    if (services[j].id === req.serviceId) {
+                        services[j].basePrice = newPrice;
+                        break;
+                    }
                 }
+                addNotification("\u2705", "Price Adjusted", req.providerName + "'s price for " + req.serviceName + " adjusted to UGX " + newPrice.toLocaleString());
+                break;
             }
-            addNotification("\u2705", "Price Adjusted", req.providerName + "'s price for " + req.serviceName + " adjusted to UGX " + newPrice.toLocaleString());
-            break;
         }
-    }
-    renderAdminDashboard();
-    renderAllProviderLists();
+        renderAdminDashboard();
+        renderAllProviderLists();
+    });
 }
 
 function renderAdminRevenue() {
@@ -3829,7 +3887,7 @@ function openAdminCustomerChat(chatKey) {
 }
 
 function openCustomerAdminChat() {
-    if (!currentUser) { alert("Please login first to chat with admin"); showAuthModal("login"); return; }
+    if (!currentUser) { addInAppAlert("info", "Please login first to chat with admin"); showAuthModal("login"); return; }
     var chatId = "customer-admin-" + (currentUser.email || currentUser.phone || "guest");
     currentChatTaskId = chatId;
     if (!chatConversations[chatId]) chatConversations[chatId] = [];
@@ -4069,9 +4127,9 @@ async function processWithdraw() {
     var phone = document.getElementById("withdraw-phone").value.trim();
     var available = providerEarningsMap[currentLoggedProvider.name] || 0;
 
-    if (amount < 1000) { alert("Minimum withdrawal is 1,000 UGX"); return; }
-    if (amount > available) { alert("Insufficient earnings."); return; }
-    if (!phone || phone.length < 8) { alert("Enter a valid Mobile Money number"); return; }
+    if (amount < 1000) { addInAppAlert("error", "Minimum withdrawal is 1,000 UGX"); return; }
+    if (amount > available) { addInAppAlert("error", "Insufficient earnings."); return; }
+    if (!phone || phone.length < 8) { addInAppAlert("error", "Enter a valid Mobile Money number"); return; }
 
     // Try backend first
     if (window.__HAVENGO_JWT__) {
@@ -4082,7 +4140,7 @@ async function processWithdraw() {
                 body: JSON.stringify({ amount: amount })
             });
             var data = await resp.json();
-            if (!data.success) { alert(data.error || "Withdrawal failed"); return; }
+            if (!data.success) { addInAppAlert("error", data.error || "Withdrawal failed"); return; }
         } catch(e) { /* fall through to local */ }
     }
 
@@ -4093,7 +4151,7 @@ async function processWithdraw() {
     closeModal("withdraw-modal");
     renderProviderDashboard();
     addNotification("\uD83C\uDFE7", "Withdrawal Initiated", "UGX " + netAmount.toLocaleString() + " sent to " + phone);
-    alert("Withdrawal of UGX " + netAmount.toLocaleString() + " initiated to " + phone);
+    addInAppAlert("success", "Withdrawal of UGX " + netAmount.toLocaleString() + " initiated to " + phone);
 }
 
 // Track payment declines for 2-minute notification
@@ -4141,20 +4199,21 @@ function rateBooking(bookingId) {
         if (bookings[i].id === bookingId) { booking = bookings[i]; break; }
     }
     if (!booking) return;
-    if (!currentUser) { alert("Please login to rate a provider"); showAuthModal("login"); return; }
-    var rating = prompt("Rate this service (1-5 stars):\n" + booking.serviceName, "5");
-    if (rating) {
-        var numRating = parseInt(rating);
-        if (numRating >= 1 && numRating <= 5) {
-            userRatings.push({ providerName: booking.providerName || "Provider", rating: numRating, taskName: booking.serviceName });
-            renderAllProviderLists();
-            renderServiceRatings();
-            addNotification("\u2B50", "Rating Submitted", "You rated " + (booking.providerName || "Provider") + " " + numRating + " stars!");
-            addInAppAlert("success", "Thank you! Your rating of " + numRating + " stars has been recorded.");
-        } else {
-            alert("Rating must be between 1 and 5.");
+    if (!currentUser) { addInAppAlert("info", "Please login to rate a provider"); showAuthModal("login"); return; }
+    showAppPrompt("Rate this service (1-5 stars): " + booking.serviceName, "5", function(rating) {
+        if (rating) {
+            var numRating = parseInt(rating);
+            if (numRating >= 1 && numRating <= 5) {
+                userRatings.push({ providerName: booking.providerName || "Provider", rating: numRating, taskName: booking.serviceName });
+                renderAllProviderLists();
+                renderServiceRatings();
+                addNotification("\u2B50", "Rating Submitted", "You rated " + (booking.providerName || "Provider") + " " + numRating + " stars!");
+                addInAppAlert("success", "Thank you! Your rating of " + numRating + " stars has been recorded.");
+            } else {
+                addInAppAlert("error", "Rating must be between 1 and 5.");
+            }
         }
-    }
+    });
 }
 
 // ============================================================
@@ -4203,8 +4262,9 @@ function renderChatMessages(messages, currentRole) {
 }
 
 async function deleteChatMessage(convId, msgId, index) {
-    if (!confirm("Delete this message?")) return;
-    var jwt = window.__HAVENGO_JWT__;
+    showAppConfirm("Delete this message?", async function(confirmed) {
+        if (!confirmed) return;
+        var jwt = window.__HAVENGO_JWT__;
     // Try backend deletion
     if (jwt && convId && msgId && !msgId.startsWith("msg_")) {
         try {
@@ -4226,6 +4286,7 @@ async function deleteChatMessage(convId, msgId, index) {
             renderChatMessages(chatConversations[convId], currentRole);
         }
     }
+    });
 }
 
 function openChatWithProvider(taskId) {
@@ -4530,15 +4591,15 @@ async function submitProviderApplication(event) {
     var bio = sanitizeInput(document.getElementById("prov-bio").value.trim());
 
     if (!name || !phone || !exp || !password || !location || !businessName) {
-        alert("Please fill in all required fields");
+        addInAppAlert("error", "Please fill in all required fields");
         return;
     }
     if (password !== confirmPassword) {
-        alert("Passwords do not match");
+        addInAppAlert("error", "Passwords do not match");
         return;
     }
     if (!/^0\d{9}$/.test(phone)) {
-        alert("Please enter a valid 10-digit phone number starting with 0 (e.g. 0777123456)");
+        addInAppAlert("error", "Please enter a valid 10-digit phone number starting with 0 (e.g. 0777123456)");
         return;
     }
 
@@ -4550,15 +4611,15 @@ async function submitProviderApplication(event) {
         }
     }
     if (selectedOptions.length === 0) {
-        alert("Please select at least one service category");
+        addInAppAlert("error", "Please select at least one service category");
         return;
     }
     if (!selectedBitmoji) {
-        alert("Please select a bitmoji");
+        addInAppAlert("error", "Please select a bitmoji");
         return;
     }
     if (!document.getElementById("agree-terms").checked) {
-        alert("Please agree to the terms");
+        addInAppAlert("error", "Please agree to the terms");
         return;
     }
 
@@ -4590,7 +4651,7 @@ function closeProviderConsent() {
 
 async function submitProviderWithConsent() {
     if (!document.getElementById("consent-agree").checked) {
-        alert("Please accept the consent terms to continue");
+        addInAppAlert("error", "Please accept the consent terms to continue");
         return;
     }
     closeProviderConsent();
@@ -4644,17 +4705,17 @@ async function submitProviderWithConsent() {
                 selectedBitmoji = null;
                 document.getElementById("bitmoji-select").textContent = "\uD83D\uDC64";
                 navigateTo("provider-tasks");
-                alert("Application submitted successfully! Your account is now pending admin verification. You will be able to login once an administrator approves your application.");
+                addInAppAlert("success", "Application submitted successfully! Your account is now pending admin verification. You will be able to login once an administrator approves your application.");
                 return;
             }
-            if (data.error) { alert(data.error); return; }
+            if (data.error) { addInAppAlert("error", data.error); return; }
         } catch(e) {}
-        alert("Failed to submit application on server. Please try again.");
+        addInAppAlert("error", "Failed to submit application on server. Please try again.");
         return;
     }
 
     // Backend unavailable — online-only, cannot submit
-    alert("Cannot submit application: Server is currently unavailable. Please try again later.");
+    addInAppAlert("error", "Cannot submit application: Server is currently unavailable. Please try again later.");
 }
 
 // ============================================================
@@ -4817,7 +4878,7 @@ function startHeroSlider() {
 // ============================================================
 
 function showAddReviewModal() {
-    if (!currentUser) { alert("Please login first to submit a review"); showAuthModal("login"); return; }
+    if (!currentUser) { addInAppAlert("info", "Please login first to submit a review"); showAuthModal("login"); return; }
     currentReviewStars = 0;
     document.getElementById("review-text").value = "";
     var stars = document.querySelectorAll("#star-rating span");
