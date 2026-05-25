@@ -148,8 +148,8 @@ router.post('/withdraw', (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(req.user.email);
   if (!user) return res.status(401).json({ session_expired: true, error: 'Your session has expired. Please login again.' });
 
-  // Check for active orders (pending_confirmation or active)
-  const activeCount = db.prepare("SELECT COUNT(*) as count FROM tasks WHERE customer_email = ? AND status IN ('pending_confirmation', 'active')").get(req.user.email);
+  // Check for active orders — only block if provider has confirmed (status = active), allow withdraw during pending_confirmation
+  const activeCount = db.prepare("SELECT COUNT(*) as count FROM tasks WHERE customer_email = ? AND status = 'active'").get(req.user.email);
   if (activeCount.count > 0) {
     return res.status(400).json({ error: 'Cannot withdraw while you have an active order in progress' });
   }
