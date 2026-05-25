@@ -59,7 +59,7 @@ router.delete('/providers/:id', (req, res) => {
 // GET /api/admin/price-requests
 router.get('/price-requests', (req, res) => {
   const db = getDb();
-  const requests = db.prepare("SELECT * FROM price_requests WHERE status = 'pending'").all();
+  const requests = db.prepare("SELECT * FROM price_requests ORDER BY created_at DESC").all();
   res.json(requests);
 });
 
