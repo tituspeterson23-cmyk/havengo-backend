@@ -4202,7 +4202,7 @@ setInterval(function() {
         var chatId = "customer-admin-" + (currentUser.email || currentUser.phone || "guest");
         loadChatFromStorage(chatId);
     }
-}, 3000);
+}, 10000);
 
 function startTracking(bookingId) {
     var nameEl = document.getElementById("tracking-provider-name");
