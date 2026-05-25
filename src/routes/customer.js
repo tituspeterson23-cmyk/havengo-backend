@@ -79,6 +79,13 @@ router.post('/place-order', (req, res) => {
   res.json({ success: true, message: 'Order placed! Awaiting provider confirmation.', taskId: result.lastInsertRowid });
 });
 
+// GET /api/customer/pending-payments
+router.get('/pending-payments', (req, res) => {
+  const db = getDb();
+  const payments = db.prepare("SELECT * FROM pending_payments WHERE customer_email = ? AND status = 'pending' ORDER BY completed_at DESC").all(req.user.email);
+  res.json(payments);
+});
+
 // POST /api/customer/confirm-payment
 router.post('/confirm-payment', (req, res) => {
   const { taskId } = req.body;

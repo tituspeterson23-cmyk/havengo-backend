@@ -982,6 +982,7 @@ function applyState(state) {
     if (state.currentUser) currentUser = state.currentUser;
     if (state.allUsers) allUsers = state.allUsers;
     if (state.userBalance !== undefined) userBalance = state.userBalance;
+    if (state.pendingPayments) pendingPayments = state.pendingPayments;
     if (state.userPaymentMethods) userPaymentMethods = state.userPaymentMethods;
     if (state.savedAddresses) savedAddresses = state.savedAddresses;
     if (state.favoriteProviders) favoriteProviders = state.favoriteProviders;
@@ -1277,6 +1278,8 @@ async function verifySignupCode() {
             globalNotifications = [];
             addNotification("\uD83C\uDF89", "Account Created", "Welcome to HavenGo, " + signupVerificationData.firstname + "!");
             fetchBackendNotifications();
+            fetchPendingPayments();
+            startAutoPaymentCheck();
             addActivity("signup", "Created your HavenGo account");
             addInAppAlert("success", "Account created successfully! Welcome " + signupVerificationData.firstname + "!");
             saveAppState();
@@ -1386,6 +1389,7 @@ async function performLogin() {
             fetchBackendNotifications();
             saveAppState();
             startAutoPaymentCheck();
+            fetchPendingPayments();
             return;
         }
         if (data.user_not_found) {
@@ -2964,7 +2968,8 @@ function renderBookings() {
             "<button onclick=\"openChatWithProvider(" + b.id + ")\" class=\"text-sm border px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-comment\"></i> Chat</button>" +
             (b.status === "Completed" ? "<button onclick=\"rateBooking(" + b.id + ")\" class=\"text-sm bg-yellow-500 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-star\"></i> Rate</button>" : "") +
             (b.status === "Completed" ? "<button onclick=\"showPaymentsPending()\" class=\"text-sm bg-emerald-600 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-credit-card\"></i> Pay Now</button>" : "") +
-            ((b.status === "Pending" || b.status === "In Progress") ? "<button onclick=\"customerCancelBooking(" + b.id + ")\" class=\"text-sm bg-red-500 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-ban\"></i> Cancel</button>" : "") + "</div></div>";
+            (b.status === "Pending" ? "<button onclick=\"customerCancelBooking(" + b.id + ")\" class=\"text-sm bg-red-500 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-ban\"></i> Cancel</button>" : "") +
+            (b.status === "In Progress" ? "<span class=\"text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-xl\"><i class=\"fa-solid fa-info-circle\"></i> Contact provider via Chat to cancel</span>" : "") + "</div></div>";
     }
     list.innerHTML = html;
 }
@@ -3327,11 +3332,15 @@ async function confirmProviderTask(taskId) {
                     if (providerTasks[i].id === taskId) {
                         providerTasks[i].status = "active";
                         providerTasks[i].providerName = currentLoggedProvider.name;
-                        addNotification("\u2705", "Order Confirmed", currentLoggedProvider.name + " confirmed order #" + taskId);
                         break;
                     }
                 }
+                for (var j = 0; j < bookings.length; j++) {
+                    if (bookings[j].id === taskId) { bookings[j].status = "In Progress"; break; }
+                }
+                addNotification("\u2705", "Order Confirmed", currentLoggedProvider.name + " confirmed order #" + taskId);
                 renderProviderDashboard();
+                renderBookings();
                 saveAppState();
                 return;
             }
@@ -3342,11 +3351,15 @@ async function confirmProviderTask(taskId) {
         if (providerTasks[i].id === taskId) {
             providerTasks[i].status = "active";
             providerTasks[i].providerName = currentLoggedProvider.name;
-            addNotification("\u2705", "Order Confirmed", currentLoggedProvider.name + " confirmed order #" + taskId);
             break;
         }
     }
+    for (var j = 0; j < bookings.length; j++) {
+        if (bookings[j].id === taskId) { bookings[j].status = "In Progress"; break; }
+    }
+    addNotification("\u2705", "Order Confirmed", currentLoggedProvider.name + " confirmed order #" + taskId);
     renderProviderDashboard();
+    renderBookings();
     saveAppState();
 }
 
@@ -4277,6 +4290,49 @@ function checkAutoPayments() {
     saveAppState();
 }
 
+async function fetchPendingPayments() {
+    if (!window.__HAVENGO_JWT__ || !currentUser) return;
+    try {
+        var resp = await fetch(HAVENGO_BACKEND_URL + "/api/customer/pending-payments", {
+            headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }
+        });
+        if (resp.ok) {
+            var backendPps = await resp.json();
+            for (var bpi = 0; bpi < backendPps.length; bpi++) {
+                var bp = backendPps[bpi];
+                var exists = pendingPayments.some(function(pp) { return pp.taskId === bp.task_id; });
+                if (!exists) {
+                    var taskName = "";
+                    for (var ci = 0; ci < completedTasks.length; ci++) {
+                        if (completedTasks[ci].taskId === bp.task_id || completedTasks[ci].id === bp.task_id) {
+                            taskName = completedTasks[ci].serviceName; break;
+                        }
+                    }
+                    if (!taskName) {
+                        for (var bi = 0; bi < bookings.length; bi++) {
+                            if (bookings[bi].id === bp.task_id) { taskName = bookings[bi].serviceName; break; }
+                        }
+                    }
+                    pendingPayments.push({
+                        id: Date.now() + bpi,
+                        taskId: bp.task_id,
+                        taskName: taskName,
+                        amount: bp.amount,
+                        providerName: bp.provider_name,
+                        customerName: "",
+                        completedAt: new Date(bp.completed_at).getTime(),
+                        deadline: new Date(bp.completed_at).getTime() + 36000000,
+                        paid: false
+                    });
+                }
+            }
+            renderBookings();
+            renderProfilePage();
+            saveAppState();
+        }
+    } catch(e) {}
+}
+
 function startAutoPaymentCheck() {
     if (autoPaymentTimer) clearInterval(autoPaymentTimer);
     autoPaymentTimer = setInterval(checkAutoPayments, 60000); // Check every minute
@@ -4304,7 +4360,7 @@ function getNearestPaymentDeadline() {
 
 function hasActiveOrder() {
     for (var i = 0; i < bookings.length; i++) {
-        if (bookings[i].status === "In Progress" || bookings[i].status === "Cancelled") return true;
+        if (bookings[i].status === "In Progress") return true;
     }
     return false;
 }
@@ -5530,6 +5586,7 @@ window.onload = function() {
             updateProfilePicCursor();
             fetchBackendNotifications();
             fetchCustomerBookings();
+            fetchPendingPayments();
             renderBookings();
             updateNotifCount();
             startAutoPaymentCheck();
@@ -5580,6 +5637,7 @@ window.onload = function() {
     setInterval(function() {
         if (currentUser && window.__HAVENGO_JWT__) {
             fetchCustomerBookings();
+            fetchPendingPayments();
             fetchBackendNotifications();
             renderBookings();
             updateProfileWithUser();
