@@ -123,7 +123,7 @@ router.get('/tasks', (req, res) => {
   const db = getDb();
   const provider = db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
-  const tasks = db.prepare("SELECT * FROM tasks WHERE provider_name = ? AND status IN ('pending_confirmation', 'active')").all(provider.business_name);
+  const tasks = db.prepare("SELECT * FROM tasks WHERE (provider_name = ? OR provider_name = '' OR provider_name IS NULL) AND status IN ('pending_confirmation', 'active')").all(provider.business_name);
   res.json(tasks);
 });
 
