@@ -1046,8 +1046,25 @@ function parseProviderServices(s) {
                 }
                 return { id: ps.toLowerCase().replace(/[^a-z0-9]/g, '-'), name: ps, basePrice: 0 };
             }
-            return ps;
+            return { id: ps.id || ps.name.toLowerCase().replace(/[^a-z0-9]/g, '-'), name: ps.name || '', basePrice: ps.basePrice || 0 };
         });
+    }
+    // Handle JSON array string e.g. '["Cleaning","Spa"]'
+    if (typeof s === 'string' && s.trim().startsWith('[')) {
+        try {
+            var parsed = JSON.parse(s);
+            if (Array.isArray(parsed)) {
+                return parsed.map(function(name) {
+                    name = (name.name || name).trim();
+                    for (var ii = 0; ii < services.length; ii++) {
+                        if (services[ii].name.toLowerCase() === name.toLowerCase()) {
+                            return { id: services[ii].id, name: services[ii].name, basePrice: services[ii].basePrice };
+                        }
+                    }
+                    return { id: name.toLowerCase().replace(/[^a-z0-9]/g, '-'), name: name, basePrice: 0 };
+                });
+            }
+        } catch(e) {}
     }
     return s.split(',').map(function(name) {
         name = name.trim();
@@ -1328,12 +1345,6 @@ async function performLogin() {
     var isAdminCred = identifier === "thermypetson@gmail.com" || identifier === "0757532066";
 
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    var backendAvail = await checkBackend();
-
-    if (!backendAvail) {
-        addInAppAlert("error", "Cannot log in: Server is currently unavailable. Please try again later.");
-        return;
-    }
 
     // For admin credentials, try admin login first
     if (isAdminCred) {
@@ -1341,7 +1352,8 @@ async function performLogin() {
             var adminResp = await fetch(apiUrl + "/auth/admin/login", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ identifier: identifier, password: password })
+                body: JSON.stringify({ identifier: identifier, password: password }),
+                signal: AbortSignal.timeout(35000)
             });
             var adminData = await adminResp.json();
             if (adminData.success) {
@@ -1358,7 +1370,8 @@ async function performLogin() {
         var resp = await fetch(apiUrl + "/auth/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ identifier: identifier, password: password })
+            body: JSON.stringify({ identifier: identifier, password: password }),
+            signal: AbortSignal.timeout(35000)
         });
         var data = await resp.json();
         if (data.success) {
@@ -1401,7 +1414,7 @@ function logout(skipConfirm) {
         currentUser = null;
         userBalance = 2000000;
         chatConversations = {};
-        if (!document.getElementById("keep-session").checked) saveAppState();
+        var ks = document.getElementById("keep-session"); if (!ks || !ks.checked) saveAppState();
         closeModal("settings-modal");
         updateProfileWithUser();
         navigateTo("home");
@@ -2819,7 +2832,7 @@ async function placeOrder(event) {
             var rp = registeredProviders[pi];
             if (rp.services) {
                 for (var ps = 0; ps < rp.services.length; ps++) {
-                    if (rp.services[ps].id === currentService.id) { assignedProvider = rp.name; break; }
+                    if (rp.services[ps].id === currentService.id) { assignedProvider = rp.business_name || rp.businessName || rp.name; break; }
                 }
             }
             if (assignedProvider) break;
@@ -3021,18 +3034,13 @@ async function loginAsProvider() {
     }
 
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    var backendOk = await checkBackend();
-
-    if (!backendOk) {
-        addInAppAlert("error", "Cannot log in: Server is currently unavailable. Please try again later.");
-        return;
-    }
 
     try {
         var resp = await fetch(apiUrl + "/provider/login", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ identifier: idVal, password: passVal })
+            body: JSON.stringify({ identifier: idVal, password: passVal }),
+            signal: AbortSignal.timeout(35000)
         });
         var data = await resp.json();
         if (data.success) {
@@ -3088,7 +3096,7 @@ async function enterProviderDashboard(provider) {
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
     if (window.__HAVENGO_JWT__) {
         try {
-            var tasksResp = await fetch(apiUrl + "/provider/tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ } });
+            var tasksResp = await fetch(apiUrl + "/provider/tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }, signal: AbortSignal.timeout(35000) });
             if (tasksResp.ok) {
                 var backendTasks = await tasksResp.json();
                 providerTasks = [];
@@ -3147,7 +3155,7 @@ async function enterProviderDashboard(provider) {
         if (!window.__HAVENGO_JWT__ || !currentLoggedProvider) return;
         var apiUrl = HAVENGO_BACKEND_URL + "/api";
         try {
-            var tasksResp = await fetch(apiUrl + "/provider/tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ } });
+            var tasksResp = await fetch(apiUrl + "/provider/tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }, signal: AbortSignal.timeout(35000) });
             if (tasksResp.ok) {
                 var backendTasks = await tasksResp.json();
                 var prevCount = providerTasks.length;
@@ -3206,6 +3214,7 @@ function switchProviderTab(n) {
     for (var i = 0; i < tabs.length; i++) {
         tabs[i].classList.toggle("hidden", i !== n);
     }
+    if (n === 3) renderProviderPriceList();
     window.__providerTab = n;
     saveAppState();
 }
@@ -3218,8 +3227,9 @@ function renderProviderDashboard() {
         feeBanner.classList.toggle("hidden", !!(currentLoggedProvider.registration_fee_paid));
     }
     var provName = currentLoggedProvider.name;
-    var myTasks = providerTasks.filter(function(t) { return t.providerName === provName || t.providerName === ""; });
-    var myCompleted = completedTasks.filter(function(t) { return t.providerName === provName; });
+    var provBizName = currentLoggedProvider.business_name || "";
+    var myTasks = providerTasks.filter(function(t) { return t.providerName === provName || t.providerName === provBizName || t.providerName === ""; });
+    var myCompleted = completedTasks.filter(function(t) { return t.providerName === provName || t.providerName === provBizName; });
     var today = new Date().toDateString();
     var todayCount = 0;
     for (var i = 0; i < myTasks.length; i++) {
@@ -3228,7 +3238,7 @@ function renderProviderDashboard() {
         }
     }
     document.getElementById("today-tasks-count").textContent = todayCount;
-    var provEarnings = providerEarningsMap[provName] || 0;
+    var provEarnings = providerEarningsMap[provName] || providerEarningsMap[provBizName] || 0;
     document.getElementById("monthly-earnings").textContent = provEarnings.toLocaleString();
     var total = myTasks.length + myCompleted.length;
     var rate = total === 0 ? 0 : Math.round((myCompleted.length / total) * 100);
@@ -3286,7 +3296,8 @@ function renderProviderDashboard() {
     var earningsList = document.getElementById("earnings-list");
     if (earningsList) {
         var provName2 = currentLoggedProvider.name;
-        var myCompleted2 = completedTasks.filter(function(t) { return t.providerName === provName2; });
+        var provBizName2 = currentLoggedProvider.business_name || "";
+        var myCompleted2 = completedTasks.filter(function(t) { return t.providerName === provName2 || t.providerName === provBizName2; });
         if (myCompleted2.length === 0) {
             earningsList.innerHTML = "<div class=\"text-center text-gray-500 py-6\"><i class=\"fa-solid fa-wallet text-4xl mb-3\"></i><p>No earnings yet. Complete tasks to earn.</p></div>";
         } else {
@@ -3295,11 +3306,12 @@ function renderProviderDashboard() {
                 var et = myCompleted2[ei];
                 ehtml += "<div class=\"flex justify-between items-center border-b pb-3\"><div><p class=\"font-medium\">" + et.serviceName + "</p><p class=\"text-xs text-gray-500\">" + et.customerName + " \u2022 " + et.date + "</p></div><p class=\"font-bold text-emerald-600\">UGX " + et.price.toLocaleString() + "</p></div>";
             }
-            var totalPaid = providerEarningsMap[provName2] || 0;
+            var totalPaid = providerEarningsMap[provName2] || providerEarningsMap[provBizName2] || 0;
             ehtml += "<div class=\"flex justify-between items-center pt-3 mt-3 border-t-2\"><p class=\"font-bold\">Total Paid</p><p class=\"font-bold text-emerald-600 text-lg\">UGX " + totalPaid.toLocaleString() + "</p></div>";
             earningsList.innerHTML = ehtml;
         }
     }
+    renderProviderPriceList();
 }
 
 async function confirmProviderTask(taskId) {
@@ -3642,7 +3654,7 @@ async function _syncAdminData() {
         }
         // Fetch all active tasks for admin order tracking
         try {
-            var tasksResp = await fetch(apiUrl + "/admin/tasks", { headers: headers });
+            var tasksResp = await fetch(apiUrl + "/admin/tasks", { headers: headers, signal: AbortSignal.timeout(35000) });
             if (tasksResp.ok) {
                 var bt = await tasksResp.json();
                 adminTasks = bt.map(function(t) {

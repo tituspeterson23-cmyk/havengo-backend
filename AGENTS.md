@@ -166,6 +166,33 @@ These changes enable the app to work across different browsers/sessions:
 | POST | `/api/tracking/update` | JWT | Save GPS location for order |
 | GET | `/api/tracking/:orderId` | JWT | Get other party's location |
 
+## Session Anchored Summary (May 26, 2026)
+
+### Goal
+Fix all reported issues: provider cross-browser task visibility, admin order tracking, provider price editing, login after logout, deletion sign-out, and unnecessary balance deduction on order placement.
+
+### Done
+- **Provider cross-browser task visibility** — backend query in `src/routes/provider.js:126` changed from `WHERE provider_name = ?` to `WHERE (provider_name = ? OR provider_name = '' OR provider_name IS NULL)`, so unassigned tasks show for all providers on any browser
+- **Admin order tracking** — new `GET /api/admin/tasks` and `POST /api/admin/tasks/reassign/:taskId` endpoints added; new "Orders" tab (tab 5) in admin dashboard shows active tasks with provider reassign dropdown and chat button; completed/cancelled tasks auto-hide from admin view
+- **Provider price editing fixed** — `parseProviderServices()` now handles JSON array strings (`["Cleaning","Spa"]`) that come from backend; previously split by comma on JSON strings, producing broken service names; also correctly maps `basePrice` from global services array in all code paths
+- **Provider login after logout fixed** — removed `checkBackend()` gate from `loginAsProvider()`; added `AbortSignal.timeout(35000)` to the login fetch so server wake-up time doesn't cause "Service currently unavailable" error
+- **Customer login also fixed** — same pattern: removed `checkBackend()` from `performLogin()`, added 35s timeout to both admin and customer login fetches
+- **Provider task fetches** — all `/api/provider/tasks` calls now use `AbortSignal.timeout(35000)` so they don't hang when Render server is waking up
+- **Admin tasks fetch** — `/api/admin/tasks` call also uses 35s timeout
+- **Account deletion sign-out** — `logout(skipConfirm)` added; `requestAccountDeletion()` calls `logout(true)` which clears `currentUser`, updates profile to "Guest User", navigates to home immediately without extra confirmation dialog
+- **Deletion sign-out bug fixed** — `doLogout()` at line 1417 referenced `document.getElementById("keep-session").checked` but no `#keep-session` element existed in HTML, throwing a TypeError that stopped `navigateTo("home")` and `saveAppState()` from running. Fixed by adding null guard.
+- **Balance deduction removed on order** — `userBalance -= finalPrice` line removed from `placeOrder()`; backend `place-order` only checks balance sufficiency, does not deduct
+- **New payment flow** — no deduction on order placement; when provider completes task, a `pendingPayments` entry is created with 10-hour `deadline`; `checkAutoPayments()` runs every 60s and on login, auto-deducting any payment past its deadline; countdown timer shown in payment confirm modal
+- **Withdraw blocking updated** — `hasActiveOrder()` now only blocks withdraw for status `"In Progress"` or `"Cancelled"`; `"Pending"` (unconfirmed) orders do NOT block withdraw
+- **Customer cancel booking** — new `POST /api/customer/cancel-booking/:id` backend endpoint deletes task and notifies provider with reason; "Cancel" button added to bookings UI for Pending/In Progress orders; both customer and provider cancellations remove the order from `adminTasks`
+- **Book Now shows providers first** — all 12 service card "Book Now" buttons changed from `selectService('xxx')` to `toggleProviders('xxx-providers')`, so user sees available providers first before checkout
+- **Login forms modernized** — both customer and provider login forms restyled with gradient buttons, icons, focus rings, consistent with signup form; password visibility toggle (eye icon) added to all 6 password fields
+- **Duplicate map removed** — Google Maps iframe removed from checkout modal; only Leaflet map picker (with search, draggable pin, geolocation) remains
+
+## Critical Bug Fix (May 26, 2026)
+- **Deletion/logout not completing** — `doLogout()` at line 1417 referenced `document.getElementById("keep-session").checked` but no `#keep-session` element existed in HTML. This threw a TypeError that stopped execution mid-logout: `currentUser` was set to null but `navigateTo("home")` and `saveAppState()` never ran. Fixed by adding null guard: `var ks = document.getElementById("keep-session"); if (!ks || !ks.checked) saveAppState();`
+- **Ensure AGENTS.md stays updated** — after any fix, update this file's anchored summary and move old summary to bottom.
+
 ## Important Constraints (NEVER break these)
 - `index.html` is a single page — all JS, CSS, HTML in one file
 - NEVER remove `userBalance = 2000000` default — it's the only safety net for users when backend is unreachable
