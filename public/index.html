@@ -939,7 +939,7 @@ function buildAppState() {
     return {
         currentUser: currentUser, allUsers: allUsers, userBalance: userBalance,
         userPaymentMethods: userPaymentMethods, savedAddresses: savedAddresses, favoriteProviders: favoriteProviders,
-        pendingPayments: pendingPayments, globalNotifications: globalNotifications,
+        pendingPayments: pendingPayments,
         userNotificationsMap: userNotificationsMap, userActivity: userActivity,
         profilePicSrc: profilePicSrc, customerBitmoji: customerBitmoji,
         registeredProviders: registeredProviders,
@@ -986,7 +986,6 @@ function applyState(state) {
     if (state.userPaymentMethods) userPaymentMethods = state.userPaymentMethods;
     if (state.savedAddresses) savedAddresses = state.savedAddresses;
     if (state.favoriteProviders) favoriteProviders = state.favoriteProviders;
-    if (state.globalNotifications) globalNotifications = state.globalNotifications;
     if (state.userNotificationsMap) userNotificationsMap = state.userNotificationsMap;
     if (state.userActivity) userActivity = state.userActivity;
     if (state.profilePicSrc) profilePicSrc = state.profilePicSrc;

@@ -74,16 +74,38 @@ router.post('/send', (req, res) => {
   const encrypted = encrypt(message);
   db.prepare('INSERT INTO chat_messages (conversation_id, sender, message, encrypted) VALUES (?, ?, ?, 1)')
     .run(conversationId, sanitize(s), encrypted);
-  // Notify admin when customer or provider sends a message
+  // Route notification to the right person based on conversation type
   const adminEmail = db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
-  if (sender === 'Customer' || s === 'Customer') {
+  const convTaskId = parseInt(conversationId, 10);
+  if (!isNaN(convTaskId)) {
+    // Task-based conversation — notify the other party
+    const task = db.prepare("SELECT * FROM tasks WHERE id = ?").get(convTaskId);
+    if (task) {
+      if (sender === 'Customer' || s === 'Customer') {
+        // Customer sent message → notify provider
+        const prov = db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(task.provider_name, task.provider_name);
+        if (prov) {
+          db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+            .run(prov.email, '💬', 'New Message from Customer', task.customer_email + ' sent a message about ' + (task.service_name || 'your order'), 'chat');
+        }
+      } else {
+        // Provider sent message → notify customer
+        db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+          .run(task.customer_email, '💬', 'New Message from Provider', 'Your provider sent a message about ' + (task.service_name || 'your order'), 'chat');
+      }
+    }
+  } else if (conversationId.startsWith('customer-admin-')) {
+    // Customer-admin conversation → notify admin
     if (adminEmail) {
       db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
-        .run(adminEmail, '💬', 'New Customer Message', req.user.email + ' sent a message', 'chat');
+        .run(adminEmail, '💬', 'New Customer Message', (req.user.email || 'Customer') + ' sent a message', 'chat');
     }
-  } else if (req.user.role === 'provider' && adminEmail) {
-    db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
-      .run(adminEmail, '💬', 'New Provider Message', req.user.email + ' sent a message', 'chat');
+  } else if (conversationId.startsWith('provider-admin-')) {
+    // Provider-admin conversation → notify admin
+    if (adminEmail) {
+      db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+        .run(adminEmail, '💬', 'New Provider Message', (req.user.email || 'Provider') + ' sent a message', 'chat');
+    }
   }
   res.json({ success: true });
 });
