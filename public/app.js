@@ -3163,6 +3163,11 @@ function showTrackingInfo(bookingId) {
     document.getElementById("tracking-modal").classList.remove("hidden");
 }
 
+function closeModal(id) {
+    var el = document.getElementById(id);
+    if (el) el.classList.add("hidden");
+}
+
 // ============================================================
 // CUSTOMER WITHDRAW
 // ============================================================
@@ -4582,7 +4587,6 @@ window.onload = function() {
         if (currentAdmin && window.__HAVENGO_JWT__) { fetchBackendNotifications(); }
     }, 15000); } catch(e) { console.warn("autoSync:", e); }
 };
-window.__appLoaded = true;
 
 
 

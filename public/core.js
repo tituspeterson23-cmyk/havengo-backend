@@ -604,10 +604,23 @@ setInterval(function() {
     }
 }, 4000);
 
-// Close any modal by ID — defined here so it survives if app.js fails to load
-function closeModal(id) {
-    var el = document.getElementById(id);
-    if (el) el.classList.add("hidden");
+// Core init — runs on DOMContentLoaded as a fallback
+function _initCore() {
+    if (localStorage.getItem("havengo-dark") === "1") {
+        document.documentElement.classList.add("dark");
+        var stars = document.getElementById("stars-container");
+        if (stars) stars.classList.remove("hidden");
+        createStars();
+    }
+    var savedTheme = localStorage.getItem("havengo-theme");
+    if (savedTheme && savedTheme !== "default") {
+        document.documentElement.classList.add("theme-" + savedTheme);
+    }
+}
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", _initCore);
+} else {
+    _initCore();
 }
 
 function toggleThemeMenu() {

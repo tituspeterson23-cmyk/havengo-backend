@@ -719,33 +719,6 @@
 
 <script src="core.js"></script>
 <script src="app.js"></script>
-<script>
-// Inline rescue — provides fallback definitions for critical functions
-// in case app.js fails to load (network timeout, 404, etc.)
-(function() {
-    if (typeof filterServicesPage !== "function") {
-        window.filterServicesPage = function(){ console.warn("app.js not loaded"); };
-    }
-    if (typeof toggleProviders !== "function") {
-        window.toggleProviders = function(){ console.warn("app.js not loaded"); };
-    }
-    // Run basic init on DOMContentLoaded if app.js didn't do it
-    if (!window.__appLoaded) {
-        document.addEventListener("DOMContentLoaded", function() {
-            try {
-                var cat = document.getElementById("services-category-filter");
-                if (cat && cat.options.length <= 1 && typeof services !== "undefined") {
-                    for (var i = 0; i < services.length; i++) {
-                        var o = document.createElement("option");
-                        o.value = services[i].id; o.textContent = services[i].name;
-                        cat.appendChild(o);
-                    }
-                }
-            } catch(e) { console.warn("Fallback init:", e); }
-        });
-    }
-})();
-</script>
 
 </body>
 </html>
