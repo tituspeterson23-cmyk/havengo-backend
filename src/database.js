@@ -120,7 +120,7 @@ async function initDatabase() {
     CREATE TABLE IF NOT EXISTS tasks (
       id SERIAL PRIMARY KEY,
       customer_email TEXT NOT NULL,
-      service_id INTEGER NOT NULL,
+      service_id TEXT NOT NULL,
       service_name TEXT NOT NULL,
       provider_name TEXT,
       provider_id INTEGER,
@@ -189,7 +189,7 @@ async function initDatabase() {
       id SERIAL PRIMARY KEY,
       provider_name TEXT NOT NULL,
       provider_id INTEGER,
-      service_id INTEGER NOT NULL,
+      service_id TEXT NOT NULL,
       current_price REAL NOT NULL,
       requested_price REAL NOT NULL,
       status TEXT DEFAULT 'pending',
@@ -263,6 +263,10 @@ async function initDatabase() {
   await pool.query('CREATE INDEX IF NOT EXISTS idx_tasks_customer ON tasks(customer_email)');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_tasks_provider ON tasks(provider_name)');
   await pool.query('CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_email)');
+
+  // Fix column types for PostgreSQL compatibility (frontend sends string service IDs)
+  await pool.query("ALTER TABLE tasks ALTER COLUMN service_id TYPE TEXT USING service_id::text").catch(function(e) { /* column already TEXT */ });
+  await pool.query("ALTER TABLE price_requests ALTER COLUMN service_id TYPE TEXT USING service_id::text").catch(function(e) { /* column already TEXT */ });
 
   // Seed admin if not exists
   const adminCheck = await pool.query("SELECT id FROM admin_settings WHERE key = 'admin_initialized'");
