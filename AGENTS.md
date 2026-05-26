@@ -166,37 +166,57 @@ These changes enable the app to work across different browsers/sessions:
 | POST | `/api/tracking/update` | JWT | Save GPS location for order |
 | GET | `/api/tracking/:orderId` | JWT | Get other party's location |
 
-## Session Anchored Summary (May 26, 2026 — End of Day)
+## Session Anchored Summary (May 26, 2026 — PostgreSQL Migration Complete)
 
 ### Goal
-Fix provider earnings display in the portal, then handle migration and mail tomorrow.
+Migrate from SQLite (sql.js) to PostgreSQL (Neon) for persistent data storage, fix provider earnings display.
 
-### Completed This Session (May 26, 2026 — Full Day)
-- **`server.js` auto-payment & payment reminder provider lookups** — 3 remaining `WHERE business_name = ?` changed to `WHERE business_name = ? OR (firstname || ' ' || lastname) = ?` (lines 95, 124, 135). Last batch of the systemic `business_name` NULL bug.
-- **All 33 empty catch blocks in frontend fixed** — `catch(e) {}` / `catch(et) {}` / `catch(ec) {}` replaced with `catch(e) { console.warn(e); }` across localStorage, network, crypto operations.
-- **Loading overlay added and then removed** — CSS spinner with `startLoading()/stopLoading()` wrapped `performLogin()`, `loginAsProvider()`, `enterProviderDashboard()`, `_syncAdminData()`. Removed after user reported stuck spinner, since paid Render plan will eliminate cold starts.
-- **`AbortSignal.timeout(35000)` added to ALL fetches** in `_syncAdminData()` (6 fetches that lacked timeouts) and both `completed-tasks` fetches in `enterProviderDashboard()` — stays even after overlay removal to prevent hanging fetches.
-- **Chat notification routing fixed** — `chat.js:77-87` now routes task-conversation (numeric ID) notifications to the other party (customer→provider, provider→customer) instead of always notifying admin. `customer-admin-*` and `provider-admin-*` conversations still notify admin.
-- **localStorage notification restore stopped** — `globalNotifications` removed from both `buildAppState()` (save) and `applyState()` (restore). `globalNotifications` now starts empty on each page load; only `fetchBackendNotifications()` and local `addNotification()` calls populate it.
-- **Provider withdraw UI verified complete** — modal (`#withdraw-modal`), button in earnings tab, `showWithdrawModal()`, `updateWithdrawFee()`, `processWithdraw()` calling `POST /api/provider/withdraw` already exist and work.
-- **Provider earnings display fixed** — root cause: `providerEarningsMap` was built only once during initial `enterProviderDashboard()` load. The 30s polling replaced `completedTasks` with fresh data but NEVER rebuilt the map. Fix: polling now clears (`providerEarningsMap = {}`) and rebuilds the map from fresh completed tasks (same logic as initial load). Also stores `total_earnings: p.total_earnings || 0` on `currentLoggedProvider` during login, and renders prefer the authoritative backend value.
+### Completed May 26 (Full Day)
+**Frontend fixes (index.html)**:
+- `server.js` auto-payment & payment reminder provider lookups — 3 remaining `business_name`-only queries fixed
+- All 33 empty catch blocks fixed (`catch(e) {}` → `catch(e) { console.warn(e); }`)
+- Loading overlay added then removed (paid Render plan eliminates cold starts)
+- `AbortSignal.timeout(35000)` added to all fetches in polling (prevents hanging)
+- Chat notification routing fixed — task conversations notify the other party (customer↔provider), not always admin
+- localStorage notification restore stopped — `globalNotifications` starts fresh each page load
+- Provider earnings display fixed — `providerEarningsMap` now rebuilt during polling, not just initial load
 
-### Outstanding Items for May 27 (Tomorrow)
-1. **PostgreSQL migration** — Render free tier offers 256MB PostgreSQL. Would fix `StatementWrapper` hack + add transactions + fix dead `result.changes` check. Estimated 3-4 hours. Alternative: `better-sqlite3` stopgap (1-2 hours, keeps sync API, no route handler changes).
-2. **Configure real email delivery** — set MAIL_HOST/MAIL_USER env vars with SendGrid/Mailgun keys. Backend already has nodemailer transport configured.
-3. **Deploy both repos to GitHub** — push to trigger auto-deploy on Render + Netlify.
-4. **Password reset flow** — need new backend route + UI for email-based reset.
-5. **Split frontend into modules** — webpack/vite build pipeline.
-6. **Search/filter for services** — search bar across provider names, locations, service categories.
+**PostgreSQL Migration (backend)**:
+- `src/database.js` — complete rewrite: `pg.Pool` wrapper with `StatementWrapper` class
+  - Auto-converts `?` → `$N` placeholders so route SQL strings unchanged
+  - `run()`, `get()`, `all()`, `pluck()` methods return Promises
+  - Schema created via `CREATE TABLE IF NOT EXISTS` on startup (14 tables + indexes)
+  - Admin account seeded automatically
+- All 7 route files (`auth.js`, `admin.js`, `provider.js`, `customer.js`, `chat.js`, `reviews.js`, `tracking.js`) — every handler made `async`, every `db.prepare()` call got `await`
+- SQLite-specific functions replaced: `datetime('now')` → `NOW()`, `strftime` → `to_char`, `DATE(x)=DATE('now')` → `x::date=CURRENT_DATE`
+- `INSERT ... RETURNING id` replaces `result.lastInsertRowid` (customer.js place-order)
+- `server.js` — startup wrapped in async IIFE, 3 setInterval callbacks made async
+- `render.yaml` + `.env` — `DATABASE_URL` added with Neon connection string
+- `seed.cjs` — demo provider `aisha@havengo.ug` / `password`
+- `package.json` — added `pg` dependency, `"seed"` script
+
+### How It Works Now
+- **Neon (serverless PostgreSQL)**: Free tier, 0.5 GB storage, 100 CU-hours/month, scales to zero when idle
+- **Data persists across redeploys** — never lost when pushing to Render
+- **Cold start**: ~500ms database wake from idle (vs 15s for Render free tier)
+- **`result.changes` now accurate** — PostgreSQL's `rowCount` correctly reflects affected rows (the dead `{ changes: 1 }` bug is gone)
+- All API routes remain at same paths, same request/response format — no frontend changes needed
+
+### Outstanding Items (Tomorrow)
+1. **Deploy to GitHub** — push backend + frontend to trigger Render + Netlify auto-deploy
+2. **Configure real email delivery** — set MAIL_HOST/MAIL_USER env vars with SendGrid/Mailgun
+3. **Password reset flow** — new backend route + UI
+4. **Search/filter for services** — search bar across provider names, locations, categories
 
 ### Critical Context
-- **Backend `sanitize()` encodes `'` → `&#x27;`** — if a provider's name/business_name contains an apostrophe, the stored `provider_name` in tasks will have the HTML entity but the provider record may have the raw character or vice-versa, causing query mismatches despite the dual-name fix. This only affects names with `'`, `<`, `>`, `"`, `/`, `\` characters.
-- **`db.run()` wrapper always returns `{ changes: 1 }`** — `database.js:365` means all `if (result.changes === 0) return 404` checks are dead code. No INSERT/UPDATE/DELETE failure is ever detected. Switching to `better-sqlite3` or PostgreSQL would fix this.
+- **DATABASE_URL** (Neon): `postgresql://neondb_owner:npg_j1DzgMkZf5UW@ep-rough-waterfall-altogw50.c-3.eu-central-1.aws.neon.tech/neondb?sslmode=require`
+- **SSL warning**: pg v8 warns about `sslmode=require` being aliased to `verify-full`. Harmless. Fix permanently by changing to `sslmode=verify-full` in the connection string.
 - Backend (Render): `https://havengo-backend.onrender.com`
 - Frontend (Netlify): `https://havengo.netlify.app`
 - GitHub Backend: `https://github.com/tituspeterson23-cmyk/havengo-backend` (branch `main`)
 - GitHub Frontend: `https://github.com/tituspeterson23-cmyk/havengo-frontend` (branch `main`)
-- Database: SQLite at `./data/havengo.db` — persists across sleep/wake on Render free tier, **lost on redeploy**
+- Credentials: Admin `thermypetson@gmail.com` / `23.Forlife`, Provider `aisha@havengo.ug` / `password`
+- Database now: **Neon PostgreSQL** (not SQLite in data/havengo.db)
 
 ## Important Constraints (NEVER break these)
 - `index.html` is a single page — all JS, CSS, HTML in one file
