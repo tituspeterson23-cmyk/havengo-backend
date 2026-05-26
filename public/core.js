@@ -558,7 +558,12 @@ window.addEventListener("scroll", function() {
 function toggleDarkMode() {
     document.documentElement.classList.toggle("dark");
     var stars = document.getElementById("stars-container");
-    if (stars) stars.classList.toggle("hidden");
+    if (stars) {
+        stars.classList.toggle("hidden");
+        if (document.documentElement.classList.contains("dark") && !stars.querySelector(".star")) {
+            createStars();
+        }
+    }
     localStorage.setItem("havengo-dark", document.documentElement.classList.contains("dark") ? "1" : "0");
 }
 
@@ -598,6 +603,25 @@ setInterval(function() {
         spawnShootingStar(container);
     }
 }, 4000);
+
+// Core init — runs on DOMContentLoaded as a fallback
+function _initCore() {
+    if (localStorage.getItem("havengo-dark") === "1") {
+        document.documentElement.classList.add("dark");
+        var stars = document.getElementById("stars-container");
+        if (stars) stars.classList.remove("hidden");
+        createStars();
+    }
+    var savedTheme = localStorage.getItem("havengo-theme");
+    if (savedTheme && savedTheme !== "default") {
+        document.documentElement.classList.add("theme-" + savedTheme);
+    }
+}
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", _initCore);
+} else {
+    _initCore();
+}
 
 function toggleThemeMenu() {
     var menu = document.getElementById("theme-menu");

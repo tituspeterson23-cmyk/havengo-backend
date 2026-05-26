@@ -4508,151 +4508,84 @@ async function fetchBackendNotifications() {
 // ============================================================
 
 window.onload = function() {
-    // Restore dark mode
-    if (localStorage.getItem("havengo-dark") === "1") {
-        document.documentElement.classList.add("dark");
-        var stars = document.getElementById("stars-container");
-        if (stars) stars.classList.remove("hidden");
-    }
-    // Restore theme
-    var savedTheme = localStorage.getItem("havengo-theme");
-    if (savedTheme && savedTheme !== "default") {
-        document.documentElement.classList.add("theme-" + savedTheme);
-    }
-    createStars();
+    try { if (localStorage.getItem("havengo-dark") === "1") { document.documentElement.classList.add("dark"); var s = document.getElementById("stars-container"); if (s) s.classList.remove("hidden"); } } catch(e) { console.warn("Dark restore:", e); }
+    try { var t = localStorage.getItem("havengo-theme"); if (t && t !== "default") document.documentElement.classList.add("theme-" + t); } catch(e) { console.warn("Theme restore:", e); }
+    try { createStars(); } catch(e) { console.warn("createStars:", e); }
 
-    // Check for password reset token in URL
-    var urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.get("token") && urlParams.get("email")) {
-        navigateTo("reset-password-page");
-        return;
-    }
+    try { var up = new URLSearchParams(window.location.search); if (up.get("token") && up.get("email")) { navigateTo("reset-password-page"); return; } } catch(e) { console.warn("Token:", e); }
 
-    startHeroSlider();
-    renderBlogPosts();
-    loadReviews();
-    populateMultiServiceSelect();
-    populateBitmojiSelect();
-    renderServiceRatings();
-    populateServiceFilters();
+    try { startHeroSlider(); } catch(e) { console.warn("heroSlider:", e); }
+    try { renderBlogPosts(); } catch(e) { console.warn("blogPosts:", e); }
+    try { loadReviews(); } catch(e) { console.warn("loadReviews:", e); }
+    try { populateMultiServiceSelect(); } catch(e) { console.warn("multiService:", e); }
+    try { populateBitmojiSelect(); } catch(e) { console.warn("bitmojiSelect:", e); }
+    try { renderServiceRatings(); } catch(e) { console.warn("serviceRatings:", e); }
+    try { populateServiceFilters(); } catch(e) { console.warn("serviceFilters:", e); }
 
-    addNotification("\uD83D\uDC4B", "Welcome to HavenGo", "Browse services or sign up to get started!");
+    try { addNotification("\uD83D\uDC4B", "Welcome to HavenGo", "Browse services or sign up to get started!"); } catch(e) { console.warn("notif:", e); }
 
-    // All data-dependent renders (bookings, profile, provider lists, notif count)
-    // happen AFTER state restore in the async block below to prevent flash of empty state
+    try { setInterval(checkAutoPayment, 60000); } catch(e) { console.warn("autoPay:", e); }
+    try { setInterval(processExpiredDeletions, 300000); processExpiredDeletions(); } catch(e) { console.warn("del:", e); }
 
-    // 10-hour auto-payment check (runs every 60 seconds)
-    setInterval(checkAutoPayment, 60000);
+    try {
+        var modals = document.querySelectorAll(".modal");
+        for (var i = 0; i < modals.length; i++) {
+            modals[i].addEventListener("click", function(e) {
+                if (e.target === this) { this.classList.add("hidden"); }
+            });
+        }
+    } catch(e) { console.warn("modals:", e); }
 
-    // 15-day deletion check (runs every 5 minutes)
-    setInterval(processExpiredDeletions, 300000);
-    processExpiredDeletions();
-
-    // Close modals on backdrop click
-    var modals = document.querySelectorAll(".modal");
-    for (var i = 0; i < modals.length; i++) {
-        modals[i].addEventListener("click", function(e) {
-            if (e.target === this) {
-                this.classList.add("hidden");
-            }
-        });
-    }
-
-    // Load persisted state (async to support encrypted storage)
     (async function() {
-        await loadAppState();
-        // Re-render appropriate dashboards after state restore
-        if (currentAdmin) {
+        try { await loadAppState(); } catch(e) { console.warn("loadState:", e); }
+        try { if (currentAdmin) {
             document.getElementById("admin-login-screen").classList.add("hidden");
             document.getElementById("admin-dashboard").classList.remove("hidden");
             document.getElementById("admin-header").classList.remove("hidden");
             document.getElementById("admin-nav-link").classList.remove("hidden");
-            renderAdminDashboard();
-            _syncAdminData();
-            fetchBackendNotifications();
-            updateNotifCount();
+            renderAdminDashboard(); _syncAdminData(); fetchBackendNotifications(); updateNotifCount();
             if (window.__adminTab !== undefined) switchAdminTab(window.__adminTab);
-        }
-        if (currentLoggedProvider) {
+        } } catch(e) { console.warn("adminRestore:", e); }
+        try { if (currentLoggedProvider) {
             document.getElementById("provider-login-screen").classList.add("hidden");
             document.getElementById("provider-dashboard").classList.remove("hidden");
             document.getElementById("provider-header").classList.remove("hidden");
             var prov = currentLoggedProvider;
             document.getElementById("logged-provider-name").textContent = prov.business_name || prov.name;
             document.getElementById("logged-provider-service").textContent = (prov.service || "General") + " \u2022 " + (prov.location || "");
-            renderProviderDashboard();
-            fetchBackendNotifications();
-            updateNotifCount();
+            renderProviderDashboard(); fetchBackendNotifications(); updateNotifCount();
             if (window.__providerTab !== undefined) switchProviderTab(window.__providerTab);
-        }
-        if (currentUser) {
-            updateProfileWithUser();
-            renderProfilePage();
-            updateProfilePicCursor();
-            fetchBackendNotifications();
-            fetchCustomerBookings();
-            fetchPendingPayments();
-            renderBookings();
-            updateNotifCount();
-            startAutoPaymentCheck();
-        }
-        if (!currentAdmin && !currentLoggedProvider && !currentUser) {
-            updateNotifCount();
-        }
-        renderAllProviderLists();
-        // Restore last visited page
-        if (window.__currentPage) {
-            var pageEl = document.getElementById(window.__currentPage);
-            if (pageEl) navigateTo(window.__currentPage);
-        }
+        } } catch(e) { console.warn("providerRestore:", e); }
+        try { if (currentUser) {
+            updateProfileWithUser(); renderProfilePage(); updateProfilePicCursor();
+            fetchBackendNotifications(); fetchCustomerBookings(); fetchPendingPayments();
+            renderBookings(); updateNotifCount(); startAutoPaymentCheck();
+        } } catch(e) { console.warn("userRestore:", e); }
+        try { if (!currentAdmin && !currentLoggedProvider && !currentUser) { updateNotifCount(); } } catch(e) { console.warn("notifCount:", e); }
+        try { renderAllProviderLists(); } catch(e) { console.warn("providerLists:", e); }
+        try { if (window.__currentPage) { var pe = document.getElementById(window.__currentPage); if (pe) navigateTo(window.__currentPage); } } catch(e) { console.warn("pageRestore:", e); }
     })();
 
-    // Auto-save every 10 seconds
-    setInterval(saveAppState, 10000);
+    try { setInterval(saveAppState, 10000); } catch(e) { console.warn("autoSave:", e); }
 
-    // Save on page unload and reset page to home for next visit
-    window.addEventListener("beforeunload", function() {
-        window.__currentPage = null;
-        window.__providerTab = 0;
-        window.__adminTab = 0;
-        saveAppState();
-    });
+    try { window.addEventListener("beforeunload", function() { window.__currentPage = null; window.__providerTab = 0; window.__adminTab = 0; saveAppState(); }); } catch(e) { console.warn("beforeunload:", e); }
 
-    // Backend connectivity — uses HAVENGO_BACKEND_URL (set at top of script)
     (async function() {
-        var apiUrl = HAVENGO_BACKEND_URL + "/api";
         try {
+            var apiUrl = HAVENGO_BACKEND_URL + "/api";
             var resp = await fetch(apiUrl + "/health");
-            if (resp.ok) {
-                window.__HAVENGO_BACKEND__ = true;
-                window.__HAVENGO_API__ = apiUrl;
-                console.log("HavenGo Backend connected at", apiUrl);
-            }
-        } catch(e) {
-            console.log("Backend not available, using local mode");
-        }
+            if (resp.ok) { window.__HAVENGO_BACKEND__ = true; window.__HAVENGO_API__ = apiUrl; console.log("HavenGo Backend connected at", apiUrl); }
+        } catch(e) { console.log("Backend not available, using local mode"); }
     })();
 
-    fetchVerifiedProviders();
+    try { fetchVerifiedProviders(); } catch(e) { console.warn("fetchVP:", e); }
+    try { setInterval(fetchVerifiedProviders, 15000); } catch(e) { console.warn("pollVP:", e); }
 
-    // Poll verified providers every 15s for cross-browser sync
-    setInterval(fetchVerifiedProviders, 15000);
-
-    // Auto-sync every 15s when logged in
-    setInterval(function() {
-        if (currentUser && window.__HAVENGO_JWT__) {
-            fetchCustomerBookings();
-            fetchPendingPayments();
-            fetchBackendNotifications();
-            updateProfileWithUser();
-        }
-        if (currentLoggedProvider && window.__HAVENGO_JWT__) {
-            fetchBackendNotifications();
-        }
-        if (currentAdmin && window.__HAVENGO_JWT__) {
-            fetchBackendNotifications();
-        }
-    }, 15000);
+    try { setInterval(function() {
+        if (currentUser && window.__HAVENGO_JWT__) { fetchCustomerBookings(); fetchPendingPayments(); fetchBackendNotifications(); updateProfileWithUser(); }
+        if (currentLoggedProvider && window.__HAVENGO_JWT__) { fetchBackendNotifications(); }
+        if (currentAdmin && window.__HAVENGO_JWT__) { fetchBackendNotifications(); }
+    }, 15000); } catch(e) { console.warn("autoSync:", e); }
 };
 
 
