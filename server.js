@@ -167,6 +167,17 @@ if (!fs.existsSync(publicDir)) {
 (async () => {
   try {
     await initDatabase();
+    // Seed demo provider if not exists
+    try {
+      const bcrypt = require('bcryptjs');
+      const db2 = getDb();
+      const existing = await db2.query("SELECT id FROM providers WHERE email = 'aisha@havengo.ug'");
+      if (existing.rows.length === 0) {
+        const hash = bcrypt.hashSync('password', 10);
+        await db2.query(`INSERT INTO providers (firstname, lastname, email, phone, business_name, services, password_hash, bitmoji, verified, location, bio, experience, registration_fee_paid) VALUES ('Aisha','Nabbanja','aisha@havengo.ug','0777123456','Aisha Home Services','cleaning,spa,family',$1,'🔧',1,'Kampala','Professional home service provider with 5+ years experience',5,1)`, [hash]);
+        console.log('Demo provider seeded: aisha@havengo.ug / password');
+      }
+    } catch(seedErr) { console.error('Seed check failed:', seedErr); }
     app.listen(PORT, () => {
       console.log(`\nHavenGo Backend running at http://localhost:${PORT}`);
       console.log(`Admin login at http://localhost:${PORT}/`);
