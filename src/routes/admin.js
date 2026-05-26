@@ -233,7 +233,7 @@ router.post('/resolve-payment-dispute/:id', async (req, res) => {
 
 router.get('/tasks', async (req, res) => {
   const db = getDb();
-  const tasks = await db.prepare("SELECT * FROM tasks WHERE status IN ('pending_confirmation', 'active')").all();
+  const tasks = await db.prepare("SELECT t.*, u.firstname AS customer_firstname, u.lastname AS customer_lastname, u.phone AS customer_phone, p.email AS provider_email, p.phone AS provider_phone, p.business_name AS provider_business, p.firstname AS provider_firstname, p.lastname AS provider_lastname FROM tasks t LEFT JOIN users u ON t.customer_email = u.email LEFT JOIN providers p ON (t.provider_name = p.business_name OR t.provider_name = (p.firstname || ' ' || p.lastname)) WHERE t.status IN ('pending_confirmation', 'active')").all();
   res.json(tasks);
 });
 

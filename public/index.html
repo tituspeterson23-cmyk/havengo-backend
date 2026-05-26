@@ -940,7 +940,7 @@ function buildAppState() {
         currentUser: currentUser, allUsers: allUsers, userBalance: userBalance,
         userPaymentMethods: userPaymentMethods, savedAddresses: savedAddresses, favoriteProviders: favoriteProviders,
         pendingPayments: pendingPayments,
-        userNotificationsMap: userNotificationsMap, userActivity: userActivity,
+        userActivity: userActivity,
         profilePicSrc: profilePicSrc, customerBitmoji: customerBitmoji,
         registeredProviders: registeredProviders,
         bookings: bookings, providerTasks: providerTasks, completedTasks: completedTasks,
@@ -986,7 +986,6 @@ function applyState(state) {
     if (state.userPaymentMethods) userPaymentMethods = state.userPaymentMethods;
     if (state.savedAddresses) savedAddresses = state.savedAddresses;
     if (state.favoriteProviders) favoriteProviders = state.favoriteProviders;
-    if (state.userNotificationsMap) userNotificationsMap = state.userNotificationsMap;
     if (state.userActivity) userActivity = state.userActivity;
     if (state.profilePicSrc) profilePicSrc = state.profilePicSrc;
     if (state.customerBitmoji) customerBitmoji = state.customerBitmoji;
@@ -2870,6 +2869,7 @@ async function placeOrder(event) {
                     id: booking.id,
                     serviceName: booking.serviceName,
                     customerName: booking.customerName,
+                    customerEmail: currentUser ? currentUser.email : "",
                     customerPhone: booking.customerPhone,
                     address: booking.address,
                     date: booking.date,
@@ -2959,7 +2959,15 @@ function renderBookings() {
             "<h3 class=\"font-bold text-xl\">" + b.serviceName + "</h3></div>" +
             "<p class=\"text-sm text-gray-500\">" + b.date + " at " + b.time + "</p>" +
             "<p class=\"text-sm text-gray-500\">" + b.address + "</p>" +
-            (b.providerName ? "<p class=\"text-sm text-emerald-600 mt-1\">Provider: " + b.providerName + "</p>" : "") + "</div>" +
+            (b.providerName ? "<p class=\"text-sm text-emerald-600 mt-1\">Provider: " + b.providerName + "</p>" : "") +
+            (function() {
+                var pc = { phone: "", email: "" };
+                for (var pi = 0; pi < registeredProviders.length; pi++) {
+                    var rp = registeredProviders[pi];
+                    if (rp.name === b.providerName || rp.business_name === b.providerName || rp.businessName === b.providerName) { pc = rp; break; }
+                }
+                return pc.phone ? "<p class=\"text-xs text-gray-500\">\uD83D\uDCDE " + pc.phone + (pc.email ? " \u2022 \u2709 " + pc.email : "") + "</p>" : "";
+            })() + "</div>" +
             "<div class=\"text-right\"><span class=\"bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-medium\">" + b.status + "</span>" +
             "<p class=\"font-bold text-emerald-600 mt-2\">UGX " + b.price.toLocaleString() + "</p></div></div>" +
             "<div class=\"flex gap-3 mt-4 pt-4 border-t\">" +
@@ -3084,11 +3092,6 @@ async function loginAsProvider() {
 }
 
 async function enterProviderDashboard(provider) {
-    // Restore provider notifications
-    if (provider.email && userNotificationsMap[provider.email]) {
-        globalNotifications = userNotificationsMap[provider.email].slice();
-        delete userNotificationsMap[provider.email];
-    }
     document.getElementById("provider-login-screen").classList.add("hidden");
     document.getElementById("provider-dashboard").classList.remove("hidden");
     document.getElementById("provider-header").classList.remove("hidden");
@@ -3111,8 +3114,9 @@ async function enterProviderDashboard(provider) {
                         id: bt.id,
                         serviceId: bt.service_id,
                         serviceName: bt.service_name,
-                        customerName: "",
-                        customerPhone: "",
+                        customerName: bt.customer_firstname ? (bt.customer_firstname + " " + (bt.customer_lastname || "")) : (bt.customer_email || ""),
+                        customerEmail: bt.customer_email || "",
+                        customerPhone: bt.customer_phone || "",
                         address: bt.address || "",
                         date: "",
                         time: "",
@@ -3170,7 +3174,8 @@ async function enterProviderDashboard(provider) {
                     var bt = backendTasks[ti];
                     providerTasks.push({
                         id: bt.id, serviceId: bt.service_id, serviceName: bt.service_name,
-                        customerName: bt.customer_email || "", customerPhone: "", address: bt.address || "",
+                        customerName: bt.customer_firstname ? (bt.customer_firstname + " " + (bt.customer_lastname || "")) : (bt.customer_email || ""),
+                        customerEmail: bt.customer_email || "", customerPhone: bt.customer_phone || "", address: bt.address || "",
                         date: "", time: "", price: bt.price, instructions: bt.details || "",
                         providerName: bt.provider_name || "", status: bt.status
                     });
@@ -3249,7 +3254,7 @@ function renderProviderDashboard() {
         }
     }
     document.getElementById("today-tasks-count").textContent = todayCount;
-    var provEarnings = currentLoggedProvider.total_earnings || providerEarningsMap[provName] || providerEarningsMap[provBizName] || 0;
+    var provEarnings = providerEarningsMap[provName] || providerEarningsMap[provBizName] || currentLoggedProvider.total_earnings || 0;
     document.getElementById("monthly-earnings").textContent = provEarnings.toLocaleString();
     var total = myTasks.length + myCompleted.length;
     var rate = total === 0 ? 0 : Math.round((myCompleted.length / total) * 100);
@@ -3268,7 +3273,8 @@ function renderProviderDashboard() {
                     "<div class=\"flex justify-between items-start\">" +
                     "<div><h3 class=\"font-bold text-xl\">" + t.serviceName + "</h3>" +
                     "<p class=\"text-sm text-gray-600\"><strong>Customer:</strong> " + t.customerName + "</p>" +
-                    "<p class=\"text-sm text-gray-600\"><strong>Phone:</strong> " + t.customerPhone + "</p>" +
+                    "<p class=\"text-sm text-gray-600\"><strong>Email:</strong> " + (t.customerEmail || "N/A") + "</p>" +
+                    "<p class=\"text-sm text-gray-600\"><strong>Phone:</strong> " + (t.customerPhone || "N/A") + "</p>" +
                     "<p class=\"text-sm text-gray-600\"><strong>Address:</strong> " + t.address + "</p>" +
                     "<p class=\"text-sm text-gray-600\"><strong>Date:</strong> " + t.date + " at " + t.time + "</p>" +
                     "<p class=\"text-sm text-gray-600\"><strong>Price:</strong> UGX " + t.price.toLocaleString() + "</p>" +
@@ -3583,11 +3589,6 @@ async function loginAsAdmin() {
 
 function adminLoginSuccess() {
     currentAdmin = { name: "Admin", email: "thermypetson@gmail.com" };
-    // Restore admin notifications
-    if (userNotificationsMap["admin"]) {
-        globalNotifications = userNotificationsMap["admin"].slice();
-        delete userNotificationsMap["admin"];
-    }
     closeAuthModal();
     document.getElementById("admin-login-screen").classList.add("hidden");
     document.getElementById("admin-dashboard").classList.remove("hidden");
@@ -3692,8 +3693,12 @@ async function _syncAdminData() {
                     return {
                         id: t.id,
                         serviceName: t.service_name,
-                        customerName: t.customer_email || "",
+                        customerName: t.customer_firstname ? (t.customer_firstname + " " + (t.customer_lastname || "")) : (t.customer_email || ""),
+                        customerEmail: t.customer_email || "",
+                        customerPhone: t.customer_phone || "",
                         providerName: t.provider_name || "",
+                        providerEmail: t.provider_email || "",
+                        providerPhone: t.provider_phone || "",
                         address: t.address || "",
                         price: t.price,
                         status: t.status,
@@ -3719,7 +3724,7 @@ async function _syncAdminData() {
                         var localOnly = [];
                         var backendSet = {};
                         for (var bi = 0; bi < msgs.length; bi++) {
-                            var backendSender = msgs[bi].sender === "Admin" ? "admin" : (msgs[bi].sender === "Customer" ? "customer" : msgs[bi].sender);
+                            var backendSender = normalizeChatSender(msgs[bi].sender);
                             backendSet[msgs[bi].message + "_" + backendSender] = true;
                         }
                         for (var li = 0; li < chatConversations[cid].length; li++) {
@@ -3729,9 +3734,7 @@ async function _syncAdminData() {
                             }
                         }
                         chatConversations[cid] = msgs.map(function(m) {
-                            var sender = m.sender === "Admin" ? "admin" : m.sender;
-                            if (currentUser && sender === currentUser.name) sender = "customer";
-                            return { id: m.id, text: m.message, sender: sender, time: new Date(m.created_at).getTime(), created_at: m.created_at };
+                            return { id: m.id, text: m.message, sender: normalizeChatSender(m.sender), time: new Date(m.created_at).getTime(), created_at: m.created_at };
                         }).concat(localOnly);
                         checkNewChatMessages(cid);
                     }
@@ -4001,7 +4004,11 @@ function renderAdminOrders() {
             "<div class=\"flex justify-between items-start\"><div><p class=\"font-semibold\">" + t.serviceName + "</p>" +
             "<p class=\"text-sm text-gray-500\">Order #" + t.id + "</p>" +
             "<p class=\"text-sm\"><strong>Customer:</strong> " + (t.customerName || "N/A") + "</p>" +
+            "<p class=\"text-sm\"><strong>Customer Email:</strong> " + (t.customerEmail || "N/A") + "</p>" +
+            "<p class=\"text-sm\"><strong>Customer Phone:</strong> " + (t.customerPhone || "N/A") + "</p>" +
             "<p class=\"text-sm\"><strong>Provider:</strong> " + (t.providerName || "Unassigned") + "</p>" +
+            "<p class=\"text-sm\"><strong>Provider Email:</strong> " + (t.providerEmail || "N/A") + "</p>" +
+            "<p class=\"text-sm\"><strong>Provider Phone:</strong> " + (t.providerPhone || "N/A") + "</p>" +
             "<p class=\"text-sm\"><strong>Address:</strong> " + (t.address || "N/A") + "</p>" +
             "<p class=\"text-sm\"><strong>Price:</strong> UGX " + (t.price || 0).toLocaleString() + "</p>" +
             "<p class=\"text-sm\"><strong>Status:</strong> " + t.status + "</p>" +
@@ -4188,7 +4195,6 @@ async function sendCustomerAdminMessage() {
     var chatId = "customer-admin-" + (currentUser.email || currentUser.phone || "guest");
     if (!chatConversations[chatId]) chatConversations[chatId] = [];
     chatConversations[chatId].push({ text: text, sender: "customer", time: Date.now() });
-    syncChatToStorage(chatId);
 
     // Send to backend
     var jwt = window.__HAVENGO_JWT__;
@@ -4587,6 +4593,15 @@ function findTask(taskId) {
     return null;
 }
 
+function normalizeChatSender(sender) {
+    if (sender === "Admin") return "admin";
+    if (sender === "Customer") return "customer";
+    if (sender === "Provider") return "provider";
+    if (currentUser && sender === currentUser.name) return "customer";
+    if (currentLoggedProvider && (sender === currentLoggedProvider.name || sender === currentLoggedProvider.business_name || sender === currentLoggedProvider.firstname + ' ' + currentLoggedProvider.lastname)) return "provider";
+    return sender;
+}
+
 function renderChatMessages(messages, currentRole) {
     var container = document.getElementById("chat-messages");
     if (!container) return;
@@ -4630,7 +4645,6 @@ async function deleteChatMessage(convId, msgId, index) {
     // Remove locally
     if (chatConversations[convId] && chatConversations[convId][index]) {
         chatConversations[convId].splice(index, 1);
-        syncChatToStorage(convId);
         var currentRole = currentAdmin ? "admin" : (currentLoggedProvider ? "provider" : "customer");
         if (convId && (convId.indexOf("customer-admin") === 0 || convId.indexOf("provider-admin") === 0)) {
             renderCustomerAdminMessages();
@@ -4708,14 +4722,13 @@ async function sendChatMessage() {
     var msg = { text: text, sender: currentRole, time: Date.now() };
 
     chatConversations[currentChatTaskId].push(msg);
-    syncChatToStorage(currentChatTaskId);
 
     // Send to backend for cross-browser sync
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
     var jwt = window.__HAVENGO_JWT__;
     if (jwt) {
         var convId = currentChatTaskId;
-        var chatSender = currentAdmin ? "Admin" : (currentLoggedProvider ? currentLoggedProvider.name : "Customer");
+        var chatSender = currentAdmin ? "Admin" : (currentLoggedProvider ? "Provider" : "Customer");
         try {
             var endpoint = currentAdmin ? "/admin/chat/send" : "/chat/send";
             await fetch(apiUrl + endpoint, {
@@ -4731,12 +4744,6 @@ async function sendChatMessage() {
 
     var notifTitle = currentRole === "customer" ? "New Message from Customer" : "New Message from Provider";
     addNotification("\uD83D\uDCAC", notifTitle, text);
-}
-
-function syncChatToStorage(taskId) {
-    try {
-        localStorage.setItem("havengo-chat-" + taskId, JSON.stringify(chatConversations[taskId] || []));
-    } catch(e) { console.warn(e); }
 }
 
 async function loadChatFromStorage(taskId) {
@@ -4758,7 +4765,7 @@ async function loadChatFromStorage(taskId) {
                         var backendSet = {};
                         for (var bi = 0; bi < backendMsgs.length; bi++) {
                             var bm = backendMsgs[bi];
-                            var backendSender = bm.sender === "Admin" ? "admin" : (bm.sender === "Customer" ? "customer" : bm.sender);
+                            var backendSender = normalizeChatSender(bm.sender);
                             backendSet[bm.message + "_" + backendSender] = true;
                         }
                         for (var li = 0; li < chatConversations[taskId].length; li++) {
@@ -4770,9 +4777,7 @@ async function loadChatFromStorage(taskId) {
                     }
                     // Replace with backend messages + local-only messages, sorted by time
                     var combined = backendMsgs.map(function(bm) {
-                        var sender = bm.sender === "Admin" ? "admin" : bm.sender;
-                        if (currentUser && sender === currentUser.name) sender = "customer";
-                        return { id: bm.id, text: bm.message, sender: sender, time: new Date(bm.created_at).getTime() };
+                        return { id: bm.id, text: bm.message, sender: normalizeChatSender(bm.sender), time: new Date(bm.created_at).getTime() };
                     }).concat(localOnly);
                     combined.sort(function(a, b) { return (a.time || 0) - (b.time || 0); });
                     chatConversations[taskId] = combined;
@@ -4784,26 +4789,6 @@ async function loadChatFromStorage(taskId) {
             }
         } catch(e) { console.warn(e); }
     }
-
-    // Fallback: localStorage
-    try {
-        var data = localStorage.getItem("havengo-chat-" + taskId);
-        if (data) {
-            var stored = JSON.parse(data);
-            if (stored && stored.length > 0) {
-                if (!chatConversations[taskId]) chatConversations[taskId] = [];
-                var localLen = chatConversations[taskId].length;
-                if (stored.length > localLen) {
-                    var newMsgs = stored.slice(localLen);
-                    for (var mi = 0; mi < newMsgs.length; mi++) {
-                        chatConversations[taskId].push(newMsgs[mi]);
-                    }
-                    var currentRole = currentAdmin ? "admin" : (currentLoggedProvider ? "provider" : "customer");
-                    renderChatMessages(chatConversations[taskId], currentRole);
-                }
-            }
-        }
-    } catch(e) { console.warn(e); }
 }
 
 var lastChatMessageMaxId = {};
@@ -5669,6 +5654,7 @@ window.onload = function() {
             fetchCustomerBookings();
             fetchPendingPayments();
             fetchBackendNotifications();
+            fetchCustomerBalance();
             renderBookings();
             updateProfileWithUser();
         }
@@ -5680,6 +5666,20 @@ window.onload = function() {
         }
     }, 15000);
 };
+
+async function fetchCustomerBalance() {
+    if (!window.__HAVENGO_JWT__ || !currentUser) return;
+    try {
+        var resp = await fetch(HAVENGO_BACKEND_URL + "/api/customer/profile", {
+            headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ },
+            signal: AbortSignal.timeout(15000)
+        });
+        if (resp.ok) {
+            var data = await resp.json();
+            if (data.balance !== undefined) userBalance = data.balance;
+        }
+    } catch(e) { /* server unavailable - keep cached balance */ }
+}
 </script>
 </body>
 </html>
