@@ -3136,7 +3136,7 @@ async function enterProviderDashboard(provider) {
                     });
                 }
             }
-            var compResp = await fetch(apiUrl + "/provider/completed-tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ } });
+            var compResp = await fetch(apiUrl + "/provider/completed-tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }, signal: AbortSignal.timeout(35000) });
             if (compResp.ok) {
                 var backendCompleted = await compResp.json();
                 completedTasks = [];
@@ -3190,7 +3190,7 @@ async function enterProviderDashboard(provider) {
                 if (providerTasks.length > prevCount) {
                     addNotification("\uD83D\uDCE2", "New Order Received", "You have " + (providerTasks.length - prevCount) + " new order(s) to review!");
                 }
-                var compResp = await fetch(apiUrl + "/provider/completed-tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ } });
+                var compResp = await fetch(apiUrl + "/provider/completed-tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }, signal: AbortSignal.timeout(35000) });
                 if (compResp.ok) {
                     var backendCompleted = await compResp.json();
                     completedTasks = [];
@@ -3627,7 +3627,7 @@ async function _syncAdminData() {
         var headers = { "Authorization": "Bearer " + token };
         var apiUrl = HAVENGO_BACKEND_URL + "/api";
         // Fetch providers
-        var provResp = await fetch(apiUrl + "/admin/providers", { headers: headers });
+        var provResp = await fetch(apiUrl + "/admin/providers", { headers: headers, signal: AbortSignal.timeout(35000) });
         if (provResp.ok) {
             var providers = await provResp.json();
             registeredProviders = providers.map(function(p) {
@@ -3651,18 +3651,18 @@ async function _syncAdminData() {
             });
         }
         // Fetch revenue
-        var revResp = await fetch(apiUrl + "/admin/revenue", { headers: headers });
+        var revResp = await fetch(apiUrl + "/admin/revenue", { headers: headers, signal: AbortSignal.timeout(35000) });
         if (revResp.ok) {
             var rev = await revResp.json();
             adminRevenueData = rev;
         }
         // Fetch users
-        var usersResp = await fetch(apiUrl + "/admin/users", { headers: headers });
+        var usersResp = await fetch(apiUrl + "/admin/users", { headers: headers, signal: AbortSignal.timeout(35000) });
         if (usersResp.ok) {
             allUsers = await usersResp.json();
         }
         // Fetch price requests
-        var prResp = await fetch(apiUrl + "/admin/price-requests", { headers: headers });
+        var prResp = await fetch(apiUrl + "/admin/price-requests", { headers: headers, signal: AbortSignal.timeout(35000) });
         if (prResp.ok) {
             var prs = await prResp.json();
             priceChangeRequests = [];
@@ -3714,14 +3714,14 @@ async function _syncAdminData() {
         } catch(et) { console.warn(et); }
         // Fetch admin conversations from backend so admin sees all chats
         try {
-            var convResp = await fetch(apiUrl + "/admin/chat/conversations", { headers: headers });
+            var convResp = await fetch(apiUrl + "/admin/chat/conversations", { headers: headers, signal: AbortSignal.timeout(35000) });
             if (convResp.ok) {
                 var convIds = await convResp.json();
                 for (var ci = 0; ci < convIds.length; ci++) {
                     var cid = convIds[ci];
                     if (!chatConversations[cid]) chatConversations[cid] = [];
                     // Fetch messages for this conversation
-                    var msgResp = await fetch(apiUrl + "/admin/chat/" + encodeURIComponent(cid), { headers: headers });
+                    var msgResp = await fetch(apiUrl + "/admin/chat/" + encodeURIComponent(cid), { headers: headers, signal: AbortSignal.timeout(35000) });
                     if (msgResp.ok) {
                         var msgs = await msgResp.json();
                         // Preserve local-only messages (not yet on backend)
@@ -5692,6 +5692,7 @@ window.onload = function() {
 
 // Loading indicator for backend cold starts
 var _loadingTimer = null;
+var _safetyTimer = null;
 function startLoading(msg) {
     stopLoading();
     var el = document.getElementById("loading-overlay");
@@ -5699,10 +5700,15 @@ function startLoading(msg) {
     if (txt) txt.textContent = msg || "Waking up server\u2026";
     _loadingTimer = setTimeout(function() {
         if (el) el.classList.remove("hidden");
+        // Safety: auto-hide after 50s in case a fetch hangs without AbortSignal.timeout
+        _safetyTimer = setTimeout(function() {
+            if (el) el.classList.add("hidden");
+        }, 50000);
     }, 2000);
 }
 function stopLoading() {
     if (_loadingTimer) { clearTimeout(_loadingTimer); _loadingTimer = null; }
+    if (_safetyTimer) { clearTimeout(_safetyTimer); _safetyTimer = null; }
     var el = document.getElementById("loading-overlay");
     if (el) el.classList.add("hidden");
 }
