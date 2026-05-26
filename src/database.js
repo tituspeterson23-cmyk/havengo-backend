@@ -1,153 +1,89 @@
-const initSqlJs = require('sql.js');
-const path = require('path');
-const fs = require('fs');
+const { Pool } = require('pg');
 
-const DB_PATH = path.join(__dirname, '..', 'data', 'havengo.db');
+const DATABASE_URL = process.env.DATABASE_URL || 'postgresql://neondb_owner:npg_j1DzgMkZf5UW@ep-rough-waterfall-altogw50.c-3.eu-central-1.aws.neon.tech/neondb?sslmode=require';
 
-let db;
-let SQL;
+let pool;
 
-// Compatibility wrapper: sql.js -> better-sqlite3-like API
 class StatementWrapper {
-  constructor(sqlDb, text) {
-    this.sqlDb = sqlDb;
+  constructor(pool, text) {
+    this.pool = pool;
     this.text = text;
   }
 
-  run(...params) {
-    try {
-      const stmt = this.sqlDb.__prepare(this.text);
-      stmt.bind(params);
-      stmt.step();
-      stmt.free();
-      return { changes: 1 };
-    } catch (e) {
-      const stmt = this.sqlDb.__prepare("SELECT changes() AS c");
-      stmt.step();
-      const row = stmt.getAsObject();
-      stmt.free();
-      return { changes: row.c || 0 };
-    }
+  _convert(params) {
+    let i = 0;
+    return this.text.replace(/\?/g, () => `$${++i}`);
   }
 
-  get(...params) {
-    try {
-      const stmt = this.sqlDb.__prepare(this.text);
-      stmt.bind(params);
-      if (stmt.step()) {
-        const row = stmt.getAsObject();
-        stmt.free();
-        return row;
-      }
-      stmt.free();
-      return undefined;
-    } catch (e) {
-      return undefined;
-    }
+  async run(...params) {
+    const sql = this._convert(params);
+    const result = await this.pool.query(sql, params);
+    return { changes: result.rowCount };
   }
 
-  all(...params) {
-    const rows = [];
-    try {
-      const stmt = this.sqlDb.__prepare(this.text);
-      if (params.length > 0) stmt.bind(params);
-      while (stmt.step()) {
-        rows.push(stmt.getAsObject());
-      }
-      stmt.free();
-    } catch (e) {}
-    return rows;
+  async get(...params) {
+    const sql = this._convert(params);
+    const result = await this.pool.query(sql, params);
+    return result.rows.length > 0 ? result.rows[0] : undefined;
+  }
+
+  async all(...params) {
+    const sql = this._convert(params);
+    const result = await this.pool.query(sql, params);
+    return result.rows;
   }
 
   pluck() {
     const self = this;
     return {
-      get: (...params) => {
-        try {
-          const stmt = self.sqlDb.__prepare(self.text);
-          if (params.length > 0) stmt.bind(params);
-          if (stmt.step()) {
-            const row = stmt.getAsObject();
-            stmt.free();
-            const vals = Object.values(row);
-            return vals.length > 0 ? vals[0] : undefined;
-          }
-          stmt.free();
-          return undefined;
-        } catch (e) {
-          return undefined;
-        }
+      get: async (...params) => {
+        const sql = self._convert(params);
+        const result = await self.pool.query(sql, params);
+        if (result.rows.length === 0) return undefined;
+        const vals = Object.values(result.rows[0]);
+        return vals.length > 0 ? vals[0] : undefined;
       },
-      all: (...params) => {
-        const rows = [];
-        try {
-          const stmt = self.sqlDb.__prepare(self.text);
-          if (params.length > 0) stmt.bind(params);
-          while (stmt.step()) {
-            const row = stmt.getAsObject();
-            const vals = Object.values(row);
-            rows.push(vals.length > 0 ? vals[0] : undefined);
-          }
-          stmt.free();
-        } catch (e) {}
-        return rows;
+      all: async (...params) => {
+        const sql = self._convert(params);
+        const result = await self.pool.query(sql, params);
+        return result.rows.map(row => {
+          const vals = Object.values(row);
+          return vals.length > 0 ? vals[0] : undefined;
+        });
       }
     };
   }
 }
 
 function getDb() {
-  return db;
+  return pool;
 }
 
-function saveDb() {
-  if (!db) return;
-  try {
-    const data = db.export();
-    const buffer = Buffer.from(data);
-    const dir = path.dirname(DB_PATH);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(DB_PATH, buffer);
-  } catch (e) {
-    console.error('Error saving database:', e.message);
-  }
-}
-
-// Auto-save every 10 seconds
-let saveTimer = null;
-function startAutoSave() {
-  if (saveTimer) clearInterval(saveTimer);
-  saveTimer = setInterval(saveDb, 10000);
+// Monkey-patch prepare onto pool so route files can call db.prepare(sql)
+function patchPool(p) {
+  p.prepare = (text) => new StatementWrapper(p, text);
 }
 
 async function initDatabase() {
-  const sqlJs = await initSqlJs();
+  pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  });
+  patchPool(pool);
 
-  const dir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-
-  // Load existing database or create new
-  if (fs.existsSync(DB_PATH)) {
-    try {
-      const fileBuffer = fs.readFileSync(DB_PATH);
-      db = new sqlJs.Database(fileBuffer);
-      console.log('Loaded existing database');
-    } catch (e) {
-      db = new sqlJs.Database();
-      console.log('Created new database (error loading existing)');
-    }
-  } else {
-    db = new sqlJs.Database();
-    console.log('Created new database');
+  // Test connection
+  const client = await pool.connect();
+  try {
+    await client.query('SELECT 1');
+    console.log('Connected to PostgreSQL');
+  } finally {
+    client.release();
   }
 
-  // Enable foreign keys
-  db.run("PRAGMA foreign_keys = ON");
-
   // Create tables
-  db.run(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       firstname TEXT NOT NULL,
       lastname TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
@@ -155,13 +91,13 @@ async function initDatabase() {
       password_hash TEXT NOT NULL,
       bitmoji TEXT DEFAULT '😊',
       balance REAL DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
 
-  db.run(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS providers (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       firstname TEXT NOT NULL,
       lastname TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
@@ -176,18 +112,13 @@ async function initDatabase() {
       verified INTEGER DEFAULT 0,
       total_earnings REAL DEFAULT 0,
       registration_fee_paid INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
-  // Add location/bio/experience columns if missing (migration for existing DB)
-  try { db.run('ALTER TABLE providers ADD COLUMN location TEXT DEFAULT \'\''); } catch(e) {}
-  try { db.run('ALTER TABLE providers ADD COLUMN bio TEXT DEFAULT \'\''); } catch(e) {}
-  try { db.run('ALTER TABLE providers ADD COLUMN experience INTEGER DEFAULT 0'); } catch(e) {}
-  try { db.run('ALTER TABLE providers ADD COLUMN registration_fee_paid INTEGER DEFAULT 0'); } catch(e) {}
 
-  db.run(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS tasks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       customer_email TEXT NOT NULL,
       service_id INTEGER NOT NULL,
       service_name TEXT NOT NULL,
@@ -197,201 +128,156 @@ async function initDatabase() {
       status TEXT DEFAULT 'pending_confirmation',
       address TEXT,
       details TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (customer_email) REFERENCES users(email)
+      created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
 
-  db.run(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS completed_tasks (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       task_id INTEGER NOT NULL,
       customer_email TEXT NOT NULL,
       provider_name TEXT NOT NULL,
       provider_id INTEGER,
       service_name TEXT NOT NULL,
       price REAL NOT NULL,
-      completed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      paid INTEGER DEFAULT 0,
-      FOREIGN KEY (task_id) REFERENCES tasks(id)
+      completed_at TIMESTAMPTZ DEFAULT NOW(),
+      paid INTEGER DEFAULT 0
     )
   `);
 
-  db.run(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS pending_payments (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       task_id INTEGER NOT NULL,
       customer_email TEXT NOT NULL,
       provider_name TEXT NOT NULL,
       provider_id INTEGER,
       amount REAL NOT NULL,
-      completed_at DATETIME NOT NULL,
-      status TEXT DEFAULT 'pending',
-      FOREIGN KEY (task_id) REFERENCES tasks(id)
+      completed_at TIMESTAMPTZ NOT NULL,
+      status TEXT DEFAULT 'pending'
     )
   `);
 
-  db.run(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS chat_messages (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       conversation_id TEXT NOT NULL,
       sender TEXT NOT NULL,
       message TEXT NOT NULL,
       encrypted INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
 
-  db.run(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS notifications (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       user_email TEXT,
       icon TEXT,
       title TEXT,
       message TEXT,
       type TEXT DEFAULT 'general',
-      expiry DATETIME,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      read INTEGER DEFAULT 0,
+      expiry TIMESTAMPTZ,
+      created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
 
-  db.run(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS price_requests (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       provider_name TEXT NOT NULL,
       provider_id INTEGER,
       service_id INTEGER NOT NULL,
       current_price REAL NOT NULL,
       requested_price REAL NOT NULL,
       status TEXT DEFAULT 'pending',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
 
-  db.run(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS deletion_requests (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       identifier TEXT NOT NULL,
       type TEXT NOT NULL,
-      requested_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      requested_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
 
-  db.run(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS admin_settings (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       key TEXT UNIQUE NOT NULL,
       value TEXT NOT NULL
     )
   `);
 
-  db.run(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS reviews (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       email TEXT,
       rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
       text TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
 
-  db.run(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS user_addresses (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       user_email TEXT NOT NULL,
       label TEXT,
-      address TEXT NOT NULL,
-      FOREIGN KEY (user_email) REFERENCES users(email)
+      address TEXT NOT NULL
     )
   `);
 
-  db.run(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS verification_codes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       identifier TEXT NOT NULL,
       code TEXT NOT NULL,
       type TEXT DEFAULT 'email',
-      expires_at DATETIME NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
       used INTEGER DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
 
-  db.run(`
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS tracking (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      id SERIAL PRIMARY KEY,
       order_id INTEGER NOT NULL,
       user_email TEXT NOT NULL,
       lat REAL NOT NULL,
       lng REAL NOT NULL,
       role TEXT NOT NULL CHECK(role IN ('customer', 'provider')),
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      updated_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
 
-  // Add read column to notifications if missing
-  try { db.run('ALTER TABLE notifications ADD COLUMN read INTEGER DEFAULT 0'); } catch(e) {}
-
   // Create indexes
-  try { db.run("CREATE INDEX IF NOT EXISTS idx_chat_conv ON chat_messages(conversation_id)"); } catch(e) {}
-  try { db.run("CREATE INDEX IF NOT EXISTS idx_tasks_customer ON tasks(customer_email)"); } catch(e) {}
-  try { db.run("CREATE INDEX IF NOT EXISTS idx_tasks_provider ON tasks(provider_name)"); } catch(e) {}
-  try { db.run("CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_email)"); } catch(e) {}
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_chat_conv ON chat_messages(conversation_id)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_tasks_customer ON tasks(customer_email)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_tasks_provider ON tasks(provider_name)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_email)');
 
   // Seed admin if not exists
-  const stmt = db.prepare("SELECT id FROM admin_settings WHERE key = ?");
-  stmt.bind(['admin_initialized']);
-  const adminExists = stmt.step();
-  stmt.free();
-
-  if (!adminExists) {
+  const adminCheck = await pool.query("SELECT id FROM admin_settings WHERE key = 'admin_initialized'");
+  if (adminCheck.rows.length === 0) {
     const bcrypt = require('bcryptjs');
     const hash = bcrypt.hashSync('23.Forlife', 10);
-    db.run("INSERT INTO admin_settings (key, value) VALUES (?, ?)", ['admin_initialized', 'true']);
-    db.run("INSERT INTO admin_settings (key, value) VALUES (?, ?)", ['admin_email', 'thermypetson@gmail.com']);
-    db.run("INSERT INTO admin_settings (key, value) VALUES (?, ?)", ['admin_phone', '0757532066']);
-    db.run("INSERT INTO admin_settings (key, value) VALUES (?, ?)", ['admin_password_hash', hash]);
+    await pool.query("INSERT INTO admin_settings (key, value) VALUES ($1, $2)", ['admin_initialized', 'true']);
+    await pool.query("INSERT INTO admin_settings (key, value) VALUES ($1, $2)", ['admin_email', 'thermypetson@gmail.com']);
+    await pool.query("INSERT INTO admin_settings (key, value) VALUES ($1, $2)", ['admin_phone', '0757532066']);
+    await pool.query("INSERT INTO admin_settings (key, value) VALUES ($1, $2)", ['admin_password_hash', hash]);
     console.log('Admin account seeded.');
-    saveDb();
   }
 
-  // Patch db methods for route compatibility
-  db.__prepare = db.prepare.bind(db);
-  db.prepare = (text) => new StatementWrapper(db, text);
-
-  // Also patch db.run for better-sqlite3 compatibility
-  const origRun = db.run.bind(db);
-  db.run = (sql, params) => {
-    if (params) {
-      const stmt = db.__prepare(sql);
-      stmt.bind(params);
-      try { stmt.step(); } catch(e) {}
-      stmt.free();
-    } else {
-      origRun(sql);
-    }
-    return { changes: 1 };
-  };
-
-  db.exec = (sql) => {
-    db.run(sql);
-    return db;
-  };
-
-  startAutoSave();
-  console.log('Database initialized at', DB_PATH);
-  return db;
+  console.log('Database initialized');
+  return pool;
 }
 
-// Cleanup on exit
-process.on('exit', () => {
-  saveDb();
-  if (saveTimer) clearInterval(saveTimer);
-});
-process.on('SIGINT', () => {
-  saveDb();
-  process.exit(0);
-});
-
-module.exports = { getDb, initDatabase, saveDb };
+module.exports = { getDb, initDatabase };

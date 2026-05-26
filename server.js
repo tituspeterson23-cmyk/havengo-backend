@@ -5,11 +5,8 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
 
-const { initDatabase } = require('./src/database');
+const { initDatabase, getDb } = require('./src/database');
 const { sanitize } = require('./src/auth');
-
-// Initialize database
-initDatabase();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -32,7 +29,6 @@ app.use((req, res, next) => {
   if (req.body && typeof req.body === 'object') {
     for (const key of Object.keys(req.body)) {
       if (typeof req.body[key] === 'string') {
-        // Don't sanitize password fields - they get hashed anyway
         if (!key.toLowerCase().includes('password')) {
           req.body[key] = sanitize(req.body[key]);
         }
@@ -57,10 +53,9 @@ app.get('/api/health', (req, res) => {
 });
 
 // Public: list verified providers for service listing
-app.get('/api/providers/verified', (req, res) => {
-  const { getDb } = require('./src/database');
+app.get('/api/providers/verified', async (req, res) => {
   const db = getDb();
-  const providers = db.prepare("SELECT id, firstname, lastname, email, phone, business_name, services, bitmoji, total_earnings, registration_fee_paid FROM providers WHERE verified = 1").all();
+  const providers = await db.prepare("SELECT id, firstname, lastname, email, phone, business_name, services, bitmoji, total_earnings, registration_fee_paid FROM providers WHERE verified = 1").all();
   const mapped = providers.map(p => ({
     id: p.id, name: p.firstname + ' ' + p.lastname, business_name: p.business_name,
     email: p.email, phone: p.phone, services: p.services, bitmoji: p.bitmoji,
@@ -80,22 +75,20 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
-// Payment reminder - 2 minutes after task completion, notify customer to pay
-setInterval(() => {
+// Payment reminder interval
+setInterval(async () => {
   try {
-    const db = require('./src/database').getDb();
+    const db = getDb();
     const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString();
     const threeMinAgo = new Date(Date.now() - 3 * 60 * 1000).toISOString();
-    // Find tasks where payment is pending and 2-3 minutes have passed (send reminder once)
-    const reminders = db.prepare("SELECT * FROM pending_payments WHERE status = 'pending' AND completed_at < ? AND completed_at > ?").all(twoMinAgo, threeMinAgo);
+    const reminders = await db.prepare("SELECT * FROM pending_payments WHERE status = 'pending' AND completed_at < $1 AND completed_at > $2").all(twoMinAgo, threeMinAgo);
     for (const p of reminders) {
-      db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '⏰', 'Payment Reminder', 'Payment of UGX " + p.amount + " for your task is due. Pay within 10 hours or it will be auto-deducted.', 'payment_reminder')")
-        .run(p.customer_email);
-      // Also notify provider
-      const prov = db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(p.provider_name, p.provider_name);
+      await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES ($1, '⏰', 'Payment Reminder', $2, 'payment_reminder')")
+        .run(p.customer_email, 'Payment of UGX ' + p.amount + ' for your task is due. Pay within 10 hours or it will be auto-deducted.');
+      const prov = await db.prepare("SELECT email FROM providers WHERE business_name = $1 OR (firstname || ' ' || lastname) = $2").get(p.provider_name, p.provider_name);
       if (prov) {
-        db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '⏰', 'Payment Pending', 'Customer payment of UGX " + p.amount + " is due within 10 hours.', 'payment_reminder')")
-          .run(prov.email);
+        await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES ($1, '⏰', 'Payment Pending', $2, 'payment_reminder')")
+          .run(prov.email, 'Customer payment of UGX ' + p.amount + ' is due within 10 hours.');
       }
     }
   } catch (e) {
@@ -103,39 +96,33 @@ setInterval(() => {
   }
 }, 60000);
 
-// Auto-payment checker - runs every 60 seconds
-setInterval(() => {
+// Auto-payment checker
+setInterval(async () => {
   try {
-    const db = require('./src/database').getDb();
+    const db = getDb();
     const tenHoursAgo = new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString();
-    const expired = db.prepare("SELECT * FROM pending_payments WHERE status = 'pending' AND completed_at < ?").all(tenHoursAgo);
+    const expired = await db.prepare("SELECT * FROM pending_payments WHERE status = 'pending' AND completed_at < $1").all(tenHoursAgo);
 
     for (const payment of expired) {
-      // Auto-deduct from customer balance
       const customerAmount = payment.amount;
       const providerAmount = customerAmount * 0.85;
       const systemAmount = customerAmount * 0.15;
 
-      // Mark completed_task as paid
-      db.prepare('UPDATE completed_tasks SET paid = 1 WHERE task_id = ?').run(payment.task_id);
-      // Update pending payment
-      db.prepare("UPDATE pending_payments SET status = 'auto_paid' WHERE id = ?").run(payment.id);
-      // Credit provider
-      db.prepare('UPDATE providers SET total_earnings = total_earnings + ? WHERE business_name = ? OR (firstname || \' \' || lastname) = ?').run(providerAmount, payment.provider_name, payment.provider_name);
+      await db.prepare('UPDATE completed_tasks SET paid = 1 WHERE task_id = $1').run(payment.task_id);
+      await db.prepare("UPDATE pending_payments SET status = 'auto_paid' WHERE id = $1").run(payment.id);
+      await db.prepare('UPDATE providers SET total_earnings = total_earnings + $1 WHERE business_name = $2 OR (firstname || \' \' || lastname) = $3').run(providerAmount, payment.provider_name, payment.provider_name);
 
-      // Deduct from customer (if possible)
-      const customer = db.prepare('SELECT * FROM users WHERE email = ?').get(payment.customer_email);
+      const customer = await db.prepare('SELECT * FROM users WHERE email = $1').get(payment.customer_email);
       if (customer && customer.balance >= customerAmount) {
-        db.prepare('UPDATE users SET balance = balance - ? WHERE email = ?').run(customerAmount, payment.customer_email);
+        await db.prepare('UPDATE users SET balance = balance - $1 WHERE email = $2').run(customerAmount, payment.customer_email);
       }
 
-      // Notify customer and provider about auto-payment
-      db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '⏰', 'Auto-Payment Completed', 'UGX " + payment.amount + " auto-deducted for completed task (10-hour window expired).', 'auto_payment')")
-        .run(payment.customer_email);
-      const provNotify = db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(payment.provider_name, payment.provider_name);
+      await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES ($1, '⏰', 'Auto-Payment Completed', $2, 'auto_payment')")
+        .run(payment.customer_email, 'UGX ' + payment.amount + ' auto-deducted for completed task (10-hour window expired).');
+      const provNotify = await db.prepare("SELECT email FROM providers WHERE business_name = $1 OR (firstname || ' ' || lastname) = $2").get(payment.provider_name, payment.provider_name);
       if (provNotify) {
-        db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '💰', 'Payment Released', 'UGX " + providerAmount + " credited to your account (auto-payment).', 'auto_payment')")
-          .run(provNotify.email);
+        await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES ($1, '💰', 'Payment Released', $2, 'auto_payment')")
+          .run(provNotify.email, 'UGX ' + providerAmount + ' credited to your account (auto-payment).');
       }
 
       console.log('Auto-payment processed for task', payment.task_id);
@@ -145,20 +132,20 @@ setInterval(() => {
   }
 }, 60000);
 
-// Deletion request processor - runs every 5 minutes
-setInterval(() => {
+// Deletion request processor
+setInterval(async () => {
   try {
-    const db = require('./src/database').getDb();
+    const db = getDb();
     const fifteenDaysAgo = new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString();
-    const expired = db.prepare("SELECT * FROM deletion_requests WHERE requested_at < ?").all(fifteenDaysAgo);
+    const expired = await db.prepare("SELECT * FROM deletion_requests WHERE requested_at < $1").all(fifteenDaysAgo);
 
     for (const del of expired) {
       if (del.type === 'customer') {
-        db.prepare('DELETE FROM users WHERE email = ?').run(del.identifier);
+        await db.prepare('DELETE FROM users WHERE email = $1').run(del.identifier);
       } else if (del.type === 'provider') {
-        db.prepare('DELETE FROM providers WHERE email = ?').run(del.identifier);
+        await db.prepare('DELETE FROM providers WHERE email = $1').run(del.identifier);
       }
-      db.prepare('DELETE FROM deletion_requests WHERE id = ?').run(del.id);
+      await db.prepare('DELETE FROM deletion_requests WHERE id = $1').run(del.id);
       console.log('Account deleted:', del.identifier);
     }
   } catch (e) {
@@ -173,9 +160,18 @@ if (!fs.existsSync(publicDir)) {
   fs.mkdirSync(publicDir, { recursive: true });
 }
 
-app.listen(PORT, () => {
-  console.log(`\nHavenGo Backend running at http://localhost:${PORT}`);
-  console.log(`Admin login at http://localhost:${PORT}/`);
-  console.log('API endpoints available under /api/');
-  console.log('Database: data/havengo.db\n');
-});
+// Start server after database is initialized
+(async () => {
+  try {
+    await initDatabase();
+    app.listen(PORT, () => {
+      console.log(`\nHavenGo Backend running at http://localhost:${PORT}`);
+      console.log(`Admin login at http://localhost:${PORT}/`);
+      console.log('API endpoints available under /api/');
+      console.log('Connected to PostgreSQL (Neon)\n');
+    });
+  } catch (err) {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  }
+})();

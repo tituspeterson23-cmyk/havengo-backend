@@ -31,4 +31,6 @@ services:
         value: ""
       - key: MAIL_FROM
         value: "admin@havengo.netlify.app"
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_j1DzgMkZf5UW@ep-rough-waterfall-altogw50.c-3.eu-central-1.aws.neon.tech/neondb?sslmode=require
 

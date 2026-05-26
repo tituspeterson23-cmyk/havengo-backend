@@ -1,11 +1,12 @@
 {
   "name": "havengo-backend",
   "version": "1.0.0",
-  "description": "HavenGo Uganda - secure backend with SQLite",
+  "description": "HavenGo Uganda - secure backend with PostgreSQL (Neon)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "setup": "node setup.js"
+    "setup": "node setup.js",
+    "seed": "node seed.cjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -16,6 +17,7 @@
     "helmet": "^7.1.0",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.10.1",
+    "pg": "^8.21.0",
     "sql.js": "^1.14.1",
     "uuid": "^10.0.0"
   }
