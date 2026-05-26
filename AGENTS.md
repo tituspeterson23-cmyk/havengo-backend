@@ -13,7 +13,6 @@
 
 ## Credentials
 - **Admin**: `thermypetson@gmail.com` / `23.Forlife`
-- **Demo Provider**: `aisha@havengo.ug` / `password`
 
 ## GitHub
 - Username: `tituspeterson23-cmyk`
@@ -192,7 +191,7 @@ Migrate from SQLite (sql.js) to PostgreSQL (Neon) for persistent data storage, f
 - `INSERT ... RETURNING id` replaces `result.lastInsertRowid` (customer.js place-order)
 - `server.js` — startup wrapped in async IIFE, 3 setInterval callbacks made async
 - `render.yaml` + `.env` — `DATABASE_URL` added with Neon connection string
-- `seed.cjs` — demo provider `aisha@havengo.ug` / `password`
+- `seed.cjs` — database initialization only (no demo data)
 - `package.json` — added `pg` dependency, `"seed"` script
 
 ### How It Works Now
@@ -215,7 +214,7 @@ Migrate from SQLite (sql.js) to PostgreSQL (Neon) for persistent data storage, f
 - Frontend (Netlify): `https://havengo.netlify.app`
 - GitHub Backend: `https://github.com/tituspeterson23-cmyk/havengo-backend` (branch `main`)
 - GitHub Frontend: `https://github.com/tituspeterson23-cmyk/havengo-frontend` (branch `main`)
-- Credentials: Admin `thermypetson@gmail.com` / `23.Forlife`, Provider `aisha@havengo.ug` / `password`
+- Credentials: Admin `thermypetson@gmail.com` / `23.Forlife`
 - Database now: **Neon PostgreSQL** (not SQLite in data/havengo.db)
 
 ## Important Constraints (NEVER break these)
