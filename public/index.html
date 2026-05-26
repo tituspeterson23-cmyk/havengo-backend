@@ -165,11 +165,6 @@
 ::-webkit-scrollbar-thumb { background: transparent; }
 * { scrollbar-width: none; }
 * { -ms-overflow-style: none; }
-/* Loading overlay */
-#loading-overlay{ position: fixed; inset: 0; z-index: 99999; background: rgba(15,23,42,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 16px; }
-#loading-spinner{ width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.2); border-top-color: #34d399; border-radius: 50%; animation: spin 0.8s linear infinite; }
-@keyframes spin{ to{ transform: rotate(360deg); } }
-#loading-text{ color: white; font-size: 14px; font-weight: 500; letter-spacing: 0.5px; }
 </style>
 </head>
 <body class="bg-gray-50 font-sans">
@@ -1342,8 +1337,6 @@ async function resendSignupCode() {
 }
 
 async function performLogin() {
-    startLoading("Signing in\u2026");
-    try {
     var identifier = sanitizeInput(document.getElementById("login-identifier").value.trim());
     var password = document.getElementById("login-password").value;
 
@@ -1412,7 +1405,6 @@ async function performLogin() {
         return;
     }
     addInAppAlert("error", "Cannot log in: Server is currently unavailable. Please try again later.");
-    } finally { stopLoading(); }
 }
 
 function logout(skipConfirm) {
@@ -3036,8 +3028,6 @@ function customerCancelBooking(bookingId) {
 // ============================================================
 
 async function loginAsProvider() {
-    startLoading("Signing in\u2026");
-    try {
     var identifier = document.getElementById("prov-login-id");
     var password = document.getElementById("prov-login-pass");
     var idVal = identifier ? sanitizeInput(identifier.value.trim()) : "";
@@ -3091,12 +3081,9 @@ async function loginAsProvider() {
         return;
     }
     addInAppAlert("error", "Cannot log in: Server is currently unavailable. Please try again later.");
-    } finally { stopLoading(); }
 }
 
 async function enterProviderDashboard(provider) {
-    startLoading("Loading dashboard\u2026");
-    try {
     // Restore provider notifications
     if (provider.email && userNotificationsMap[provider.email]) {
         globalNotifications = userNotificationsMap[provider.email].slice();
@@ -3215,7 +3202,6 @@ async function enterProviderDashboard(provider) {
             fetchBackendNotifications();
         } catch(e) { console.warn(e); }
     }, 30000);
-    } finally { stopLoading(); }
 }
 
 function logoutProvider() {
@@ -3620,7 +3606,6 @@ function adminLoginSuccess() {
 }
 
 async function _syncAdminData() {
-    startLoading("Syncing data\u2026");
     try {
         var token = window.__HAVENGO_JWT__;
         if (!token) return;
@@ -3749,7 +3734,7 @@ async function _syncAdminData() {
         } catch(ec) { console.warn(ec); }
         renderAdminDashboard();
         renderAllProviderLists();
-    } catch(e) { console.log("Backend sync error:", e); } finally { stopLoading(); }
+    } catch(e) { console.log("Backend sync error:", e); }
 }
 
 function logoutAdmin() {
@@ -5689,34 +5674,7 @@ window.onload = function() {
         }
     }, 15000);
 };
-
-// Loading indicator for backend cold starts
-var _loadingTimer = null;
-var _safetyTimer = null;
-function startLoading(msg) {
-    stopLoading();
-    var el = document.getElementById("loading-overlay");
-    var txt = document.getElementById("loading-text");
-    if (txt) txt.textContent = msg || "Waking up server\u2026";
-    _loadingTimer = setTimeout(function() {
-        if (el) el.classList.remove("hidden");
-        // Safety: auto-hide after 50s in case a fetch hangs without AbortSignal.timeout
-        _safetyTimer = setTimeout(function() {
-            if (el) el.classList.add("hidden");
-        }, 50000);
-    }, 2000);
-}
-function stopLoading() {
-    if (_loadingTimer) { clearTimeout(_loadingTimer); _loadingTimer = null; }
-    if (_safetyTimer) { clearTimeout(_safetyTimer); _safetyTimer = null; }
-    var el = document.getElementById("loading-overlay");
-    if (el) el.classList.add("hidden");
-}
 </script>
-<div id="loading-overlay" class="hidden">
-    <div id="loading-spinner"></div>
-    <div id="loading-text">Waking up server\u2026</div>
-</div>
 </body>
 </html>
 
