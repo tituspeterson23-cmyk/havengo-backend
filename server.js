@@ -64,9 +64,6 @@ app.get('/api/providers/verified', async (req, res) => {
   res.json(mapped);
 });
 
-// Serve static files from public directory (core.js, app.js, style.css)
-app.use(express.static(path.join(__dirname, 'public')));
-
 // Serve the frontend HTML
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));

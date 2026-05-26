@@ -20,19 +20,17 @@ services:
       - key: ADMIN_PASSWORD
         value: "23.Forlife"
       - key: MAIL_HOST
-        value: "smtp.gmail.com"
+        value: ""
       - key: MAIL_PORT
         value: "587"
       - key: MAIL_SECURE
         value: "false"
       - key: MAIL_USER
-        value: "thermypetson@gmail.com"
+        value: ""
       - key: MAIL_PASS
-        value: "<YOUR_GMAIL_APP_PASSWORD>"
+        value: ""
       - key: MAIL_FROM
-        value: "HavenGo <thermypetson@gmail.com>"
-      - key: FRONTEND_URL
-        value: "https://havengo.netlify.app"
+        value: "admin@havengo.netlify.app"
       - key: DATABASE_URL
         value: postgresql://neondb_owner:npg_j1DzgMkZf5UW@ep-rough-waterfall-altogw50.c-3.eu-central-1.aws.neon.tech/neondb?sslmode=require
 

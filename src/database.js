@@ -247,17 +247,6 @@ async function initDatabase() {
   `);
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS password_resets (
-      id SERIAL PRIMARY KEY,
-      email TEXT NOT NULL,
-      token TEXT NOT NULL,
-      used INTEGER DEFAULT 0,
-      expires_at TIMESTAMPTZ NOT NULL,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    )
-  `);
-
-  await pool.query(`
     CREATE TABLE IF NOT EXISTS tracking (
       id SERIAL PRIMARY KEY,
       order_id INTEGER NOT NULL,
