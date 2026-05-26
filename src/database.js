@@ -276,6 +276,10 @@ async function initDatabase() {
     console.log('Admin account seeded.');
   }
 
+  // Remove demo provider if present
+  const demoDel = await pool.query("DELETE FROM providers WHERE email = 'aisha@havengo.ug'");
+  if (demoDel.rowCount > 0) console.log('Demo provider removed.');
+
   console.log('Database initialized');
   return pool;
 }
