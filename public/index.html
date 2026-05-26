@@ -3067,6 +3067,7 @@ async function loginAsProvider() {
                 business_name: p.business_name || "",
                 registration_fee_paid: p.registration_fee_paid || 0
             };
+            currentLoggedProvider.total_earnings = p.total_earnings || 0;
             enterProviderDashboard(currentLoggedProvider);
             return;
         }
@@ -3126,6 +3127,7 @@ async function enterProviderDashboard(provider) {
             if (compResp.ok) {
                 var backendCompleted = await compResp.json();
                 completedTasks = [];
+                providerEarningsMap = {};
                 for (var ci = 0; ci < backendCompleted.length; ci++) {
                     var bc = backendCompleted[ci];
                     completedTasks.push({
@@ -3180,6 +3182,7 @@ async function enterProviderDashboard(provider) {
                 if (compResp.ok) {
                     var backendCompleted = await compResp.json();
                     completedTasks = [];
+                    providerEarningsMap = {};
                     for (var ci = 0; ci < backendCompleted.length; ci++) {
                         var bc = backendCompleted[ci];
                         completedTasks.push({
@@ -3187,6 +3190,10 @@ async function enterProviderDashboard(provider) {
                             customerName: bc.customer_email, price: bc.price,
                             providerName: bc.provider_name, date: bc.completed_at, paid: bc.paid
                         });
+                        if (bc.paid && bc.provider_name) {
+                            var key = bc.provider_name;
+                            providerEarningsMap[key] = (providerEarningsMap[key] || 0) + Math.round(bc.price * 0.85);
+                        }
                     }
                 }
                 renderProviderDashboard();
@@ -3242,7 +3249,7 @@ function renderProviderDashboard() {
         }
     }
     document.getElementById("today-tasks-count").textContent = todayCount;
-    var provEarnings = providerEarningsMap[provName] || providerEarningsMap[provBizName] || 0;
+    var provEarnings = currentLoggedProvider.total_earnings || providerEarningsMap[provName] || providerEarningsMap[provBizName] || 0;
     document.getElementById("monthly-earnings").textContent = provEarnings.toLocaleString();
     var total = myTasks.length + myCompleted.length;
     var rate = total === 0 ? 0 : Math.round((myCompleted.length / total) * 100);

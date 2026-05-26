@@ -35,7 +35,7 @@
 - `src/routes/customer.js`: Customer ordering, payments, ratings, notifications
 - `src/routes/chat.js`: Chat between customer/provider/admin (AES encrypted)
 - `render.yaml`: Render deployment config
-- `public/index.html`: Frontend (~4200 lines, Tailwind CSS, all portals)
+- `public/index.html`: Frontend (~5691 lines, Tailwind CSS, all portals)
 
 ## Frontend Portals
 - **Public**: Home, Services, Reviews, Bookings
@@ -169,28 +169,34 @@ These changes enable the app to work across different browsers/sessions:
 ## Session Anchored Summary (May 26, 2026 — End of Day)
 
 ### Goal
-Fix all remaining `business_name`-only provider lookups across the entire codebase, add loading indicators for backend cold starts, fix empty catch blocks, ensure provider withdraw UI is functional.
+Fix provider earnings display in the portal, then handle migration and mail tomorrow.
 
-### Completed This Session (May 26, 2026 PM)
-- **`server.js` auto-payment & payment reminder provider lookups** — 3 remaining occurrences of `WHERE business_name = ?` changed to `WHERE business_name = ? OR (firstname || ' ' || lastname) = ?` on lines 95, 124, 135. This was the LAST batch of the systemic `business_name` NULL bug.
-- **All 33 empty catch blocks in frontend fixed** — `catch(e) {}`, `catch(et) {}`, `catch(ec) {}` replaced with `catch(e) { console.warn(e); }`. Covers localStorage, network fetches, and crypto operations. Network fetch catches on polling keep warnings visible during dev but won't break users.
-- **Loading indicator for backend cold starts** — CSS spinner overlay (`#loading-overlay`) with `backdrop-filter: blur(4px)`, animated border spinner (`#loading-spinner`), and descriptive text (`#loading-text`). `startLoading(msg)` sets a 2s timer then shows overlay (fast fetches complete before timer fires, no flicker). `stopLoading()` clears timer + hides overlay. Wrapped in: `performLogin()`, `loginAsProvider()`, `enterProviderDashboard()`, `_syncAdminData()`.
-- **Provider withdraw UI already complete** — verified withdraw modal (`#withdraw-modal`), button in earnings tab, `showWithdrawModal()`, `updateWithdrawFee()`, `processWithdraw()` calling `POST /api/provider/withdraw` already exist. No additions needed.
+### Completed This Session (May 26, 2026 — Full Day)
+- **`server.js` auto-payment & payment reminder provider lookups** — 3 remaining `WHERE business_name = ?` changed to `WHERE business_name = ? OR (firstname || ' ' || lastname) = ?` (lines 95, 124, 135). Last batch of the systemic `business_name` NULL bug.
+- **All 33 empty catch blocks in frontend fixed** — `catch(e) {}` / `catch(et) {}` / `catch(ec) {}` replaced with `catch(e) { console.warn(e); }` across localStorage, network, crypto operations.
+- **Loading overlay added and then removed** — CSS spinner with `startLoading()/stopLoading()` wrapped `performLogin()`, `loginAsProvider()`, `enterProviderDashboard()`, `_syncAdminData()`. Removed after user reported stuck spinner, since paid Render plan will eliminate cold starts.
+- **`AbortSignal.timeout(35000)` added to ALL fetches** in `_syncAdminData()` (6 fetches that lacked timeouts) and both `completed-tasks` fetches in `enterProviderDashboard()` — stays even after overlay removal to prevent hanging fetches.
+- **Chat notification routing fixed** — `chat.js:77-87` now routes task-conversation (numeric ID) notifications to the other party (customer→provider, provider→customer) instead of always notifying admin. `customer-admin-*` and `provider-admin-*` conversations still notify admin.
+- **localStorage notification restore stopped** — `globalNotifications` removed from both `buildAppState()` (save) and `applyState()` (restore). `globalNotifications` now starts empty on each page load; only `fetchBackendNotifications()` and local `addNotification()` calls populate it.
+- **Provider withdraw UI verified complete** — modal (`#withdraw-modal`), button in earnings tab, `showWithdrawModal()`, `updateWithdrawFee()`, `processWithdraw()` calling `POST /api/provider/withdraw` already exist and work.
+- **Provider earnings display fixed** — root cause: `providerEarningsMap` was built only once during initial `enterProviderDashboard()` load. The 30s polling replaced `completedTasks` with fresh data but NEVER rebuilt the map. Fix: polling now clears (`providerEarningsMap = {}`) and rebuilds the map from fresh completed tasks (same logic as initial load). Also stores `total_earnings: p.total_earnings || 0` on `currentLoggedProvider` during login, and renders prefer the authoritative backend value.
 
-### Outstanding Items for May 27
-1. **Password reset flow** — need new backend route + UI for email-based reset
-2. **Split frontend into modules** — webpack/vite build pipeline
-3. **Real email delivery** — get SendGrid/Mailgun keys, set MAIL_HOST env vars
-4. **PostgreSQL migration** — Render free tier offers 256MB PostgreSQL, would fix `StatementWrapper` hack + add transactions
-5. **Search/filter for services** — search bar across provider names, locations, service categories
+### Outstanding Items for May 27 (Tomorrow)
+1. **PostgreSQL migration** — Render free tier offers 256MB PostgreSQL. Would fix `StatementWrapper` hack + add transactions + fix dead `result.changes` check. Estimated 3-4 hours. Alternative: `better-sqlite3` stopgap (1-2 hours, keeps sync API, no route handler changes).
+2. **Configure real email delivery** — set MAIL_HOST/MAIL_USER env vars with SendGrid/Mailgun keys. Backend already has nodemailer transport configured.
+3. **Deploy both repos to GitHub** — push to trigger auto-deploy on Render + Netlify.
+4. **Password reset flow** — need new backend route + UI for email-based reset.
+5. **Split frontend into modules** — webpack/vite build pipeline.
+6. **Search/filter for services** — search bar across provider names, locations, service categories.
 
 ### Critical Context
 - **Backend `sanitize()` encodes `'` → `&#x27;`** — if a provider's name/business_name contains an apostrophe, the stored `provider_name` in tasks will have the HTML entity but the provider record may have the raw character or vice-versa, causing query mismatches despite the dual-name fix. This only affects names with `'`, `<`, `>`, `"`, `/`, `\` characters.
-- **`db.run()` wrapper always returns `{ changes: 1 }`** — `database.js:365` means all `if (result.changes === 0) return 404` checks are effectively dead code. No INSERT/UPDATE/DELETE failure is ever detected.
+- **`db.run()` wrapper always returns `{ changes: 1 }`** — `database.js:365` means all `if (result.changes === 0) return 404` checks are dead code. No INSERT/UPDATE/DELETE failure is ever detected. Switching to `better-sqlite3` or PostgreSQL would fix this.
 - Backend (Render): `https://havengo-backend.onrender.com`
 - Frontend (Netlify): `https://havengo.netlify.app`
 - GitHub Backend: `https://github.com/tituspeterson23-cmyk/havengo-backend` (branch `main`)
 - GitHub Frontend: `https://github.com/tituspeterson23-cmyk/havengo-frontend` (branch `main`)
+- Database: SQLite at `./data/havengo.db` — persists across sleep/wake on Render free tier, **lost on redeploy**
 
 ## Important Constraints (NEVER break these)
 - `index.html` is a single page — all JS, CSS, HTML in one file
