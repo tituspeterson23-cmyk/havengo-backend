@@ -46,6 +46,7 @@ app.use('/api/provider', require('./src/routes/provider'));
 app.use('/api/customer', require('./src/routes/customer'));
 app.use('/api/chat', require('./src/routes/chat'));
 app.use('/api/reviews', require('./src/routes/reviews'));
+app.use('/api/provider-ratings', require('./src/routes/provider-ratings'));
 app.use('/api/tracking', require('./src/routes/tracking'));
 
 // Health check
@@ -56,11 +57,11 @@ app.get('/api/health', (req, res) => {
 // Public: list verified providers for service listing
 app.get('/api/providers/verified', async (req, res) => {
   const db = getDb();
-  const providers = await db.prepare("SELECT id, firstname, lastname, email, phone, business_name, services, bitmoji, total_earnings, registration_fee_paid FROM providers WHERE verified = 1").all();
+  const providers = await db.prepare("SELECT p.id, p.firstname, p.lastname, p.email, p.phone, p.business_name, p.services, p.bitmoji, p.total_earnings, p.registration_fee_paid, (SELECT COUNT(*) FROM completed_tasks WHERE provider_id = p.id) as job_count FROM providers p WHERE p.verified = 1").all();
   const mapped = providers.map(p => ({
     id: p.id, name: p.firstname + ' ' + p.lastname, business_name: p.business_name,
     email: p.email, phone: p.phone, services: p.services, bitmoji: p.bitmoji,
-    jobs: p.total_earnings ? Math.floor(p.total_earnings / 50000) : 0
+    jobs: p.job_count || 0
   }));
   res.json(mapped);
 });
@@ -111,7 +112,10 @@ setInterval(async () => {
 
       await db.prepare('UPDATE completed_tasks SET paid = 1 WHERE task_id = $1').run(payment.task_id);
       await db.prepare("UPDATE pending_payments SET status = 'auto_paid' WHERE id = $1").run(payment.id);
-      await db.prepare('UPDATE providers SET total_earnings = total_earnings + $1 WHERE business_name = $2 OR (firstname || \' \' || lastname) = $3').run(providerAmount, payment.provider_name, payment.provider_name);
+      await db.prepare('UPDATE providers SET total_earnings = total_earnings + $1 WHERE id = $2').run(providerAmount, payment.provider_id);
+      // Track system revenue
+      const curSys = await db.prepare("SELECT value FROM admin_settings WHERE key = 'system_balance'").pluck().get();
+      await db.prepare("INSERT INTO admin_settings (key, value) VALUES ('system_balance', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value").run(((parseFloat(curSys) || 0) + systemAmount).toString());
 
       const customer = await db.prepare('SELECT * FROM users WHERE email = $1').get(payment.customer_email);
       if (customer && customer.balance >= customerAmount) {

@@ -41,15 +41,21 @@ router.post('/place-order', async (req, res) => {
   }
 
   const pName = providerName || '';
-  const inserted = await db.prepare('INSERT INTO tasks (customer_email, service_id, service_name, provider_name, price, status, address, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id')
-    .get(req.user.email, serviceId, sanitize(serviceName), sanitize(pName), price, 'pending_confirmation', sanitize(address || ''), sanitize(details || ''));
+  // Look up provider_id when provider_name is known
+  let providerId = null;
+  if (pName) {
+    const provRow = await db.prepare("SELECT id FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(pName, pName);
+    if (provRow) providerId = provRow.id;
+  }
+  const inserted = await db.prepare('INSERT INTO tasks (customer_email, service_id, service_name, provider_name, provider_id, price, status, address, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id')
+    .get(req.user.email, serviceId, sanitize(serviceName), sanitize(pName), providerId, price, 'pending_confirmation', sanitize(address || ''), sanitize(details || ''));
   const newTaskId = inserted.id;
 
   if (!pName) {
-    const providers = await db.prepare("SELECT business_name FROM providers WHERE services LIKE ? AND verified = 1").all(`%${sanitize(serviceName)}%`);
+    const providers = await db.prepare("SELECT id, business_name FROM providers WHERE services LIKE ? AND verified = 1").all(`%${sanitize(serviceName)}%`);
     if (providers.length > 0) {
-      await db.prepare("UPDATE tasks SET provider_name = ? WHERE id = ?")
-        .run(providers[0].business_name, newTaskId);
+      await db.prepare("UPDATE tasks SET provider_name = ?, provider_id = ? WHERE id = ?")
+        .run(providers[0].business_name, providers[0].id, newTaskId);
     }
   }
 
@@ -98,7 +104,11 @@ router.post('/confirm-payment', async (req, res) => {
 
   await db.prepare('UPDATE completed_tasks SET paid = 1 WHERE task_id = ?').run(taskId);
   await db.prepare("UPDATE pending_payments SET status = 'paid' WHERE task_id = ?").run(taskId);
-  await db.prepare('UPDATE providers SET total_earnings = total_earnings + ? WHERE business_name = ? OR (firstname || \' \' || lastname) = ?').run(providerAmount, completed.provider_name, completed.provider_name);
+  await db.prepare('UPDATE providers SET total_earnings = total_earnings + ? WHERE id = ?').run(providerAmount, completed.provider_id);
+  // Track system revenue in admin_settings
+  const currentBalance = await db.prepare("SELECT value FROM admin_settings WHERE key = 'system_balance'").pluck().get();
+  const newBalance = (parseFloat(currentBalance) || 0) + systemAmount;
+  await db.prepare("INSERT INTO admin_settings (key, value) VALUES ('system_balance', ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value").run(newBalance.toString());
 
   await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '💰', 'Payment Confirmed', 'Payment of " + completed.price + " UGX completed. Provider credited " + providerAmount + " UGX.', 'money')")
     .run(req.user.email);
@@ -236,8 +246,8 @@ router.post('/cancel-booking/:id', async (req, res) => {
   if (!task) return res.json({ success: false, error: 'Task not found' });
   const reason = req.body.reason || 'No reason provided';
   await db.prepare("DELETE FROM tasks WHERE id = ?").run(taskId);
-  if (task.provider_name) {
-    const prov = await db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(task.provider_name, task.provider_name);
+  if (task.provider_id) {
+    const prov = await db.prepare("SELECT email FROM providers WHERE id = ?").get(task.provider_id);
     if (prov) {
       await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
         .run(prov.email, '❌', 'Order Cancelled by Customer', 'Order #' + taskId + ' (' + task.service_name + ') was cancelled. Reason: ' + reason, 'cancellation');

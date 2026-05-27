@@ -209,7 +209,7 @@
 </div>
 <div id="mobile-menu" class="menu-closed border-t bg-white px-6 py-6">
 <div class="grid md:grid-cols-3 gap-5 text-sm">
-<div><h3 class="font-bold mb-3 text-emerald-600">Explore</h3><div class="space-y-2"><p onclick="navigateTo('home')" class="cursor-pointer">Home</p><p onclick="navigateTo('services')" class="cursor-pointer">Services</p><p onclick="navigateTo('reviews')" class="cursor-pointer">Reviews</p><p onclick="navigateTo('bookings')" class="cursor-pointer">Bookings</p><p onclick="navigateTo('provider-tasks')" class="cursor-pointer font-medium text-emerald-600">HavenGo Tasks <span class="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">PROVIDER</span></p></div></div>
+<div><h3 class="font-bold mb-3 text-emerald-600">Explore</h3><div class="space-y-2"><p onclick="navigateTo('home')" class="cursor-pointer">Home</p><p onclick="navigateTo('services')" class="cursor-pointer">Services</p><p onclick="navigateTo('reviews')" class="cursor-pointer">Reviews</p><p onclick="navigateTo('bookings')" class="cursor-pointer">Bookings</p><p onclick="navigateTo('howitworks')" class="cursor-pointer">How It Works</p><p onclick="navigateTo('provider-tasks')" class="cursor-pointer font-medium text-emerald-600">HavenGo Tasks <span class="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded">PROVIDER</span></p></div></div>
 <div><h3 class="font-bold mb-3 text-emerald-600">Account</h3><div class="space-y-2"><p onclick="navigateTo('profile')" class="cursor-pointer">My Profile</p><p onclick="navigateToProfileTab(1)" class="cursor-pointer">Payments</p><p onclick="navigateToProfileTab(2)" class="cursor-pointer">Saved Addresses</p><p onclick="navigateToProfileTab(3)" class="cursor-pointer">Notifications</p></div></div>
 <div><h3 class="font-bold mb-3 text-emerald-600">Support</h3><div class="space-y-2"><p onclick="navigateTo('about')" class="cursor-pointer">About Us</p><p onclick="navigateTo('help')" class="cursor-pointer">Help Center</p><p onclick="navigateTo('terms')" class="cursor-pointer">Terms & Conditions</p><p onclick="navigateTo('privacy')" class="cursor-pointer">Privacy Policy</p><p onclick="navigateTo('contact')" class="cursor-pointer">Contact Support</p><p onclick="navigateTo('join-provider')" class="cursor-pointer">Join as Provider</p><p id="admin-nav-link" onclick="navigateTo('admin')" class="cursor-pointer font-medium text-amber-600 hidden">Admin Portal <span class="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">ADMIN</span></p></div></div>
 </div>
@@ -582,11 +582,12 @@
         </div>
     </div>
     <div id="admin-dashboard" class="hidden">
-        <div class="grid md:grid-cols-4 gap-4 mb-8">
+        <div class="grid md:grid-cols-5 gap-4 mb-8">
             <div class="bg-white rounded-2xl p-5 shadow"><p class="text-gray-500 text-sm">Total Providers</p><p id="admin-providers-count" class="text-3xl font-bold mt-1">0</p></div>
             <div class="bg-white rounded-2xl p-5 shadow"><p class="text-gray-500 text-sm">Pending Verification</p><p id="admin-pending-count" class="text-3xl font-bold mt-1 text-amber-600">0</p></div>
             <div class="bg-white rounded-2xl p-5 shadow"><p class="text-gray-500 text-sm">System Revenue (15%)</p><p id="admin-revenue" class="text-3xl font-bold mt-1 text-emerald-600">0 UGX</p></div>
             <div class="bg-white rounded-2xl p-5 shadow"><p class="text-gray-500 text-sm">Price Change Requests</p><p id="admin-price-requests" class="text-3xl font-bold mt-1 text-blue-600">0</p></div>
+            <div class="bg-white rounded-2xl p-5 shadow"><p class="text-gray-500 text-sm">Available Balance</p><p id="admin-available-balance" class="text-3xl font-bold mt-1 text-amber-600">0 UGX</p><button onclick="showAdminWithdraw()" id="admin-withdraw-btn" class="mt-2 text-sm bg-amber-600 text-white px-3 py-1 rounded-full hover:bg-amber-700"><i class="fa-solid fa-hand-holding-dollar"></i> Withdraw</button></div>
         </div>
         <div class="flex gap-4 mb-6 border-b flex-wrap">
             <button onclick="switchAdminTab(0)" id="admin-tab-0" class="admin-tab px-6 py-3 border-b-2 border-amber-600 font-medium">Providers</button>
@@ -752,6 +753,20 @@
     <button onclick="payRegistrationFee()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-4 rounded-2xl font-semibold mb-3"><i class="fa-solid fa-mobile-screen"></i> Pay 50,000 UGX via Mobile Money</button>
     <button onclick="closeModal('payment-prompt-modal')" class="w-full text-sm text-gray-400 py-2 hover:text-gray-600">Later</button>
 </div></div></div>
+
+<div id="admin-withdraw-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 modal p-5">
+<div class="bg-white w-full max-w-md rounded-3xl overflow-hidden">
+    <div class="p-8">
+        <h3 class="text-2xl font-bold mb-6">Admin Withdraw</h3>
+        <div class="space-y-6">
+            <div><label class="font-medium block mb-2">Available Balance</label><div id="admin-withdraw-available" class="text-4xl font-bold text-emerald-600">0 UGX</div></div>
+            <div><label class="font-medium block mb-2">Amount to Withdraw</label><input id="admin-withdraw-amount" type="number" min="1000" class="w-full border rounded-2xl px-5 py-4 outline-none focus:border-emerald-600"></div>
+            <div><label class="font-medium block mb-2">Mobile Money Number</label><input id="admin-withdraw-phone" type="tel" class="w-full border rounded-2xl px-5 py-4 outline-none focus:border-emerald-600" placeholder="07XX XXX XXX"></div>
+            <button onclick="processAdminWithdraw()" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-4 rounded-3xl font-semibold">Confirm Withdrawal</button>
+            <button onclick="closeModal('admin-withdraw-modal')" class="w-full border py-4 rounded-3xl font-semibold">Cancel</button>
+        </div>
+    </div>
+</div></div>
 
 <div id="map-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/70 modal p-5">
 <div class="bg-white w-full max-w-2xl rounded-3xl overflow-hidden max-h-[90vh] flex flex-col">
@@ -1682,6 +1697,17 @@ function updateNotifCount() {
 function showNotifications() {
     renderNotificationsModal();
     document.getElementById("notifications-modal").classList.remove("hidden");
+    // Mark all as seen on backend when user opens notification panel
+    var jwt = window.__HAVENGO_JWT__;
+    if (jwt) {
+        var route = "";
+        if (currentAdmin) route = "/admin/notifications/mark-seen";
+        else if (currentLoggedProvider) route = "/provider/notifications/mark-seen";
+        else if (currentUser) route = "/customer/notifications/mark-seen";
+        if (route) {
+            fetch(HAVENGO_BACKEND_URL + "/api" + route, { method: "POST", headers: { "Authorization": "Bearer " + jwt } }).catch(function(){});
+        }
+    }
 }
 
 function markAllRead() {
@@ -1692,6 +1718,17 @@ function markAllRead() {
     renderNotificationsModal();
     var pn = document.getElementById("profile-notifications");
     if (pn && !pn.closest(".hidden")) renderProfileNotifications();
+    // Mark all as seen on backend
+    var jwt = window.__HAVENGO_JWT__;
+    if (jwt) {
+        var route = "";
+        if (currentAdmin) route = "/admin/notifications/mark-seen";
+        else if (currentLoggedProvider) route = "/provider/notifications/mark-seen";
+        else if (currentUser) route = "/customer/notifications/mark-seen";
+        if (route) {
+            fetch(HAVENGO_BACKEND_URL + "/api" + route, { method: "POST", headers: { "Authorization": "Bearer " + jwt } }).catch(function(){});
+        }
+    }
 }
 
 function deleteNotification(index) {
@@ -2223,6 +2260,8 @@ async function confirmPayment() {
                     var numRating = parseInt(rating);
                     if (numRating >= 1 && numRating <= 5) {
                         userRatings.push({ providerName: payment.providerName, rating: numRating, taskName: payment.taskName });
+                        var provId = payment.providerId || getProviderIdByName(payment.providerName);
+                        if (provId) submitRatingToBackend(provId, payment.providerName, payment.taskName, numRating);
                         renderAllProviderLists();
                         addNotification("\u2B50", "Provider Rated", "You rated " + payment.providerName + " " + numRating + " stars!");
                     }
@@ -2499,6 +2538,10 @@ function navigateTo(page) {
     // Sync customer bookings from backend when navigating to bookings tab
     if (page === "bookings" && currentUser && window.__HAVENGO_JWT__) {
         fetchCustomerBookings();
+    }
+    // Render profile page when navigating to it
+    if (page === "profile" && currentUser) {
+        renderProfilePage();
     }
 }
 
@@ -2919,9 +2962,10 @@ async function fetchCustomerBookings() {
                     if (dateMatch) bookingDate = dateMatch[1].trim();
                     if (timeMatch) bookingTime = timeMatch[1].trim();
                 }
-                var status = b.status || "Pending";
-                if (status === "pending_confirmation") status = "Pending";
-                else if (status === "active") status = "In Progress";
+                var status = "Pending";
+                if (b.status === "pending_confirmation") status = "Pending";
+                else if (b.status === "active") status = "In Progress";
+                else if (b.completed_at) status = "Completed";
                 bookings.push({
                     id: b.id || b.task_id,
                     serviceId: b.service_id || "",
@@ -2934,6 +2978,7 @@ async function fetchCustomerBookings() {
                     customerName: currentUser ? currentUser.name : "",
                     customerPhone: currentUser ? currentUser.phone : "",
                     providerName: b.provider_name || "",
+                    providerId: b.provider_id || null,
                     details: b.details || ""
                 });
             }
@@ -3141,6 +3186,7 @@ async function enterProviderDashboard(provider) {
                         customerName: bc.customer_email,
                         price: bc.price,
                         providerName: bc.provider_name,
+                        providerId: bc.provider_id || null,
                         date: bc.completed_at,
                         paid: bc.paid
                     });
@@ -3177,7 +3223,7 @@ async function enterProviderDashboard(provider) {
                         customerName: bt.customer_firstname ? (bt.customer_firstname + " " + (bt.customer_lastname || "")) : (bt.customer_email || ""),
                         customerEmail: bt.customer_email || "", customerPhone: bt.customer_phone || "", address: bt.address || "",
                         date: "", time: "", price: bt.price, instructions: bt.details || "",
-                        providerName: bt.provider_name || "", status: bt.status
+                        providerName: bt.provider_name || "", providerId: bt.provider_id || null, status: bt.status
                     });
                 }
                 if (providerTasks.length > prevCount) {
@@ -3193,12 +3239,16 @@ async function enterProviderDashboard(provider) {
                         completedTasks.push({
                             id: bc.id, taskId: bc.task_id, serviceName: bc.service_name,
                             customerName: bc.customer_email, price: bc.price,
-                            providerName: bc.provider_name, date: bc.completed_at, paid: bc.paid
+                            providerName: bc.provider_name, providerId: bc.provider_id || null, date: bc.completed_at, paid: bc.paid
                         });
-                        if (bc.paid && bc.provider_name) {
-                            var key = bc.provider_name;
-                            providerEarningsMap[key] = (providerEarningsMap[key] || 0) + Math.round(bc.price * 0.85);
+                    if (bc.paid && bc.provider_name) {
+                        var key = bc.provider_name;
+                        providerEarningsMap[key] = (providerEarningsMap[key] || 0) + Math.round(bc.price * 0.85);
+                        if (bc.provider_id) {
+                            var idKey = "id_" + bc.provider_id;
+                            providerEarningsMap[idKey] = (providerEarningsMap[idKey] || 0) + Math.round(bc.price * 0.85);
                         }
+                    }
                     }
                 }
                 renderProviderDashboard();
@@ -3244,8 +3294,9 @@ function renderProviderDashboard() {
     }
     var provName = currentLoggedProvider.name;
     var provBizName = currentLoggedProvider.business_name || "";
-    var myTasks = providerTasks.filter(function(t) { return t.providerName === provName || t.providerName === provBizName || t.providerName === ""; });
-    var myCompleted = completedTasks.filter(function(t) { return t.providerName === provName || t.providerName === provBizName; });
+    var provId = currentLoggedProvider.id || null;
+    var myTasks = providerTasks.filter(function(t) { return (provId && t.providerId === provId) || t.providerName === provName || t.providerName === provBizName || t.providerName === ""; });
+    var myCompleted = completedTasks.filter(function(t) { return (provId && t.providerId === provId) || t.providerName === provName || t.providerName === provBizName; });
     var today = new Date().toDateString();
     var todayCount = 0;
     for (var i = 0; i < myTasks.length; i++) {
@@ -3254,7 +3305,7 @@ function renderProviderDashboard() {
         }
     }
     document.getElementById("today-tasks-count").textContent = todayCount;
-    var provEarnings = providerEarningsMap[provName] || providerEarningsMap[provBizName] || currentLoggedProvider.total_earnings || 0;
+    var provEarnings = providerEarningsMap["id_" + (currentLoggedProvider.id || '')] || providerEarningsMap[provName] || providerEarningsMap[provBizName] || currentLoggedProvider.total_earnings || 0;
     document.getElementById("monthly-earnings").textContent = provEarnings.toLocaleString();
     var total = myTasks.length + myCompleted.length;
     var rate = total === 0 ? 0 : Math.round((myCompleted.length / total) * 100);
@@ -3465,6 +3516,7 @@ async function completeProviderTask(taskId) {
         taskName: task.serviceName,
         amount: task.price,
         providerName: completed.providerName,
+        providerId: currentLoggedProvider ? (currentLoggedProvider.id || getProviderIdByName(completed.providerName)) : null,
         customerName: task.customerName,
         completedAt: Date.now(),
         deadline: payDeadline,
@@ -3664,7 +3716,7 @@ async function _syncAdminData() {
                     providerName: prs[pri].provider_name,
                     providerEmail: "",
                     serviceId: prs[pri].service_id,
-                    serviceName: "",
+                    serviceName: getServiceNameById(prs[pri].service_id),
                     currentPrice: prs[pri].current_price,
                     requestedPrice: prs[pri].requested_price,
                     status: prs[pri].status || "pending",
@@ -3805,11 +3857,9 @@ function renderAdminDashboard() {
     var pending = registeredProviders.filter(function(p) { return !p.verified; }).length;
     document.getElementById("admin-pending-count").textContent = pending || 0;
     document.getElementById("admin-price-requests").textContent = priceChangeRequests.length;
-    var totalRev = 0;
-    for (var i = 0; i < completedTasks.length; i++) {
-        totalRev += Math.round(completedTasks[i].price * 0.15);
-    }
+    var totalRev = (adminRevenueData && adminRevenueData.revenue) ? adminRevenueData.revenue : 0;
     document.getElementById("admin-revenue").textContent = totalRev.toLocaleString() + " UGX";
+    fetchAdminBalance();
     renderAdminProviders();
     renderAdminVerification();
     renderAdminPriceRequests();
@@ -3912,7 +3962,12 @@ async function adminDeleteProvider(id) {
     });
 }
 
-function renderAdminPriceRequests() {
+function getServiceNameById(sid) {
+    for (var si = 0; si < services.length; si++) {
+        if (services[si].id === sid) return services[si].name;
+    }
+    return sid;
+}
     var list = document.getElementById("admin-price-requests-list");
     if (!list) return;
     if (priceChangeRequests.length === 0) {
@@ -3929,57 +3984,119 @@ function renderAdminPriceRequests() {
 }
 
 function approvePriceRequest(id) {
-    for (var i = 0; i < priceChangeRequests.length; i++) {
-        if (priceChangeRequests[i].id === id) {
-            priceChangeRequests[i].status = "approved";
-            var req = priceChangeRequests[i];
-            for (var j = 0; j < services.length; j++) {
-                if (services[j].id === req.serviceId) {
-                    services[j].basePrice = req.requestedPrice;
+    var jwt = window.__HAVENGO_JWT__;
+    if (!jwt) { addInAppAlert("error", "Not authenticated"); return; }
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    // Try backend first
+    fetch(apiUrl + "/admin/price-requests/" + id + "/approve", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + jwt, "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(15000)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            for (var i = 0; i < priceChangeRequests.length; i++) {
+                if (priceChangeRequests[i].id === id) {
+                    priceChangeRequests[i].status = "approved";
+                    var req = priceChangeRequests[i];
+                    for (var j = 0; j < services.length; j++) {
+                        if (services[j].id === req.serviceId) {
+                            services[j].basePrice = req.requestedPrice;
+                            break;
+                        }
+                    }
+                    addNotification("\u2705", "Price Approved", req.providerName + "'s price change for " + req.serviceName + " to UGX " + req.requestedPrice.toLocaleString() + " has been approved.");
+                    addInAppAlert("success", "Price request approved!");
                     break;
                 }
             }
-            addNotification("\u2705", "Price Approved", req.providerName + "'s price change for " + req.serviceName + " to UGX " + req.requestedPrice.toLocaleString() + " has been approved.");
-            break;
+            renderAdminDashboard();
+            renderAllProviderLists();
+        } else {
+            addInAppAlert("error", data.error || "Approval failed");
         }
-    }
-    renderAdminDashboard();
-    renderAllProviderLists();
+    })
+    .catch(function(e) {
+        addInAppAlert("error", "Network error approving request");
+        console.warn(e);
+    });
 }
 
 function rejectPriceRequest(id) {
-    for (var i = 0; i < priceChangeRequests.length; i++) {
-        if (priceChangeRequests[i].id === id) {
-            priceChangeRequests[i].status = "rejected";
-            addNotification("\u274C", "Price Rejected", "Price change for " + priceChangeRequests[i].serviceName + " has been rejected.");
-            break;
+    var jwt = window.__HAVENGO_JWT__;
+    if (!jwt) { addInAppAlert("error", "Not authenticated"); return; }
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    fetch(apiUrl + "/admin/price-requests/" + id + "/reject", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + jwt, "Content-Type": "application/json" },
+        signal: AbortSignal.timeout(15000)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            for (var i = 0; i < priceChangeRequests.length; i++) {
+                if (priceChangeRequests[i].id === id) {
+                    priceChangeRequests[i].status = "rejected";
+                    addNotification("\u274C", "Price Rejected", "Price change for " + priceChangeRequests[i].serviceName + " has been rejected.");
+                    addInAppAlert("info", "Price request rejected.");
+                    break;
+                }
+            }
+            renderAdminDashboard();
+        } else {
+            addInAppAlert("error", data.error || "Rejection failed");
         }
-    }
-    renderAdminDashboard();
+    })
+    .catch(function(e) {
+        addInAppAlert("error", "Network error rejecting request");
+        console.warn(e);
+    });
 }
 
 function adjustPriceRequest(id) {
+    var jwt = window.__HAVENGO_JWT__;
+    if (!jwt) { addInAppAlert("error", "Not authenticated"); return; }
     showAppPrompt("Enter adjusted price (UGX):", "", function(newPrice) {
         if (!newPrice) return;
         newPrice = parseInt(newPrice);
         if (!newPrice || newPrice < 10000) { addInAppAlert("error", "Invalid price"); return; }
-        for (var i = 0; i < priceChangeRequests.length; i++) {
-            if (priceChangeRequests[i].id === id) {
-                priceChangeRequests[i].status = "approved";
-                priceChangeRequests[i].requestedPrice = newPrice;
-                var req = priceChangeRequests[i];
-                for (var j = 0; j < services.length; j++) {
-                    if (services[j].id === req.serviceId) {
-                        services[j].basePrice = newPrice;
+        var apiUrl = HAVENGO_BACKEND_URL + "/api";
+        fetch(apiUrl + "/admin/price-requests/" + id + "/approve", {
+            method: "POST",
+            headers: { "Authorization": "Bearer " + jwt, "Content-Type": "application/json" },
+            body: JSON.stringify({ adjustedPrice: newPrice }),
+            signal: AbortSignal.timeout(15000)
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.success) {
+                for (var i = 0; i < priceChangeRequests.length; i++) {
+                    if (priceChangeRequests[i].id === id) {
+                        priceChangeRequests[i].status = "approved";
+                        priceChangeRequests[i].requestedPrice = newPrice;
+                        var req = priceChangeRequests[i];
+                        for (var j = 0; j < services.length; j++) {
+                            if (services[j].id === req.serviceId) {
+                                services[j].basePrice = newPrice;
+                                break;
+                            }
+                        }
+                        addNotification("\u2705", "Price Adjusted", req.providerName + "'s price for " + req.serviceName + " adjusted to UGX " + newPrice.toLocaleString());
+                        addInAppAlert("success", "Price adjusted and approved!");
                         break;
                     }
                 }
-                addNotification("\u2705", "Price Adjusted", req.providerName + "'s price for " + req.serviceName + " adjusted to UGX " + newPrice.toLocaleString());
-                break;
+                renderAdminDashboard();
+                renderAllProviderLists();
+            } else {
+                addInAppAlert("error", data.error || "Adjustment failed");
             }
-        }
-        renderAdminDashboard();
-        renderAllProviderLists();
+        })
+        .catch(function(e) {
+            addInAppAlert("error", "Network error adjusting request");
+            console.warn(e);
+        });
     });
 }
 
@@ -4065,6 +4182,75 @@ function openAdminTaskChat(taskId, customerName) {
         addNotification("\uD83D\uDCAC", "Admin Message", "You sent a message regarding order #" + taskId);
         saveAppState();
         addInAppAlert("success", "Message sent regarding order #" + taskId);
+    });
+}
+
+function fetchAdminBalance() {
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var headers = { "Authorization": "Bearer " + window.__HAVENGO_JWT__ };
+    fetch(apiUrl + "/admin/revenue/balance", { headers: headers, signal: AbortSignal.timeout(35000) })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        var el = document.getElementById("admin-available-balance");
+        if (el) el.textContent = (data.available || 0).toLocaleString() + " UGX";
+        window.__adminBalance = data;
+    })
+    .catch(function(e) { console.warn("Failed to fetch admin balance:", e); });
+}
+
+function showAdminWithdraw() {
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var headers = { "Authorization": "Bearer " + window.__HAVENGO_JWT__ };
+    fetch(apiUrl + "/admin/revenue/balance", { headers: headers, signal: AbortSignal.timeout(35000) })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        window.__adminBalance = data;
+        document.getElementById("admin-withdraw-available").textContent = (data.available || 0).toLocaleString() + " UGX";
+        document.getElementById("admin-withdraw-amount").value = "";
+        document.getElementById("admin-withdraw-phone").value = "";
+        document.getElementById("admin-withdraw-modal").classList.remove("hidden");
+    })
+    .catch(function(e) {
+        console.warn("Failed to fetch balance:", e);
+        addInAppAlert("error", "Failed to fetch balance");
+    });
+}
+
+function processAdminWithdraw() {
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var headers = { "Authorization": "Bearer " + window.__HAVENGO_JWT__ };
+    var amt = parseFloat(document.getElementById("admin-withdraw-amount").value);
+    var phone = document.getElementById("admin-withdraw-phone").value.trim();
+    if (!amt || amt < 1000) return addInAppAlert("error", "Minimum withdrawal is 1,000 UGX");
+    if (!phone || phone.length < 10) return addInAppAlert("error", "Enter a valid Mobile Money number");
+    var bal = window.__adminBalance;
+    if (bal && amt > bal.available) return addInAppAlert("error", "Insufficient balance. Available: UGX " + bal.available.toLocaleString());
+    var btn = document.querySelector("#admin-withdraw-modal button");
+    if (btn) { btn.disabled = true; btn.textContent = "Processing..."; }
+    fetch(apiUrl + "/admin/withdraw", {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify({ amount: amt, phone: phone }),
+        signal: AbortSignal.timeout(35000)
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (data.success) {
+            addInAppAlert("success", data.message || "Withdrawal of UGX " + amt.toLocaleString() + " to " + phone + " processed successfully");
+            closeModal("admin-withdraw-modal");
+            fetchAdminBalance();
+            if (adminRevenueData) adminRevenueData.revenue = Math.max(0, (adminRevenueData.revenue || 0) - amt);
+            renderAdminDashboard();
+        } else {
+            addInAppAlert("error", data.error || "Withdrawal failed");
+        }
+    })
+    .catch(function(e) {
+        console.warn("Withdraw error:", e);
+        addInAppAlert("error", "Withdrawal request failed");
+    })
+    .finally(function() {
+        if (btn) { btn.disabled = false; btn.textContent = "Confirm Withdrawal"; }
     });
 }
 
@@ -4343,6 +4529,7 @@ async function fetchPendingPayments() {
                         taskName: taskName,
                         amount: bp.amount,
                         providerName: bp.provider_name,
+                        providerId: bp.provider_id || null,
                         customerName: "",
                         completedAt: new Date(bp.completed_at).getTime(),
                         deadline: new Date(bp.completed_at).getTime() + 36000000,
@@ -4562,12 +4749,14 @@ function rateBooking(bookingId) {
     showAppPrompt("Rate this service (1-5 stars): " + booking.serviceName, "5", function(rating) {
         if (rating) {
             var numRating = parseInt(rating);
-            if (numRating >= 1 && numRating <= 5) {
-                userRatings.push({ providerName: booking.providerName || "Provider", rating: numRating, taskName: booking.serviceName });
-                renderAllProviderLists();
-                renderServiceRatings();
-                addNotification("\u2B50", "Rating Submitted", "You rated " + (booking.providerName || "Provider") + " " + numRating + " stars!");
-                addInAppAlert("success", "Thank you! Your rating of " + numRating + " stars has been recorded.");
+                if (numRating >= 1 && numRating <= 5) {
+                        userRatings.push({ providerName: booking.providerName || "Provider", rating: numRating, taskName: booking.serviceName });
+                        var provId = booking.providerId || getProviderIdByName(booking.providerName);
+                        if (provId) submitRatingToBackend(provId, booking.providerName, booking.serviceName, numRating);
+                        renderAllProviderLists();
+                        renderServiceRatings();
+                        addNotification("\u2B50", "Rating Submitted", "You rated " + (booking.providerName || "Provider") + " " + numRating + " stars!");
+                        addInAppAlert("success", "Thank you! Your rating of " + numRating + " stars has been recorded.");
             } else {
                 addInAppAlert("error", "Rating must be between 1 and 5.");
             }
@@ -5304,6 +5493,44 @@ async function loadReviews() {
     renderReviews();
 }
 
+async function fetchProviderRatings() {
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    try {
+        var resp = await fetch(apiUrl + "/provider-ratings", { signal: AbortSignal.timeout(15000) });
+        if (resp.ok) {
+            var data = await resp.json();
+            if (data && data.length > 0) {
+                userRatings = data.map(function(r) {
+                    return { providerName: r.provider_name, rating: r.rating, taskName: r.service_name || "" };
+                });
+                renderAllProviderLists();
+                renderServiceRatings();
+            }
+        }
+    } catch(e) { /* silently fail */ }
+}
+
+function getProviderIdByName(name) {
+    for (var pi = 0; pi < registeredProviders.length; pi++) {
+        var p = registeredProviders[pi];
+        if (p.name === name || p.business_name === name || (p.firstname + ' ' + p.lastname) === name) {
+            return p.id;
+        }
+    }
+    return null;
+}
+
+function submitRatingToBackend(providerId, providerName, serviceName, rating) {
+    var jwt = window.__HAVENGO_JWT__;
+    if (!jwt || !providerId) return;
+    fetch(HAVENGO_BACKEND_URL + "/api/provider-ratings", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + jwt, "Content-Type": "application/json" },
+        body: JSON.stringify({ providerId: providerId, providerName: providerName || "", serviceName: serviceName || "", rating: rating }),
+        signal: AbortSignal.timeout(15000)
+    }).catch(function(){});
+}
+
 function renderServiceRatings() {
     var serviceIds = ["cleaning","spa","family","errands","catering","kids","nursing","appliance","gardening","hair","event","auto"];
     for (var si = 0; si < serviceIds.length; si++) {
@@ -5492,10 +5719,10 @@ async function fetchBackendNotifications() {
     var jwt = window.__HAVENGO_JWT__;
     if (!jwt) return;
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    var route = "", markRoute = "";
-    if (currentAdmin) { route = "/admin/notifications"; markRoute = "/admin/notifications/mark-seen"; }
-    else if (currentLoggedProvider) { route = "/provider/notifications"; markRoute = "/provider/notifications/mark-seen"; }
-    else if (currentUser) { route = "/customer/notifications"; markRoute = "/customer/notifications/mark-seen"; }
+    var route = "";
+    if (currentAdmin) { route = "/admin/notifications"; }
+    else if (currentLoggedProvider) { route = "/provider/notifications"; }
+    else if (currentUser) { route = "/customer/notifications"; }
     if (!route) return;
     try {
         var resp = await fetch(apiUrl + route, { headers: { "Authorization": "Bearer " + jwt } });
@@ -5513,10 +5740,6 @@ async function fetchBackendNotifications() {
                         addNotification(n.icon || "\uD83D\uDCE2", n.title || "Notification", n.message || "", n.id);
                     }
                 }
-            }
-            // Mark as seen on backend so they aren't returned again
-            if (markRoute) {
-                fetch(apiUrl + markRoute, { method: "POST", headers: { "Authorization": "Bearer " + jwt } }).catch(function(){});
             }
         }
     } catch(e) { console.warn(e); }
@@ -5644,12 +5867,14 @@ window.onload = function() {
     })();
 
     fetchVerifiedProviders();
+    fetchProviderRatings();
 
     // Poll verified providers every 15s for cross-browser sync
     setInterval(fetchVerifiedProviders, 15000);
 
     // Auto-sync every 15s when logged in
     setInterval(function() {
+        fetchProviderRatings();
         if (currentUser && window.__HAVENGO_JWT__) {
             fetchCustomerBookings();
             fetchPendingPayments();

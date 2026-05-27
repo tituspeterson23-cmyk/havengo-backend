@@ -226,6 +226,18 @@ async function initDatabase() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS provider_ratings (
+      id SERIAL PRIMARY KEY,
+      provider_id INTEGER NOT NULL,
+      provider_name TEXT NOT NULL,
+      customer_email TEXT NOT NULL,
+      service_name TEXT,
+      rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS user_addresses (
       id SERIAL PRIMARY KEY,
       user_email TEXT NOT NULL,

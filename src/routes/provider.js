@@ -120,7 +120,7 @@ router.get('/tasks', async (req, res) => {
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
   const bizName = provider.business_name;
   const fullName = provider.firstname + ' ' + provider.lastname;
-  const tasks = await db.prepare("SELECT t.*, u.firstname AS customer_firstname, u.lastname AS customer_lastname, u.phone AS customer_phone FROM tasks t LEFT JOIN users u ON t.customer_email = u.email WHERE (t.provider_name = ? OR t.provider_name = ? OR t.provider_name = '' OR t.provider_name IS NULL) AND t.status IN ('pending_confirmation', 'active')").all(bizName, fullName);
+  const tasks = await db.prepare("SELECT t.*, u.firstname AS customer_firstname, u.lastname AS customer_lastname, u.phone AS customer_phone FROM tasks t LEFT JOIN users u ON t.customer_email = u.email WHERE (t.provider_id = ? OR t.provider_name = ? OR t.provider_name = ? OR t.provider_name = '' OR t.provider_name IS NULL) AND t.status IN ('pending_confirmation', 'active')").all(provider.id, bizName, fullName);
   res.json(tasks);
 });
 
@@ -130,7 +130,7 @@ router.get('/completed-tasks', async (req, res) => {
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
   const bizName = provider.business_name;
   const fullName = provider.firstname + ' ' + provider.lastname;
-  const completed = await db.prepare('SELECT * FROM completed_tasks WHERE provider_name = ? OR provider_name = ?').all(bizName, fullName);
+  const completed = await db.prepare('SELECT * FROM completed_tasks WHERE provider_id = ? OR provider_name = ? OR provider_name = ?').all(provider.id, bizName, fullName);
   res.json(completed);
 });
 
@@ -170,10 +170,8 @@ router.get('/earnings', async (req, res) => {
   const db = getDb();
   const provider = await db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
-  const bizName = provider.business_name;
-  const fullName = provider.firstname + ' ' + provider.lastname;
-  const total = await db.prepare("SELECT COALESCE(SUM(price * 0.85), 0) as earnings FROM completed_tasks WHERE (provider_name = ? OR provider_name = ?) AND paid = 1").get(bizName, fullName);
-  const breakdown = await db.prepare("SELECT service_name, price, completed_at FROM completed_tasks WHERE (provider_name = ? OR provider_name = ?) AND paid = 1").all(bizName, fullName);
+  const total = await db.prepare("SELECT COALESCE(SUM(price * 0.85), 0) as earnings FROM completed_tasks WHERE provider_id = ? AND paid = 1").get(provider.id);
+  const breakdown = await db.prepare("SELECT service_name, price, completed_at FROM completed_tasks WHERE provider_id = ? AND paid = 1").all(provider.id);
   res.json({ totalEarnings: total.earnings, breakdown });
 });
 
@@ -201,12 +199,10 @@ router.get('/dashboard-stats', async (req, res) => {
   const provider = await db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
 
-  const bizName = provider.business_name;
-  const fullName = provider.firstname + ' ' + provider.lastname;
-  const todayTasks = await db.prepare("SELECT COUNT(*) as count FROM tasks WHERE (provider_name = ? OR provider_name = ?) AND created_at::date = CURRENT_DATE").get(bizName, fullName);
-  const monthlyEarnings = await db.prepare("SELECT COALESCE(SUM(price * 0.85), 0) as earnings FROM completed_tasks WHERE (provider_name = ? OR provider_name = ?) AND paid = 1 AND to_char(completed_at, 'YYYY-MM') = to_char(NOW(), 'YYYY-MM')").get(bizName, fullName);
-  const totalCompleted = await db.prepare("SELECT COUNT(*) as count FROM completed_tasks WHERE (provider_name = ? OR provider_name = ?) AND paid = 1").get(bizName, fullName);
-  const totalTasks = await db.prepare("SELECT COUNT(*) as count FROM completed_tasks WHERE provider_name = ? OR provider_name = ?").get(bizName, fullName);
+  const todayTasks = await db.prepare("SELECT COUNT(*) as count FROM tasks WHERE (provider_id = ? OR provider_id IS NULL) AND created_at::date = CURRENT_DATE").get(provider.id);
+  const monthlyEarnings = await db.prepare("SELECT COALESCE(SUM(price * 0.85), 0) as earnings FROM completed_tasks WHERE provider_id = ? AND paid = 1 AND to_char(completed_at, 'YYYY-MM') = to_char(NOW(), 'YYYY-MM')").get(provider.id);
+  const totalCompleted = await db.prepare("SELECT COUNT(*) as count FROM completed_tasks WHERE provider_id = ? AND paid = 1").get(provider.id);
+  const totalTasks = await db.prepare("SELECT COUNT(*) as count FROM completed_tasks WHERE provider_id = ?").get(provider.id);
   const completionRate = totalTasks.count > 0 ? Math.round((totalCompleted.count / totalTasks.count) * 100) : 0;
 
   res.json({
@@ -214,6 +210,14 @@ router.get('/dashboard-stats', async (req, res) => {
     monthlyEarnings: monthlyEarnings.earnings,
     completionRate
   });
+});
+
+router.get('/price-requests', async (req, res) => {
+  const db = getDb();
+  const provider = await db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
+  if (!provider) return res.status(404).json({ error: 'Provider not found' });
+  const requests = await db.prepare("SELECT * FROM price_requests WHERE provider_id = ? ORDER BY created_at DESC").all(provider.id);
+  res.json(requests);
 });
 
 router.get('/notifications', async (req, res) => {

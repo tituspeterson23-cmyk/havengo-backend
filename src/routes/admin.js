@@ -64,6 +64,12 @@ router.post('/price-requests/:id/approve', async (req, res) => {
   if (!request) return res.status(404).json({ error: 'Request not found' });
   const finalPrice = adjustedPrice || request.requested_price;
   await db.prepare("UPDATE price_requests SET status = 'approved' WHERE id = ?").run(id);
+  // Notify provider
+  const provider = await db.prepare("SELECT email FROM providers WHERE id = ?").get(request.provider_id);
+  if (provider) {
+    await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+      .run(provider.email, '✅', 'Price Request Approved', 'Your price change request for service was approved. New price: UGX ' + finalPrice, 'price_request');
+  }
   res.json({ success: true, message: 'Price request approved', approvedPrice: finalPrice });
 });
 
@@ -71,7 +77,15 @@ router.post('/price-requests/:id/reject', async (req, res) => {
   const db = getDb();
   const id = parseInt(req.params.id);
   if (!id) return res.status(400).json({ error: 'Invalid request ID' });
+  const request = await db.prepare('SELECT * FROM price_requests WHERE id = ?').get(id);
+  if (!request) return res.status(404).json({ error: 'Request not found' });
   await db.prepare("UPDATE price_requests SET status = 'rejected' WHERE id = ?").run(id);
+  // Notify provider
+  const provider = await db.prepare("SELECT email FROM providers WHERE id = ?").get(request.provider_id);
+  if (provider) {
+    await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+      .run(provider.email, '❌', 'Price Request Rejected', 'Your price change request for service was rejected.', 'price_request');
+  }
   res.json({ success: true, message: 'Price request rejected' });
 });
 
@@ -231,6 +245,35 @@ router.post('/resolve-payment-dispute/:id', async (req, res) => {
   }
 });
 
+router.get('/revenue/balance', async (req, res) => {
+  const db = getDb();
+  const totalRevenue = await db.prepare("SELECT COALESCE(SUM(price * 0.15), 0) as revenue FROM completed_tasks WHERE paid = 1").pluck().get();
+  const withdrawn = await db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_withdrawn'").pluck().get();
+  const withdrawnAmt = parseFloat(withdrawn) || 0;
+  const available = Math.max(0, (totalRevenue || 0) - withdrawnAmt);
+  res.json({ totalRevenue: totalRevenue || 0, withdrawn: withdrawnAmt, available });
+});
+
+router.post('/withdraw', async (req, res) => {
+  const { amount, phone } = req.body;
+  const amt = parseFloat(amount);
+  if (isNaN(amt) || amt <= 0) return res.status(400).json({ error: 'Invalid amount' });
+  if (!phone || phone.length < 10) return res.status(400).json({ error: 'Valid phone number required' });
+  const db = getDb();
+  const totalRevenue = await db.prepare("SELECT COALESCE(SUM(price * 0.15), 0) as revenue FROM completed_tasks WHERE paid = 1").pluck().get();
+  const withdrawn = parseFloat(await db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_withdrawn'").pluck().get()) || 0;
+  const available = Math.max(0, (totalRevenue || 0) - withdrawn);
+  if (amt > available) return res.status(400).json({ error: 'Insufficient revenue balance. Available: UGX ' + available.toLocaleString() });
+  const newWithdrawn = withdrawn + amt;
+  const existing = await db.prepare("SELECT id FROM admin_settings WHERE key = 'admin_withdrawn'").get();
+  if (existing) {
+    await db.prepare("UPDATE admin_settings SET value = ? WHERE key = 'admin_withdrawn'").run(newWithdrawn.toString());
+  } else {
+    await db.prepare("INSERT INTO admin_settings (key, value) VALUES ('admin_withdrawn', ?)").run(newWithdrawn.toString());
+  }
+  res.json({ success: true, message: 'UGX ' + amt.toLocaleString() + ' withdrawal to ' + phone + ' processed. Total withdrawn: UGX ' + newWithdrawn.toLocaleString() });
+});
+
 router.get('/tasks', async (req, res) => {
   const db = getDb();
   const tasks = await db.prepare("SELECT t.*, u.firstname AS customer_firstname, u.lastname AS customer_lastname, u.phone AS customer_phone, p.email AS provider_email, p.phone AS provider_phone, p.business_name AS provider_business, p.firstname AS provider_firstname, p.lastname AS provider_lastname FROM tasks t LEFT JOIN users u ON t.customer_email = u.email LEFT JOIN providers p ON (t.provider_name = p.business_name OR t.provider_name = (p.firstname || ' ' || p.lastname)) WHERE t.status IN ('pending_confirmation', 'active')").all();
@@ -244,12 +287,12 @@ router.post('/tasks/reassign/:taskId', async (req, res) => {
   const task = await db.prepare("SELECT * FROM tasks WHERE id = ?").get(parseInt(req.params.taskId));
   if (!task) return res.status(404).json({ error: 'Task not found' });
   if (task.status === 'completed') return res.status(400).json({ error: 'Cannot reassign completed task' });
-  await db.prepare("UPDATE tasks SET provider_name = ?, status = 'pending_confirmation' WHERE id = ?").run(providerName, parseInt(req.params.taskId));
-  const newProv = await db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(providerName, providerName);
-  if (newProv) {
-    await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
-      .run(newProv.email, '📋', 'Order Assigned to You', 'A new order has been assigned to you by admin. Please review and confirm.', 'task');
-  }
+  // Look up provider_id by name
+  const newProv = await db.prepare("SELECT id, email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(providerName, providerName);
+  if (!newProv) return res.status(404).json({ error: 'Provider not found' });
+  await db.prepare("UPDATE tasks SET provider_name = ?, provider_id = ?, status = 'pending_confirmation' WHERE id = ?").run(providerName, newProv.id, parseInt(req.params.taskId));
+  await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+    .run(newProv.email, '📋', 'Order Assigned to You', 'A new order has been assigned to you by admin. Please review and confirm.', 'task');
   res.json({ success: true, message: 'Task reassigned to ' + providerName });
 });
 
