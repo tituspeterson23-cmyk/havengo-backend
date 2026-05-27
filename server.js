@@ -54,6 +54,13 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Public: get approved service prices for cross-device sync
+app.get('/api/services/prices', async (req, res) => {
+  const db = getDb();
+  const prices = await db.prepare("SELECT service_id, price, updated_at FROM service_prices ORDER BY updated_at DESC").all();
+  res.json(prices);
+});
+
 // Public: list verified providers for service listing
 app.get('/api/providers/verified', async (req, res) => {
   const db = getDb();

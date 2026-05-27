@@ -217,6 +217,33 @@ Migrate from SQLite (sql.js) to PostgreSQL (Neon) for persistent data storage, f
 - Credentials: Admin `thermypetson@gmail.com` / `23.Forlife`
 - Database now: **Neon PostgreSQL** (not SQLite in data/havengo.db)
 
+## Session 5 (May 27, 2026) — Provider_id Anchoring, Notifications, Ratings
+
+### Changes Made
+- **Chat**: `sendChatMessage()` sends `"Provider"` instead of name; `normalizeChatSender()` maps old names → `"provider"`/`"admin"`/`"customer"`
+- **All localStorage persistence removed** for chat (`syncChatToStorage`, localStorage fallback) and notifications (`userNotificationsMap`, `globalNotifications` on role switch)
+- **Order contact details**: `GET /api/provider/tasks` joins `users`; `GET /api/admin/tasks` joins `users` + `providers`; frontend renders in booking/task cards
+- **service_id TEXT**: Changed from `INTEGER` to `TEXT NOT NULL` in `tasks` and `price_requests` (PostgreSQL compat)
+- **Provider earnings**: Uses `provider_id` instead of name matching in `customer.js` and `server.js`
+- **System revenue**: `system_balance` key in `admin_settings` incremented on confirm-payment and auto-payment
+- **Admin withdraw**: Already existed — fixed missing `apiUrl`/`headers` in frontend functions
+- **Notifications persistence**: `fetchBackendNotifications()` no longer calls `mark-seen` immediately; marks seen only on panel open / "Mark all read"
+- **Price requests**: `approvePriceRequest()`, `rejectPriceRequest()`, `adjustPriceRequest()` now call backend API; backends of approve/reject insert provider notifications
+- **Booking status**: `fetchCustomerBookings()` checks `b.completed_at` for `"Completed"` status
+- **Ratings**: `provider_ratings` table + `/api/provider-ratings` route; frontend fetches + submits via backend, 15s polling
+- **Recent activities**: `renderProfilePage()` called on `navigateTo('profile')`
+- **Mobile menu**: Added "How It Works" link
+- **Job count**: Uses `COUNT(*) FROM completed_tasks WHERE provider_id = p.id` instead of earnings estimate
+- **Provider_id matching**: Backend routes (`/tasks`, `/completed-tasks`, `/earnings`, `/dashboard-stats`) converted to `provider_id = ?` primary with name fallback; frontend task/completed objects capture `providerId`; filters match by ID first, name as fallback; `providerEarningsMap` keyed by both name and `"id_"+provider_id`
+- **price_change_requests table**: Renamed to `price_requests` (matching route code); added migration fallback
+- **renderAdminPriceRequests()**: Was accidentally deleted during edits — restored to fix JS parse error
+
+### Fix Applied (May 27 evening)
+- Missing `function renderAdminPriceRequests() {` declaration at HTML line ~3971 caused floating code, breaking JS parsing and preventing app from loading beyond home page
+
+### Deployment
+- Both repos pushed to GitHub; Render + Netlify auto-deploy
+
 ## Important Constraints (NEVER break these)
 - `index.html` is a single page — all JS, CSS, HTML in one file
 - NEVER remove `userBalance = 2000000` default — it's the only safety net for users when backend is unreachable

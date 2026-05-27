@@ -198,6 +198,15 @@ async function initDatabase() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS service_prices (
+      service_id TEXT PRIMARY KEY,
+      price INTEGER NOT NULL,
+      provider_id INTEGER,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS deletion_requests (
       id SERIAL PRIMARY KEY,
       identifier TEXT NOT NULL,

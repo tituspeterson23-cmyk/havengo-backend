@@ -64,6 +64,9 @@ router.post('/price-requests/:id/approve', async (req, res) => {
   if (!request) return res.status(404).json({ error: 'Request not found' });
   const finalPrice = adjustedPrice || request.requested_price;
   await db.prepare("UPDATE price_requests SET status = 'approved' WHERE id = ?").run(id);
+  // Persist approved price globally for cross-device sync
+  await db.prepare("INSERT INTO service_prices (service_id, price, provider_id, updated_at) VALUES (?, ?, ?, NOW()) ON CONFLICT (service_id) DO UPDATE SET price = EXCLUDED.price, provider_id = EXCLUDED.provider_id, updated_at = NOW()")
+    .run(request.service_id, finalPrice, request.provider_id);
   // Notify provider
   const provider = await db.prepare("SELECT email FROM providers WHERE id = ?").get(request.provider_id);
   if (provider) {

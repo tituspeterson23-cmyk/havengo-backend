@@ -74,7 +74,7 @@ router.post('/place-order', async (req, res) => {
     }
   }
 
-  res.json({ success: true, message: 'Order placed! Awaiting provider confirmation.', taskId: newTaskId });
+  res.json({ success: true, message: 'Order placed! Awaiting provider confirmation.', taskId: newTaskId, providerId: providerId || null });
 });
 
 router.get('/pending-payments', async (req, res) => {
