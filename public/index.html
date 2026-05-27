@@ -137,7 +137,7 @@
 .theme-violet .accent-text { color: rgb(124 58 237); }
 .theme-cyan .accent-text { color: rgb(8 145 178); }
 .theme-slate .accent-text { color: rgb(71 85 105); }
-.whatsapp-float{ position:fixed; width:60px; height:60px; bottom:25px; right:25px; background:#25D366; color:white; border-radius:50%; text-align:center; font-size:30px; box-shadow:2px 2px 10px rgba(0,0,0,.25); z-index:999; display:flex; align-items:center; justify-content:center; }
+.whatsapp-float{ position:fixed; width:60px; height:60px; bottom:25px; right:25px; background:#25D366; color:white; border-radius:50%; text-align:center; font-size:30px; box-shadow:2px 2px 10px rgba(0,0,0,.25); z-index:999; display:flex; align-items:center; justify-content:center; }@media(max-width:640px){.whatsapp-float{ width:44px; height:44px; font-size:22px; bottom:16px; right:16px; }}
 .search-results{ max-height:250px; overflow:auto; }
 .blog-post { transition: all 0.3s ease; }
 .blog-post:hover { transform: translateY(-4px); }
@@ -481,62 +481,62 @@
 </div>
 <button id="toggle-avatar-btn" onclick="toggleCustomerAvatar()" class="absolute top-16 left-40 bg-white border rounded-full px-3 py-1 text-xs shadow hover:bg-gray-50"><i class="fa-solid fa-face-smile"></i> Bitmoji</button>
 <div class="pt-20">
-<div class="flex justify-between items-start flex-wrap gap-5">
-<div><h2 id="profile-fullname" class="text-3xl font-bold">Guest User</h2><p id="profile-email" class="text-gray-500">guest@havengo.ug</p><p id="profile-phone" class="text-gray-500">+256 777 062 518</p></div>
-<button onclick="handleProfileAuthButton()" id="profile-auth-button" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-2xl text-sm"><i class="fa-solid fa-right-to-bracket"></i> Log In</button>
+<div class="flex justify-between items-start flex-wrap gap-5 bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+<div class="flex items-center gap-4"><div class="w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-2xl flex items-center justify-center text-3xl"><i class="fa-solid fa-user text-emerald-600"></i></div><div><h2 id="profile-fullname" class="text-3xl font-bold">Guest User</h2><p id="profile-email" class="text-gray-500 flex items-center gap-2"><i class="fa-solid fa-envelope text-gray-400 text-xs"></i>guest@havengo.ug</p><p id="profile-phone" class="text-gray-500 flex items-center gap-2"><i class="fa-solid fa-phone text-gray-400 text-xs"></i>+256 777 062 518</p></div></div>
+<button onclick="handleProfileAuthButton()" id="profile-auth-button" class="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white px-6 py-3 rounded-2xl text-sm shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-right-to-bracket"></i> Log In</button>
 </div>
-<div class="flex border-b mt-8">
-    <button onclick="switchProfileTab(0)" class="profile-tab px-6 py-3 border-b-2 border-emerald-600 font-medium">Overview</button>
-    <button onclick="switchProfileTab(1)" class="profile-tab px-6 py-3 text-gray-500">Payments</button>
-    <button onclick="switchProfileTab(2)" class="profile-tab px-6 py-3 text-gray-500">Saved Addresses</button>
-    <button onclick="switchProfileTab(3)" class="profile-tab px-6 py-3 text-gray-500">Notifications</button>
-    <button onclick="switchProfileTab(4)" class="profile-tab px-6 py-3 text-gray-500">Favorites</button>
-    <button onclick="switchProfileTab(5)" class="profile-tab px-6 py-3 text-gray-500">Chat</button>
+<div class="flex border-b mt-8 gap-1">
+    <button onclick="switchProfileTab(0)" class="profile-tab px-5 py-3 border-b-2 border-emerald-600 font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-gauge-high text-emerald-600"></i>Overview</button>
+    <button onclick="switchProfileTab(1)" class="profile-tab px-5 py-3 text-gray-500 text-sm flex items-center gap-2"><i class="fa-solid fa-wallet"></i>Payments</button>
+    <button onclick="switchProfileTab(2)" class="profile-tab px-5 py-3 text-gray-500 text-sm flex items-center gap-2"><i class="fa-solid fa-location-dot"></i>Addresses</button>
+    <button onclick="switchProfileTab(3)" class="profile-tab px-5 py-3 text-gray-500 text-sm flex items-center gap-2"><i class="fa-solid fa-bell"></i>Notifications</button>
+    <button onclick="switchProfileTab(4)" class="profile-tab px-5 py-3 text-gray-500 text-sm flex items-center gap-2"><i class="fa-solid fa-heart"></i>Favorites</button>
+    <button onclick="switchProfileTab(5)" class="profile-tab px-5 py-3 text-gray-500 text-sm flex items-center gap-2"><i class="fa-solid fa-comment"></i>Chat</button>
 </div>
 <div id="profile-tab-0" class="profile-tab-content mt-8">
-<div class="grid md:grid-cols-3 gap-6">
-<div class="bg-gray-100 rounded-2xl p-6"><p class="text-gray-500 mb-2">Orders</p><h3 class="text-3xl font-bold" id="profile-order-count">0</h3></div>
-<div class="bg-gray-100 rounded-2xl p-6"><p class="text-gray-500 mb-2">Favorite Providers</p><h3 class="text-3xl font-bold" id="profile-favorite-providers-count">0</h3></div>
-<div class="bg-gray-100 rounded-2xl p-6"><p class="text-gray-500 mb-2">Account Balance</p><h3 class="text-3xl font-bold text-emerald-600" id="profile-balance-display">2,000,000 UGX</h3></div>
+<div class="grid md:grid-cols-3 gap-5">
+<div class="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-6 border border-blue-100 hover:shadow-md transition-shadow"><div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><i class="fa-solid fa-receipt text-blue-600"></i></div><p class="text-gray-500 text-sm">Orders</p></div><h3 class="text-3xl font-bold" id="profile-order-count">0</h3></div>
+<div class="bg-gradient-to-br from-pink-50 to-white rounded-2xl p-6 border border-pink-100 hover:shadow-md transition-shadow"><div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 bg-pink-100 rounded-xl flex items-center justify-center"><i class="fa-solid fa-heart text-pink-600"></i></div><p class="text-gray-500 text-sm">Favorites</p></div><h3 class="text-3xl font-bold" id="profile-favorite-providers-count">0</h3></div>
+<div class="bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-6 border border-emerald-100 hover:shadow-md transition-shadow"><div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center"><i class="fa-solid fa-coins text-emerald-600"></i></div><p class="text-gray-500 text-sm">Balance</p></div><h3 class="text-3xl font-bold text-emerald-600" id="profile-balance-display">2,000,000 UGX</h3></div>
 </div>
-<div class="mt-4 bg-blue-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-700"><i class="fa-solid fa-info-circle mr-2"></i> Money deposited can be withdrawn at any time unless there's a pending order.</div>
-<div class="mt-10 border-t pt-8"><h3 class="font-semibold mb-4">Recent Activity</h3><div id="recent-activity-list" class="space-y-4 text-sm"></div></div>
-<div id="delete-account-container" class="mt-8 border-t pt-8" style="display:none;">
-    <button onclick="requestAccountDeletion()" class="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-semibold"><i class="fa-solid fa-trash-can"></i> Delete Account</button>
+<div class="mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-700 flex items-center gap-3"><i class="fa-solid fa-circle-info text-blue-500 text-lg"></i> Money deposited can be withdrawn at any time unless there's a pending order.</div>
+<div class="mt-8 bg-white rounded-3xl p-6 shadow-sm border border-gray-100"><h3 class="font-semibold mb-4 flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-emerald-500"></i> Recent Activity</h3><div id="recent-activity-list" class="space-y-4 text-sm"></div></div>
+<div id="delete-account-container" class="mt-6" style="display:none;">
+    <button onclick="requestAccountDeletion()" class="w-full bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white py-4 rounded-2xl font-semibold shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-trash-can"></i> Delete Account</button>
 </div>
 </div>
 <div id="profile-tab-1" class="profile-tab-content hidden mt-8">
-    <div class="bg-white rounded-3xl p-8 shadow">
-        <div class="flex justify-between items-center mb-6"><h3 class="font-semibold text-xl">Account Balance</h3><div class="text-right"><p class="text-2xl font-bold text-emerald-600" id="profile-account-balance">2,000,000 UGX</p><p class="text-xs text-gray-500">Available for payments</p></div></div>
+    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+        <div class="flex justify-between items-center mb-6"><h3 class="font-semibold text-xl flex items-center gap-2"><i class="fa-solid fa-wallet text-emerald-500"></i>Account Balance</h3><div class="text-right"><p class="text-2xl font-bold text-emerald-600" id="profile-account-balance">2,000,000 UGX</p><p class="text-xs text-gray-500">Available for payments</p></div></div>
         <div class="flex gap-2 mb-4">
-            <button onclick="showDepositModal()" class="flex-1 bg-emerald-600 text-white py-4 rounded-2xl font-semibold"><i class="fa-solid fa-plus"></i> Deposit</button>
-            <button onclick="showPaymentsPending()" class="flex-1 border border-emerald-600 text-emerald-700 py-4 rounded-2xl font-semibold relative"><i class="fa-solid fa-credit-card"></i> Pay<span id="pending-payment-count" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">0</span></button>
-            <button onclick="showCustomerWithdrawModal()" class="flex-1 bg-amber-600 text-white py-4 rounded-2xl font-semibold"><i class="fa-solid fa-wallet"></i> Withdraw</button>
+            <button onclick="showDepositModal()" class="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white py-4 rounded-2xl font-semibold shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-plus"></i> Deposit</button>
+            <button onclick="showPaymentsPending()" class="flex-1 border-2 border-emerald-600 text-emerald-700 hover:bg-emerald-50 py-4 rounded-2xl font-semibold relative transition-all"><i class="fa-solid fa-credit-card"></i> Pay<span id="pending-payment-count" class="hidden absolute -top-2 -right-2 bg-red-500 text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">0</span></button>
+            <button onclick="showCustomerWithdrawModal()" class="flex-1 bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white py-4 rounded-2xl font-semibold shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-wallet"></i> Withdraw</button>
         </div>
-        <div id="payment-countdown" class="hidden mb-6 p-4 bg-red-50 border border-red-200 rounded-2xl">
+        <div id="payment-countdown" class="hidden mb-6 p-4 bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-2xl">
             <p class="font-medium text-red-700"><i class="fa-solid fa-clock"></i> Payment Required Before Withdraw</p>
             <p class="text-sm text-red-600 mt-1">Complete pending payment before withdrawing. Auto-deduction in: <span id="countdown-timer" class="font-bold">--:--:--</span></p>
         </div>
-        <h3 class="font-semibold mb-6">Payment Methods</h3>
+        <h3 class="font-semibold mb-6 flex items-center gap-2"><i class="fa-solid fa-credit-card text-emerald-500"></i>Payment Methods</h3>
         <div id="payment-methods-list" class="space-y-4"></div>
-        <button onclick="addPaymentMethod()" class="mt-6 text-emerald-600 font-medium">+ Add New Payment Method</button>
+        <button onclick="addPaymentMethod()" class="mt-6 text-emerald-600 font-medium hover:text-emerald-700 transition-colors">+ Add New Payment Method</button>
     </div>
 </div>
 <div id="profile-tab-2" class="profile-tab-content hidden mt-8">
-    <div class="bg-white rounded-3xl p-8 shadow"><h3 class="font-semibold mb-6">Saved Addresses</h3><button onclick="addNewAddress()" class="mb-6 text-emerald-600 font-medium">+ Add New Address</button><div id="saved-addresses-list" class="space-y-4"></div><div class="map-container mt-6"><iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3989.757249016!2d32.5825!3d0.3136!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x177d9f2c3c3c3c3d%3A0x1b2c3d4e5f6g7h8i!2sKampala%2C%20Uganda!5e0!3m2!1sen!2sug!4v1710000000000" width="100%" height="300" style="border:0;" allowfullscreen="" loading="lazy"></iframe></div></div>
+    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100"><h3 class="font-semibold mb-6 flex items-center gap-2"><i class="fa-solid fa-location-dot text-emerald-500"></i>Saved Addresses</h3><button onclick="addNewAddress()" class="mb-6 text-emerald-600 font-medium hover:text-emerald-700 transition-colors">+ Add New Address</button><div id="saved-addresses-list" class="space-y-4"></div><div class="map-container mt-6 rounded-2xl overflow-hidden border border-gray-200"><iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3989.757249016!2d32.5825!3d0.3136!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x177d9f2c3c3c3c3d%3A0x1b2c3d4e5f6g7h8i!2sKampala%2C%20Uganda!5e0!3m2!1sen!2sug!4v1710000000000" width="100%" height="300" style="border:0;" allowfullscreen="" loading="lazy"></iframe></div></div>
 </div>
-<div id="profile-tab-3" class="profile-tab-content hidden mt-8"><div class="bg-white rounded-3xl p-8 shadow" id="profile-notifications"></div></div>
+<div id="profile-tab-3" class="profile-tab-content hidden mt-8"><div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100" id="profile-notifications"></div></div>
 <div id="profile-tab-4" class="profile-tab-content hidden mt-8">
-    <div class="bg-white rounded-3xl p-8 shadow"><h3 class="font-semibold mb-6">Favorite Providers</h3><div id="favorite-providers-list" class="space-y-4"></div></div>
+    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100"><h3 class="font-semibold mb-6 flex items-center gap-2"><i class="fa-solid fa-heart text-pink-500"></i>Favorite Providers</h3><div id="favorite-providers-list" class="space-y-4"></div></div>
 </div>
 <div id="profile-tab-5" class="profile-tab-content hidden mt-8">
-    <div class="bg-white rounded-3xl p-8 shadow">
-        <div class="flex justify-between items-center mb-6"><h3 class="font-semibold">Customer Support Chat</h3></div>
+    <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+        <div class="flex justify-between items-center mb-6"><h3 class="font-semibold flex items-center gap-2"><i class="fa-solid fa-headset text-amber-500"></i>Customer Support Chat</h3></div>
         <p class="text-sm text-gray-500 mb-4">Chat with the HavenGo admin team for support.</p>
-        <button onclick="openCustomerAdminChat()" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-4 rounded-2xl font-semibold"><i class="fa-solid fa-comment"></i> Chat with Admin</button>
+        <button onclick="openCustomerAdminChat()" class="w-full bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white py-4 rounded-2xl font-semibold shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-comment"></i> Chat with Admin</button>
         <div id="customer-admin-chat-area" class="mt-6 hidden">
-            <div id="customer-admin-messages" class="space-y-3 max-h-64 overflow-y-auto mb-4 p-3 bg-gray-50 rounded-2xl"></div>
-            <div class="flex gap-3"><input id="customer-admin-chat-input" onkeypress="if(event.key==='Enter')sendCustomerAdminMessage()" type="text" class="flex-1 border rounded-2xl px-4 py-3 outline-none focus:border-amber-600" placeholder="Type your message..."><button onclick="sendCustomerAdminMessage()" class="bg-amber-600 text-white px-5 py-3 rounded-2xl"><i class="fa-solid fa-paper-plane"></i></button></div>
+            <div id="customer-admin-messages" class="space-y-3 max-h-64 overflow-y-auto mb-4 p-4 bg-gray-50 rounded-2xl border border-gray-200"></div>
+            <div class="flex gap-3"><input id="customer-admin-chat-input" onkeypress="if(event.key==='Enter')sendCustomerAdminMessage()" type="text" class="flex-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 transition-all" placeholder="Type your message..."><button onclick="sendCustomerAdminMessage()" class="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-700 hover:to-amber-600 text-white px-5 py-3.5 rounded-2xl shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-paper-plane"></i></button></div>
         </div>
     </div>
 </div>
@@ -563,7 +563,7 @@
 <div id="help" class="page"><div class="max-w-4xl mx-auto px-5 py-16"><h2 class="text-4xl font-bold mb-8">Help Center</h2></div></div>
 <div id="terms" class="page"><div class="max-w-4xl mx-auto px-5 py-16"><h2 class="text-4xl font-bold mb-8">Terms & Conditions</h2></div></div>
 <div id="privacy" class="page"><div class="max-w-4xl mx-auto px-5 py-16"><h2 class="text-4xl font-bold mb-8">Privacy Policy</h2></div></div>
-<div id="contact" class="page"><div class="max-w-4xl mx-auto px-5 py-16"><h2 class="text-4xl font-bold mb-8">Contact Support</h2><p class="text-2xl">WhatsApp: <a href="https://wa.me/256777062518" class="text-emerald-600">0777 062 518</a></p><p class="text-2xl mt-4">Call: 0757 532 066</p><p class="text-2xl mt-4">Email: support@havengo.ug</p></div></div>
+<div id="contact" class="page"><div class="max-w-4xl mx-auto px-5 py-16"><h2 class="text-4xl font-bold mb-8">Contact Support</h2><p class="text-2xl">WhatsApp: <a href="https://wa.me/256777062518" class="text-emerald-600">0777 062 518</a></p><p class="text-2xl mt-4">Call: <a href="tel:+256757532066" class="text-blue-600 hover:underline">0757 532 066</a></p><p class="text-2xl mt-4">Email: <a href="mailto:support@havengo.ug" class="text-blue-600 hover:underline">support@havengo.ug</a></p></div></div>
 
 <div id="admin" class="page"><div class="max-w-6xl mx-auto px-5 py-10">
     <div class="flex items-center justify-between mb-8">
@@ -660,19 +660,18 @@
     <button onclick="closeModal('payment-confirm-modal'); trackPaymentDecline();" class="w-full border py-4 rounded-3xl font-semibold">Pay Later</button>
 </div></div>
 
-<div id="checkout-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/50 modal p-5">
-<div class="bg-white w-full max-w-xl rounded-3xl overflow-hidden modal-content">
-<div class="hero-gradient text-white p-6"><h2 class="text-3xl font-bold">Complete Booking</h2><p class="text-gray-200" id="modal-service-type">Secure and instant order processing</p></div>
+<div id="checkout-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm modal p-5">
+<div class="bg-white w-full max-w-xl rounded-3xl overflow-hidden shadow-2xl modal-content">
+<div class="hero-gradient text-white p-6 relative overflow-hidden"><div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-8 -mt-8"></div><div class="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-6 -mb-6"></div><h2 class="text-3xl font-bold relative z-10"><i class="fa-solid fa-pen-to-square mr-2"></i>Complete Booking</h2><p class="text-gray-200 relative z-10" id="modal-service-type">Secure and instant order processing</p></div>
 <form onsubmit="placeOrder(event)" class="p-8 space-y-5">
-<div><label class="font-medium">Selected Service</label><div id="modal-service" class="mt-2 bg-gray-100 rounded-2xl p-4"></div></div>
-<div><label class="font-medium">Estimated Price</label><div id="modal-price" class="mt-2 bg-gray-100 rounded-2xl p-4 font-bold text-emerald-600"></div></div>
-<div id="dynamic-fields" class="space-y-6"></div>
-<div class="pt-4 border-t"><button onclick="addInAppAlert('info','Chat will be available after placing your order.')" type="button" class="w-full flex items-center justify-center gap-3 bg-white border-2 border-emerald-600 text-emerald-700 py-4 rounded-2xl font-semibold hover:bg-emerald-50"><i class="fa-solid fa-comments"></i><span>?? Chat with Provider</span></button></div>
-<div class="grid md:grid-cols-2 gap-5"><div><label class="font-medium">Select Date</label><input type="date" id="booking-date" required class="w-full mt-2 border rounded-2xl px-4 py-4 outline-none"></div><div><label class="font-medium">Select Time</label><input type="time" id="booking-time" required class="w-full mt-2 border rounded-2xl px-4 py-4 outline-none"></div></div>
-<div><label class="font-medium">Address</label><input type="text" id="address-input" placeholder="Enter your location" required class="w-full mt-2 border rounded-2xl px-4 py-4 outline-none"></div>
-
-<div><label class="font-medium">Special Instructions</label><textarea id="special-instructions" rows="4" placeholder="Anything provider should know..." class="w-full mt-2 border rounded-2xl px-4 py-4 outline-none"></textarea></div>
-<div class="flex gap-4 pt-3"><button type="button" onclick="closeModal('checkout-modal')" class="flex-1 border py-4 rounded-2xl font-semibold">Cancel</button><button type="submit" class="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white py-4 rounded-2xl font-semibold">Order Now</button></div>
+<div class="bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-5 border border-emerald-100"><label class="font-medium text-emerald-800 text-sm flex items-center gap-2"><i class="fa-solid fa-tag text-emerald-500"></i>Selected Service</label><div id="modal-service" class="mt-2"></div></div>
+<div class="bg-gradient-to-br from-amber-50 to-white rounded-2xl p-5 border border-amber-100"><label class="font-medium text-amber-800 text-sm flex items-center gap-2"><i class="fa-solid fa-coins text-amber-500"></i>Estimated Price</label><div id="modal-price" class="mt-1 text-2xl font-bold text-emerald-600"></div></div>
+<div id="dynamic-fields" class="bg-gray-50 rounded-2xl p-5 border border-gray-100 space-y-6"></div>
+<div class="bg-blue-50 rounded-2xl p-4 border border-blue-100"><button onclick="addInAppAlert('info','Chat will be available after placing your order.')" type="button" class="w-full flex items-center justify-center gap-3 bg-white border-2 border-blue-500 text-blue-700 py-3.5 rounded-2xl font-medium hover:bg-blue-50 transition-all"><i class="fa-solid fa-comments text-blue-500"></i><span>Chat with Provider (after order)</span></button></div>
+<div class="grid md:grid-cols-2 gap-4"><div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-regular fa-calendar text-emerald-500"></i>Select Date</label><input type="date" id="booking-date" required class="w-full mt-2 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all"></div><div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-regular fa-clock text-emerald-500"></i>Select Time</label><input type="time" id="booking-time" required class="w-full mt-2 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all"></div></div>
+<div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-location-dot text-emerald-500"></i>Address</label><input type="text" id="address-input" placeholder="Enter your location" required class="w-full mt-2 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all"></div>
+<div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-pencil text-emerald-500"></i>Special Instructions</label><textarea id="special-instructions" rows="3" placeholder="Anything the provider should know..." class="w-full mt-2 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all"></textarea></div>
+<div class="flex gap-4 pt-2"><button type="button" onclick="closeModal('checkout-modal')" class="flex-1 border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 py-3.5 rounded-2xl font-semibold text-gray-600 transition-all">Cancel</button><button type="submit" class="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white py-3.5 rounded-2xl font-semibold shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-circle-check mr-1"></i> Order Now</button></div>
 </form></div></div>
 
 <div id="chat-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
@@ -3375,7 +3374,8 @@ function renderProviderDashboard() {
                     "</div>" +
                     "<div class=\"text-right flex flex-col items-end min-w-[100px]\"><span class=\"bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium\">Completed</span>" +
                     "<p class=\"font-bold text-emerald-600 mt-2 text-lg\">UGX " + ct.price.toLocaleString() + "</p>" +
-                    "<p class=\"text-xs text-gray-400 mt-1\">You earn UGX " + earningAmt.toLocaleString() + "</p></div></div></div>";
+                    "<p class=\"text-xs text-gray-400 mt-1\">You earn UGX " + earningAmt.toLocaleString() + "</p>" +
+                    "<button onclick=\"openProviderChat(" + ct.id + ")\" class=\"mt-3 bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-2xl text-xs w-full\"><i class=\"fa-solid fa-comment\"></i> Chat</button></div></div></div>";
             }
             completedList.innerHTML = html2;
         }
@@ -5413,15 +5413,21 @@ function renderAllProviderLists() {
                 if (favoriteProviders[fi].email === p.email || favoriteProviders[fi].name === displayName) { isFav = true; break; }
             }
             var favIcon = isFav ? "fa-solid fa-heart text-red-500" : "fa-regular fa-heart text-gray-400";
+            var provPhone = p.phone || p.phone_number || "";
+            var provEmail = p.email || "";
             html += "<div class=\"flex items-center justify-between\">" +
                 "<div class=\"flex items-center gap-3\">" +
                 "<div class=\"bitmoji\">" + (p.bitmoji || "\uD83D\uDC64") + "</div>" +
-                "<div><p class=\"font-medium text-sm\">" + displayName + "</p>" +
+                "<div class=\"max-w-[200px]\"><p class=\"font-medium text-sm truncate\">" + displayName + "</p>" +
                 "<div class=\"flex items-center gap-2 text-xs text-gray-500\">" +
                 "<span class=\"text-yellow-500\">" + stars + "</span>" +
                 "<span>" + displayRating.toFixed(1) + "</span>" +
-                "<span>\u2022 " + jobCount + " jobs</span></div></div>" +
-                "<button onclick=\"toggleFavoriteProvider('" + (p.email || '').replace(/'/g,"\\'") + "','" + displayName.replace(/'/g,"\\'") + "')\" class=\"text-lg mr-2\"><i class=\"" + favIcon + "\"></i></button></div>" +
+                "<span>\u2022 " + jobCount + " jobs</span></div>" +
+                "<div class=\"flex items-center gap-2 mt-1\">" +
+                (provPhone ? "<a href=\"tel:" + provPhone.replace(/[^0-9+]/g,'') + "\" class=\"text-xs text-blue-600 hover:underline\" title=\"Call\"><i class=\"fa-solid fa-phone\"></i></a>" : "") +
+                (provEmail ? "<a href=\"mailto:" + provEmail.replace(/'/g,"\\'") + "\" class=\"text-xs text-blue-600 hover:underline\" title=\"Email\"><i class=\"fa-solid fa-envelope\"></i></a>" : "") +
+                "</div></div>" +
+                "<button onclick=\"toggleFavoriteProvider('" + (provEmail).replace(/'/g,"\\'") + "','" + displayName.replace(/'/g,"\\'") + "')\" class=\"text-lg mr-2\"><i class=\"" + favIcon + "\"></i></button></div>" +
                 "<button onclick=\"selectService('" + serviceId + "','" + displayName.replace(/'/g,"\\'") + "')\" class=\"mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-xl text-sm font-medium transition-all\"><i class=\"fa-solid fa-bookmark mr-1\"></i> Book Now</button></div>";
         }
         el.innerHTML = html;
