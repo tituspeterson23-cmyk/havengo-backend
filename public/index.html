@@ -2922,7 +2922,8 @@ async function placeOrder(event) {
                     status: "pending_confirmation",
                     instructions: booking.instructions,
                     providerName: assignedProvider,
-                    providerId: booking.providerId
+                    providerId: booking.providerId,
+                    providerEmail: orderData.providerEmail || ""
                 });
                 // Payment will be deducted when provider completes the task
                 closeModal("checkout-modal");
@@ -3171,6 +3172,7 @@ async function enterProviderDashboard(provider) {
                         instructions: bt.details || "",
                         providerName: bt.provider_name || "",
                         providerId: bt.provider_id || null,
+                        providerEmail: bt.provider_email || "",
                         status: bt.status
                     });
                 }
@@ -3226,7 +3228,7 @@ async function enterProviderDashboard(provider) {
                         customerName: bt.customer_firstname ? (bt.customer_firstname + " " + (bt.customer_lastname || "")) : (bt.customer_email || ""),
                         customerEmail: bt.customer_email || "", customerPhone: bt.customer_phone || "", address: bt.address || "",
                         date: "", time: "", price: bt.price, instructions: bt.details || "",
-                        providerName: bt.provider_name || "", providerId: bt.provider_id || null, status: bt.status
+                        providerName: bt.provider_name || "", providerId: bt.provider_id || null, providerEmail: bt.provider_email || "", status: bt.status
                     });
                 }
                 if (providerTasks.length > prevCount) {
@@ -3298,7 +3300,8 @@ function renderProviderDashboard() {
     var provName = currentLoggedProvider.name;
     var provBizName = currentLoggedProvider.business_name || "";
     var provId = currentLoggedProvider.id || null;
-    var myTasks = providerTasks.filter(function(t) { return (provId && t.providerId === provId) || t.providerName === provName || t.providerName === provBizName || t.providerName === ""; });
+    var provEmail = currentLoggedProvider.email || "";
+    var myTasks = providerTasks.filter(function(t) { return (provId && t.providerId === provId) || t.providerName === provName || t.providerName === provBizName || (provEmail && t.providerEmail === provEmail) || t.providerName === ""; });
     var myCompleted = completedTasks.filter(function(t) { return (provId && t.providerId === provId) || t.providerName === provName || t.providerName === provBizName; });
     var today = new Date().toDateString();
     var todayCount = 0;
@@ -3335,8 +3338,9 @@ function renderProviderDashboard() {
                     (t.instructions ? "<p class=\"text-sm text-gray-600\"><strong>Instructions:</strong> " + t.instructions + "</p>" : "") +
                     "</div>" +
                     "<div><span class=\"bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium\">" + t.status + "</span></div></div>" +
-                    (t.status === "pending_confirmation" ? "<div class=\"mt-4 pt-4 border-t\"><button onclick=\"confirmProviderTask(" + t.id + ")\" class=\"bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-check\"></i> Confirm Order</button></div>" : "") +
-                    (t.status === "active" ? "<div class=\"mt-4 pt-4 border-t flex gap-3 flex-wrap\"><button onclick=\"completeProviderTask(" + t.id + ")\" class=\"bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-check-double\"></i> Mark Complete</button><button onclick=\"startProviderTracking(" + t.id + ")\" class=\"bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-location-dot\"></i> Share Location</button><button onclick=\"cancelProviderTask(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-ban\"></i> Cancel Order</button></div>" : "") +
+                                        (t.status === "pending_confirmation" ? "<div class=\"mt-4 pt-4 border-t flex gap-3 flex-wrap\"><button onclick=\"confirmProviderTask(" + t.id + ")\" class=\"bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-check\"></i> Confirm Order</button><button onclick=\"cancelProviderTask(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-ban\"></i> Cancel Order</button></div>" : "") +
+                    (t.status === "active" ? "<div class=\"mt-4 pt-4 border-t flex gap-3 flex-wrap\"><button onclick=\"completeProviderTask(" + t.id + ")\" class=\"bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-check-double\"></i> Mark Complete</button><button onclick=\"startProviderTracking(" + t.id + ")\" class=\"bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-location-dot\"></i> Share Location</button><button onclick=\"cancelProviderTask(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-ban\"></i> Cancel Order</button></div>" :
+ "") +
                     "</div>";
             }
             activeList.innerHTML = html;
@@ -4114,18 +4118,21 @@ function renderAdminOrders() {
     var list = document.getElementById("admin-orders-list");
     if (!list) return;
     if (adminTasks.length === 0) {
-        list.innerHTML = "<div class=\"text-center text-gray-500 py-8\"><i class=\"fa-solid fa-list-check text-4xl mb-3\"></i><p>No active orders. Completed and cancelled orders are automatically removed.</p></div>";
+        list.innerHTML = "<div class=\"text-center text-gray-500 py-8\"><i class=\"fa-solid fa-list-check text-4xl mb-3\"></i><p>No active orders. Completed orders are automatically removed.</p></div>";
         return;
     }
     var html = "";
     for (var oi = 0; oi < adminTasks.length; oi++) {
         var t = adminTasks[oi];
+        var isCancelled = t.status === "cancelled";
+        var borderColor = isCancelled ? "border-red-400" : (t.status === "pending_confirmation" ? "border-amber-500" : "border-green-500");
+        var badgeBg = isCancelled ? "red" : (t.status === "pending_confirmation" ? "amber" : "green");
         var provList = "";
         for (var pi = 0; pi < registeredProviders.length; pi++) {
             var provName = registeredProviders[pi].businessName || registeredProviders[pi].name;
             provList += "<option value=\"" + provName.replace(/'/g,"&#39;") + "\">" + provName + "</option>";
         }
-        html += "<div class=\"bg-white rounded-2xl p-5 shadow border-l-4 " + (t.status === "pending_confirmation" ? "border-amber-500" : "border-green-500") + "\">" +
+        html += "<div class=\"bg-white rounded-2xl p-5 shadow border-l-4 " + borderColor + "\">" +
             "<div class=\"flex justify-between items-start\"><div><p class=\"font-semibold\">" + t.serviceName + "</p>" +
             "<p class=\"text-sm text-gray-500\">Order #" + t.id + "</p>" +
             "<p class=\"text-sm\"><strong>Customer:</strong> " + (t.customerName || "N/A") + "</p>" +
@@ -4138,14 +4145,42 @@ function renderAdminOrders() {
             "<p class=\"text-sm\"><strong>Price:</strong> UGX " + (t.price || 0).toLocaleString() + "</p>" +
             "<p class=\"text-sm\"><strong>Status:</strong> " + t.status + "</p>" +
             "<p class=\"text-xs text-gray-400\">Created: " + (t.createdAt || "N/A") + "</p></div>" +
-            "<div><span class=\"bg-" + (t.status === "pending_confirmation" ? "amber" : "green") + "-100 text-" + (t.status === "pending_confirmation" ? "amber" : "green") + "-700 px-3 py-1 rounded-full text-xs font-medium\">" + t.status + "</span></div></div>" +
+            "<div><span class=\"bg-" + badgeBg + "-100 text-" + badgeBg + "-700 px-3 py-1 rounded-full text-xs font-medium\">" + t.status + "</span></div></div>" +
             "<div class=\"mt-4 pt-4 border-t flex gap-3 flex-wrap items-center\">" +
+            (isCancelled ? "<span class=\"text-sm text-red-600 font-medium\"><i class=\"fa-solid fa-circle-exclamation\"></i> Provider rejected — reassign or remove</span>" : "") +
             "<select id=\"admin-reassign-select-" + t.id + "\" class=\"border rounded-xl px-3 py-2 text-sm\"><option value=\"\">Select provider...</option>" + provList + "</select>" +
             "<button onclick=\"adminReassignTask(" + t.id + ")\" class=\"bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-arrow-right\"></i> Assign</button>" +
+            (isCancelled ? "<button onclick=\"adminRemoveCancelledTask(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-trash-can\"></i> Remove</button>" : "") +
             "<button onclick=\"openAdminTaskChat(" + t.id + ",'" + (t.customerName || 'Customer').replace(/'/g,"\\'") + "')\" class=\"bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-comment\"></i> Chat</button>" +
             "</div></div>";
     }
     list.innerHTML = html;
+}
+
+function adminRemoveCancelledTask(taskId) {
+    showAppConfirm("Remove order #" + taskId + "? This cannot be undone.", function(confirmed) {
+        if (!confirmed) return;
+        var apiUrl = HAVENGO_BACKEND_URL + "/api";
+        if (window.__HAVENGO_JWT__) {
+            fetch(apiUrl + "/admin/tasks/remove/" + taskId, {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    for (var i = 0; i < adminTasks.length; i++) {
+                        if (adminTasks[i].id === taskId) { adminTasks.splice(i, 1); break; }
+                    }
+                    renderAdminOrders();
+                    addInAppAlert("success", "Order #" + taskId + " removed");
+                } else {
+                    addInAppAlert("error", data.error || "Failed to remove");
+                }
+            })
+            .catch(function(e) { addInAppAlert("error", "Network error"); console.warn(e); });
+        }
+    });
 }
 
 async function adminReassignTask(taskId) {

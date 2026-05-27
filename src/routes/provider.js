@@ -298,9 +298,15 @@ router.post('/cancel-task/:taskId', async (req, res) => {
   if (!task) return res.status(404).json({ error: 'Active task not found' });
   const provider = await db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
-  await db.prepare('DELETE FROM tasks WHERE id = ?').run(taskId);
+  const provName = provider.business_name || provider.firstname + ' ' + provider.lastname;
+  await db.prepare("UPDATE tasks SET status = 'cancelled' WHERE id = ?").run(taskId);
   await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
-    .run(task.customer_email, '❌', 'Order Cancelled', 'Your ' + task.service_name + ' order was cancelled by ' + (provider.business_name || provider.firstname + ' ' + provider.lastname) + '. Reason: ' + sanitize(reason) + '. Please place with a different provider.', 'order_cancelled');
+    .run(task.customer_email, '❌', 'Order Cancelled', 'Your ' + task.service_name + ' order was cancelled by ' + provName + '. Reason: ' + sanitize(reason) + '.', 'order_cancelled');
+  const adminEmail = await db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
+  if (adminEmail) {
+    await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+      .run(adminEmail, '🔄', 'Order Rejected', provName + ' rejected order #' + taskId + ' (' + task.service_name + '). Ready for reassignment.', 'task_rejected');
+  }
   res.json({ success: true, message: 'Task cancelled', reason: reason });
 });
 

@@ -75,7 +75,7 @@ router.post('/place-order', async (req, res) => {
     }
   }
 
-  res.json({ success: true, message: 'Order placed! Awaiting provider confirmation.', taskId: newTaskId, providerId: providerId || null });
+  res.json({ success: true, message: 'Order placed! Awaiting provider confirmation.', taskId: newTaskId, providerId: providerId || null, providerEmail: providerEmail || '' });
 });
 
 router.get('/pending-payments', async (req, res) => {
@@ -141,9 +141,9 @@ router.post('/withdraw', async (req, res) => {
   const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(req.user.email);
   if (!user) return res.status(401).json({ session_expired: true, error: 'Your session has expired. Please login again.' });
 
-  const activeCount = await db.prepare("SELECT COUNT(*) as count FROM tasks WHERE customer_email = ? AND status = 'active'").get(req.user.email);
+  const activeCount = await db.prepare("SELECT COUNT(*) as count FROM tasks WHERE customer_email = ? AND status IN ('pending_confirmation', 'active')").get(req.user.email);
   if (activeCount.count > 0) {
-    return res.status(400).json({ error: 'Cannot withdraw while you have an active order in progress' });
+    return res.status(400).json({ error: 'Cannot withdraw while you have a pending or active order' });
   }
 
   const pendingCount = await db.prepare("SELECT COUNT(*) as count FROM pending_payments WHERE customer_email = ? AND status = 'pending'").get(req.user.email);

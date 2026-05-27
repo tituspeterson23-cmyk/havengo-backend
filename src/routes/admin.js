@@ -279,7 +279,7 @@ router.post('/withdraw', async (req, res) => {
 
 router.get('/tasks', async (req, res) => {
   const db = getDb();
-  const tasks = await db.prepare("SELECT t.*, u.firstname AS customer_firstname, u.lastname AS customer_lastname, u.phone AS customer_phone, p.email AS provider_email, p.phone AS provider_phone, p.business_name AS provider_business, p.firstname AS provider_firstname, p.lastname AS provider_lastname FROM tasks t LEFT JOIN users u ON t.customer_email = u.email LEFT JOIN providers p ON (t.provider_name = p.business_name OR t.provider_name = (p.firstname || ' ' || p.lastname)) WHERE t.status IN ('pending_confirmation', 'active')").all();
+  const tasks = await db.prepare("SELECT t.*, u.firstname AS customer_firstname, u.lastname AS customer_lastname, u.phone AS customer_phone, p.email AS provider_email, p.phone AS provider_phone, p.business_name AS provider_business, p.firstname AS provider_firstname, p.lastname AS provider_lastname FROM tasks t LEFT JOIN users u ON t.customer_email = u.email LEFT JOIN providers p ON (t.provider_name = p.business_name OR t.provider_name = (p.firstname || ' ' || p.lastname)) WHERE t.status IN ('pending_confirmation', 'active', 'cancelled') ORDER BY t.created_at DESC").all();
   res.json(tasks);
 });
 
@@ -297,6 +297,16 @@ router.post('/tasks/reassign/:taskId', async (req, res) => {
   await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
     .run(newProv.email, '📋', 'Order Assigned to You', 'A new order has been assigned to you by admin. Please review and confirm.', 'task');
   res.json({ success: true, message: 'Task reassigned to ' + providerName });
+});
+
+router.post('/tasks/remove/:taskId', async (req, res) => {
+  const db = getDb();
+  const taskId = parseInt(req.params.taskId);
+  if (!taskId) return res.status(400).json({ error: 'Invalid task ID' });
+  const task = await db.prepare("SELECT * FROM tasks WHERE id = ? AND status = 'cancelled'").get(taskId);
+  if (!task) return res.status(404).json({ error: 'Cancelled task not found' });
+  await db.prepare('DELETE FROM tasks WHERE id = ?').run(taskId);
+  res.json({ success: true, message: 'Task removed' });
 });
 
 router.post('/delete-notification/:id', async (req, res) => {
