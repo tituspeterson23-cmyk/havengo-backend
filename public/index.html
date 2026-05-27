@@ -2710,7 +2710,7 @@ function selectService(serviceId, providerName) {
 
 function showCheckout() {
     if (!currentService) return;
-    if (!window.__HAVENGO_JWT__) { addInAppAlert("info", "Please login first to place an order"); showAuthModal("login"); return; }
+    if (!window.__HAVENGO_JWT__ || !currentUser) { addInAppAlert("info", "Please sign up or login as a customer to place an order"); showAuthModal("login"); return; }
     document.getElementById("modal-service").innerHTML = "<div class=\"flex items-center gap-3\">" +
         "<span class=\"text-3xl\">" + (serviceEmojis[currentService.category] || "\uD83D\uDCCB") + "</span>" +
         "<div><p class=\"font-semibold\">" + currentService.name + "</p>" +
@@ -2858,7 +2858,7 @@ function calculateDynamicPrice(serviceId) {
 
 async function placeOrder(event) {
     event.preventDefault();
-    if (!window.__HAVENGO_JWT__) { addInAppAlert("info", "Please login first to place an order"); showAuthModal("login"); return; }
+    if (!window.__HAVENGO_JWT__ || !currentUser) { addInAppAlert("info", "Please sign up or login as a customer to place an order"); showAuthModal("login"); return; }
     if (!currentService) return;
     var finalPrice = calculateDynamicPrice(currentService.id);
     var date = document.getElementById("booking-date").value;
