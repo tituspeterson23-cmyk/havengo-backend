@@ -3968,6 +3968,7 @@ function getServiceNameById(sid) {
     }
     return sid;
 }
+function renderAdminPriceRequests() {
     var list = document.getElementById("admin-price-requests-list");
     if (!list) return;
     if (priceChangeRequests.length === 0) {
