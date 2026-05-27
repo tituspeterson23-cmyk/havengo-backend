@@ -3014,11 +3014,12 @@ function renderBookings() {
                     var rp = registeredProviders[pi];
                     if (rp.name === b.providerName || rp.business_name === b.providerName || rp.businessName === b.providerName) { pc = rp; break; }
                 }
-                return pc.phone ? "<p class=\"text-xs text-gray-500\">\uD83D\uDCDE " + pc.phone + (pc.email ? " \u2022 \u2709 " + pc.email : "") + "</p>" : "";
+                return pc.phone ? "<p class=\"text-xs text-gray-500\">\uD83D\uDCDE <a href=\"tel:" + pc.phone.replace(/[^0-9+]/g,'') + "\" class=\"text-blue-600 hover:underline\">" + pc.phone + "</a>" + (pc.email ? " \u2022 \u2709 " + pc.email : "") + "</p>" : "";
             })() + "</div>" +
             "<div class=\"text-right\"><span class=\"bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-medium\">" + b.status + "</span>" +
             "<p class=\"font-bold text-emerald-600 mt-2\">UGX " + b.price.toLocaleString() + "</p></div></div>" +
             "<div class=\"flex gap-3 mt-4 pt-4 border-t\">" +
+            (b.providerName ? "<a href=\"tel:" + (function(){ for(var pi=0;pi<registeredProviders.length;pi++){var rp=registeredProviders[pi];if(rp.name===b.providerName||rp.business_name===b.providerName||rp.businessName===b.providerName){return (rp.phone||'').replace(/[^0-9+]/g,'');}}return '';})() + "\" class=\"inline-block text-sm bg-emerald-600 text-white px-4 py-2 rounded-2xl no-underline\"><i class=\"fa-solid fa-phone\"></i> Call</a>" : "") +
             "<button onclick=\"startTracking(" + b.id + ")\" class=\"text-sm bg-emerald-600 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-location-dot\"></i> Track</button>" +
             "<button onclick=\"openChatWithProvider(" + b.id + ")\" class=\"text-sm border px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-comment\"></i> Chat</button>" +
             (b.status === "Completed" ? "<button onclick=\"rateBooking(" + b.id + ")\" class=\"text-sm bg-yellow-500 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-star\"></i> Rate</button>" : "") +
@@ -3331,15 +3332,15 @@ function renderProviderDashboard() {
                     "<div><h3 class=\"font-bold text-xl\">" + t.serviceName + "</h3>" +
                     "<p class=\"text-sm text-gray-600\"><strong>Customer:</strong> " + t.customerName + "</p>" +
                     "<p class=\"text-sm text-gray-600\"><strong>Email:</strong> " + (t.customerEmail || "N/A") + "</p>" +
-                    "<p class=\"text-sm text-gray-600\"><strong>Phone:</strong> " + (t.customerPhone || "N/A") + "</p>" +
+                    "<p class=\"text-sm text-gray-600\"><strong>Phone:</strong> " + (t.customerPhone ? "<a href=\"tel:" + t.customerPhone.replace(/[^0-9+]/g,'') + "\" class=\"text-blue-600 hover:underline\">" + t.customerPhone + "</a>" : "N/A") + "</p>" +
                     "<p class=\"text-sm text-gray-600\"><strong>Address:</strong> " + t.address + "</p>" +
                     "<p class=\"text-sm text-gray-600\"><strong>Date:</strong> " + t.date + " at " + t.time + "</p>" +
                     "<p class=\"text-sm text-gray-600\"><strong>Price:</strong> UGX " + t.price.toLocaleString() + "</p>" +
                     (t.instructions ? "<p class=\"text-sm text-gray-600\"><strong>Instructions:</strong> " + t.instructions + "</p>" : "") +
                     "</div>" +
                     "<div><span class=\"bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium\">" + t.status + "</span></div></div>" +
-                                        (t.status === "pending_confirmation" ? "<div class=\"mt-4 pt-4 border-t flex gap-3 flex-wrap\"><button onclick=\"confirmProviderTask(" + t.id + ")\" class=\"bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-check\"></i> Confirm Order</button><button onclick=\"cancelProviderTask(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-ban\"></i> Cancel Order</button></div>" : "") +
-                    (t.status === "active" ? "<div class=\"mt-4 pt-4 border-t flex gap-3 flex-wrap\"><button onclick=\"completeProviderTask(" + t.id + ")\" class=\"bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-check-double\"></i> Mark Complete</button><button onclick=\"startProviderTracking(" + t.id + ")\" class=\"bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-location-dot\"></i> Share Location</button><button onclick=\"cancelProviderTask(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-ban\"></i> Cancel Order</button></div>" :
+                    (t.status === "pending_confirmation" ? "<div class=\"mt-4 pt-4 border-t flex gap-3 flex-wrap\"><button onclick=\"confirmProviderTask(" + t.id + ")\" class=\"bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-check\"></i> Confirm Order</button><button onclick=\"openProviderChat(" + t.id + ")\" class=\"bg-amber-500 hover:bg-amber-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-comment\"></i> Chat</button><button onclick=\"cancelProviderTask(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-ban\"></i> Cancel Order</button></div>" : "") +
+                    (t.status === "active" ? "<div class=\"mt-4 pt-4 border-t flex gap-3 flex-wrap\"><button onclick=\"completeProviderTask(" + t.id + ")\" class=\"bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-check-double\"></i> Mark Complete</button><button onclick=\"openProviderChat(" + t.id + ")\" class=\"bg-amber-500 hover:bg-amber-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-comment\"></i> Chat</button><button onclick=\"startProviderTracking(" + t.id + ")\" class=\"bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-location-dot\"></i> Share Location</button><button onclick=\"cancelProviderTask(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-ban\"></i> Cancel Order</button></div>" :
  "") +
                     "</div>";
             }
@@ -4137,7 +4138,7 @@ function renderAdminOrders() {
             "<p class=\"text-sm text-gray-500\">Order #" + t.id + "</p>" +
             "<p class=\"text-sm\"><strong>Customer:</strong> " + (t.customerName || "N/A") + "</p>" +
             "<p class=\"text-sm\"><strong>Customer Email:</strong> " + (t.customerEmail || "N/A") + "</p>" +
-            "<p class=\"text-sm\"><strong>Customer Phone:</strong> " + (t.customerPhone || "N/A") + "</p>" +
+            "<p class=\"text-sm\"><strong>Customer Phone:</strong> " + (t.customerPhone ? "<a href=\"tel:" + t.customerPhone.replace(/[^0-9+]/g,'') + "\" class=\"text-blue-600 hover:underline\">" + t.customerPhone + "</a>" : "N/A") + "</p>" +
             "<p class=\"text-sm\"><strong>Provider:</strong> " + (t.providerName || "Unassigned") + "</p>" +
             "<p class=\"text-sm\"><strong>Provider Email:</strong> " + (t.providerEmail || "N/A") + "</p>" +
             "<p class=\"text-sm\"><strong>Provider Phone:</strong> " + (t.providerPhone || "N/A") + "</p>" +
@@ -4151,6 +4152,7 @@ function renderAdminOrders() {
             "<select id=\"admin-reassign-select-" + t.id + "\" class=\"border rounded-xl px-3 py-2 text-sm\"><option value=\"\">Select provider...</option>" + provList + "</select>" +
             "<button onclick=\"adminReassignTask(" + t.id + ")\" class=\"bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-arrow-right\"></i> Assign</button>" +
             (isCancelled ? "<button onclick=\"adminRemoveCancelledTask(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-trash-can\"></i> Remove</button>" : "") +
+            (t.customerPhone ? "<a href=\"tel:" + t.customerPhone.replace(/[^0-9+]/g,'') + "\" class=\"inline-block bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl text-sm no-underline\"><i class=\"fa-solid fa-phone\"></i> Call</a>" : "") +
             "<button onclick=\"openAdminTaskChat(" + t.id + ",'" + (t.customerName || 'Customer').replace(/'/g,"\\'") + "')\" class=\"bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-comment\"></i> Chat</button>" +
             "</div></div>";
     }
@@ -5895,10 +5897,85 @@ window.onload = function() {
             var prov = currentLoggedProvider;
             document.getElementById("logged-provider-name").textContent = prov.business_name || prov.name;
             document.getElementById("logged-provider-service").textContent = (prov.service || "General") + " \u2022 " + (prov.location || "");
+            // Fetch fresh data from backend and start polling
+            var apiUrl = HAVENGO_BACKEND_URL + "/api";
+            if (window.__HAVENGO_JWT__) {
+                try {
+                    var tasksResp = await fetch(apiUrl + "/provider/tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }, signal: AbortSignal.timeout(35000) });
+                    if (tasksResp.ok) {
+                        var backendTasks = await tasksResp.json();
+                        providerTasks = [];
+                        for (var ti = 0; ti < backendTasks.length; ti++) {
+                            var bt = backendTasks[ti];
+                            providerTasks.push({
+                                id: bt.id, serviceId: bt.service_id, serviceName: bt.service_name,
+                                customerName: bt.customer_firstname ? (bt.customer_firstname + " " + (bt.customer_lastname || "")) : (bt.customer_email || ""),
+                                customerEmail: bt.customer_email || "", customerPhone: bt.customer_phone || "", address: bt.address || "",
+                                date: "", time: "", price: bt.price, instructions: bt.details || "",
+                                providerName: bt.provider_name || "", providerId: bt.provider_id || null, providerEmail: bt.provider_email || "", status: bt.status
+                            });
+                        }
+                    }
+                    var compResp = await fetch(apiUrl + "/provider/completed-tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }, signal: AbortSignal.timeout(35000) });
+                    if (compResp.ok) {
+                        var backendCompleted = await compResp.json();
+                        completedTasks = [];
+                        providerEarningsMap = {};
+                        for (var ci = 0; ci < backendCompleted.length; ci++) {
+                            var bc = backendCompleted[ci];
+                            completedTasks.push({ id: bc.id, taskId: bc.task_id, serviceName: bc.service_name, customerName: bc.customer_email, price: bc.price, providerName: bc.provider_name, providerId: bc.provider_id || null, date: bc.completed_at, paid: bc.paid });
+                            if (bc.paid && bc.provider_name) {
+                                var key = bc.provider_name;
+                                providerEarningsMap[key] = (providerEarningsMap[key] || 0) + Math.round(bc.price * 0.85);
+                                if (bc.provider_id) providerEarningsMap["id_" + bc.provider_id] = (providerEarningsMap["id_" + bc.provider_id] || 0) + Math.round(bc.price * 0.85);
+                            }
+                        }
+                    }
+                } catch(e) { console.warn(e); }
+            }
             renderProviderDashboard();
             fetchBackendNotifications();
             updateNotifCount();
             if (window.__providerTab !== undefined) switchProviderTab(window.__providerTab);
+            // Start provider polling
+            if (window.__providerPollInterval) clearInterval(window.__providerPollInterval);
+            window.__providerPollInterval = setInterval(async function() {
+                if (!window.__HAVENGO_JWT__ || !currentLoggedProvider) return;
+                try {
+                    var tasksResp = await fetch(apiUrl + "/provider/tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }, signal: AbortSignal.timeout(35000) });
+                    if (tasksResp.ok) {
+                        var backendTasks = await tasksResp.json();
+                        providerTasks = [];
+                        for (var ti = 0; ti < backendTasks.length; ti++) {
+                            var bt = backendTasks[ti];
+                            providerTasks.push({
+                                id: bt.id, serviceId: bt.service_id, serviceName: bt.service_name,
+                                customerName: bt.customer_firstname ? (bt.customer_firstname + " " + (bt.customer_lastname || "")) : (bt.customer_email || ""),
+                                customerEmail: bt.customer_email || "", customerPhone: bt.customer_phone || "", address: bt.address || "",
+                                date: "", time: "", price: bt.price, instructions: bt.details || "",
+                                providerName: bt.provider_name || "", providerId: bt.provider_id || null, providerEmail: bt.provider_email || "", status: bt.status
+                            });
+                        }
+                        var compResp = await fetch(apiUrl + "/provider/completed-tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }, signal: AbortSignal.timeout(35000) });
+                        if (compResp.ok) {
+                            var backendCompleted = await compResp.json();
+                            completedTasks = [];
+                            providerEarningsMap = {};
+                            for (var ci = 0; ci < backendCompleted.length; ci++) {
+                                var bc = backendCompleted[ci];
+                                completedTasks.push({ id: bc.id, taskId: bc.task_id, serviceName: bc.service_name, customerName: bc.customer_email, price: bc.price, providerName: bc.provider_name, providerId: bc.provider_id || null, date: bc.completed_at, paid: bc.paid });
+                                if (bc.paid && bc.provider_name) {
+                                    var key = bc.provider_name;
+                                    providerEarningsMap[key] = (providerEarningsMap[key] || 0) + Math.round(bc.price * 0.85);
+                                    if (bc.provider_id) providerEarningsMap["id_" + bc.provider_id] = (providerEarningsMap["id_" + bc.provider_id] || 0) + Math.round(bc.price * 0.85);
+                                }
+                            }
+                        }
+                        renderProviderDashboard();
+                    }
+                    fetchBackendNotifications();
+                } catch(e) { console.warn(e); }
+            }, 30000);
         }
         if (currentUser) {
             updateProfileWithUser();
