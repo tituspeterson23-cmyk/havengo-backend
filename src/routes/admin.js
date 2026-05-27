@@ -8,7 +8,7 @@ router.use(authenticate, adminOnly);
 
 router.get('/providers', async (req, res) => {
   const db = getDb();
-  const providers = await db.prepare('SELECT id, firstname, lastname, email, phone, business_name, services, bitmoji, verified, total_earnings, created_at, location, bio, experience, registration_fee_paid FROM providers').all();
+  const providers = await db.prepare("SELECT p.id, p.firstname, p.lastname, p.email, p.phone, p.business_name, p.services, p.bitmoji, p.verified, p.total_earnings, p.created_at, p.location, p.bio, p.experience, p.registration_fee_paid, (SELECT COUNT(*) FROM completed_tasks WHERE provider_id = p.id) as job_count FROM providers p").all();
   res.json(providers);
 });
 

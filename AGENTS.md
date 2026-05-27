@@ -241,6 +241,19 @@ Migrate from SQLite (sql.js) to PostgreSQL (Neon) for persistent data storage, f
 ### Fix Applied (May 27 evening)
 - Missing `function renderAdminPriceRequests() {` declaration at HTML line ~3971 caused floating code, breaking JS parsing and preventing app from loading beyond home page
 
+### Fix Applied (May 27 late)
+**Cross-device price sync**:
+- Added `service_prices` table (service_id TEXT PK, price INTEGER, provider_id, updated_at)
+- Admin approve endpoint now upserts approved prices into `service_prices` via `ON CONFLICT DO UPDATE`
+- Added `GET /api/services/prices` public endpoint returning all approved price overrides
+- Created `fetchApprovedServicePrices()` frontend function — fetches and overrides hardcoded `services[]` basePrices
+- Called on app init and every 15s polling for all users (not just admin)
+
+**Provider order visibility hardening**:
+- Initial task push in `enterProviderDashboard()` now includes `providerId: bt.provider_id || null`
+- `placeOrder()` captures `providerId` from backend response (`orderData.providerId`) and stores in local `providerTasks` push and `bookings` push
+- Backend `place-order` endpoint now returns `providerId` in response
+
 ### Deployment
 - Both repos pushed to GitHub; Render + Netlify auto-deploy
 

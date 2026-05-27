@@ -3693,7 +3693,8 @@ async function _syncAdminData() {
                     total_earnings: p.total_earnings,
                     location: p.location || "",
                     bio: p.bio || "",
-                    experience: p.experience || 0
+                    experience: p.experience || 0,
+                    jobs: p.job_count || 0
                 };
             });
         }
@@ -3882,7 +3883,7 @@ function renderAdminProviders() {
         var p = registeredProviders[i];
         var isVerified = p.verified ? "<span class=\"text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full\">Verified</span>" : "<span class=\"text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full\">Pending</span>";
         var displayName = p.business_name || p.businessName || p.name;
-        html += "<div class=\"bg-white rounded-2xl p-5 shadow flex justify-between items-center\"><div><p class=\"font-semibold\">" + displayName + "</p><p class=\"text-sm text-gray-500\">" + (p.email || "") + " \u2022 " + (p.phone || "") + "</p><p class=\"text-xs text-gray-400\">" + (p.service || "General") + " \u2022 " + (p.location || "") + "</p></div><div>" + isVerified + " <button onclick=\"adminDeleteProvider(" + p.id + ")\" class=\"text-xs bg-red-500 text-white px-2 py-1 rounded-full ml-2 hover:bg-red-600\"><i class=\"fa-solid fa-trash-can\"></i> Delete</button></div></div>";
+        html += "<div class=\"bg-white rounded-2xl p-5 shadow flex justify-between items-center\"><div><p class=\"font-semibold\">" + displayName + "</p><p class=\"text-sm text-gray-500\">" + (p.email || "") + " \u2022 " + (p.phone || "") + "</p><p class=\"text-xs text-gray-400\">" + (p.service || "General") + " \u2022 " + (p.location || "") + " \u2022 " + (p.jobs || 0) + " jobs</p></div><div>" + isVerified + " <button onclick=\"adminDeleteProvider(" + p.id + ")\" class=\"text-xs bg-red-500 text-white px-2 py-1 rounded-full ml-2 hover:bg-red-600\"><i class=\"fa-solid fa-trash-can\"></i> Delete</button></div></div>";
     }
     list.innerHTML = html;
 }

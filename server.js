@@ -57,7 +57,11 @@ app.get('/api/health', (req, res) => {
 // Public: get approved service prices for cross-device sync
 app.get('/api/services/prices', async (req, res) => {
   const db = getDb();
-  const prices = await db.prepare("SELECT service_id, price, updated_at FROM service_prices ORDER BY updated_at DESC").all();
+  // Query from price_requests (authoritative) — get latest approved price per service
+  const prices = await db.prepare(
+    "SELECT DISTINCT ON (service_id) service_id, requested_price as price, created_at as updated_at " +
+    "FROM price_requests WHERE status = 'approved' ORDER BY service_id, created_at DESC"
+  ).all();
   res.json(prices);
 });
 
