@@ -2285,7 +2285,7 @@ function renderProfilePage() {
     if (orderCount) orderCount.textContent = bookings.length;
     if (balanceDisplay) balanceDisplay.textContent = userBalance.toLocaleString() + " UGX";
     if (accountBalance) accountBalance.textContent = userBalance.toLocaleString() + " UGX";
-    if (providersCount) providersCount.textContent = registeredProviders.length;
+    if (providersCount) providersCount.textContent = favoriteProviders.length;
 
     renderRecentActivity();
     renderPaymentMethods();
@@ -3547,6 +3547,9 @@ function renderProviderPriceList() {
     for (var i = 0; i < provServices.length; i++) {
         var s = provServices[i];
         var currentPrice = s.basePrice;
+        for (var gj = 0; gj < services.length; gj++) {
+            if (services[gj].id === s.id) { currentPrice = services[gj].basePrice; break; }
+        }
         html += "<div class=\"bg-gray-50 rounded-2xl p-5\"><div class=\"flex justify-between items-center\"><div><h4 class=\"font-semibold\">" + s.name + "</h4><p class=\"text-sm text-gray-500\">Current: UGX " + currentPrice.toLocaleString() + "</p></div></div><div class=\"flex gap-3 mt-3 items-end\"><div><label class=\"text-xs text-gray-500 block mb-1\">New Price (UGX)</label><input type=\"number\" id=\"price-input-" + s.id + "\" value=\"" + currentPrice + "\" min=\"10000\" class=\"w-40 border rounded-xl px-4 py-2 text-sm\"></div><button onclick=\"requestPriceChange('" + s.id + "','" + s.name + "')\" class=\"bg-emerald-600 text-white px-5 py-2 rounded-xl text-sm hover:bg-emerald-700\"><i class=\"fa-solid fa-paper-plane\"></i> Request Change</button></div></div>";
     }
     container.innerHTML = html;
@@ -5572,8 +5575,10 @@ async function fetchApprovedServicePrices() {
         var resp = await fetch(apiUrl + "/services/prices");
         if (resp.ok) {
             var prices = await resp.json();
+            var cache = {};
             for (var pi = 0; pi < prices.length; pi++) {
                 var sp = prices[pi];
+                cache[sp.service_id] = sp.price;
                 for (var sj = 0; sj < services.length; sj++) {
                     if (services[sj].id === sp.service_id) {
                         services[sj].basePrice = sp.price;
@@ -5581,8 +5586,21 @@ async function fetchApprovedServicePrices() {
                     }
                 }
             }
+            try { localStorage.setItem("havengo_service_prices", JSON.stringify(cache)); } catch(e) {}
         }
-    } catch(e) { console.warn(e); }
+    } catch(e) {
+        var cached = localStorage.getItem("havengo_service_prices");
+        if (cached) {
+            try {
+                var cache = JSON.parse(cached);
+                for (var cid in cache) {
+                    for (var sj = 0; sj < services.length; sj++) {
+                        if (services[sj].id === cid) { services[sj].basePrice = cache[cid]; break; }
+                    }
+                }
+            } catch(e2) {}
+        }
+    }
 }
 
 // Fetch verified providers from backend for service listing
@@ -5599,7 +5617,11 @@ async function fetchVerifiedProviders() {
                     backendEmails[bp.email] = true;
                     var existing = false;
                     for (var j = 0; j < registeredProviders.length; j++) {
-                        if (registeredProviders[j].email === bp.email) { existing = true; break; }
+                        if (registeredProviders[j].email === bp.email) {
+                            existing = true;
+                            registeredProviders[j].jobs = bp.jobs || 0;
+                            break;
+                        }
                     }
                     if (!existing) {
                         var svcs = parseProviderServices(bp.services);

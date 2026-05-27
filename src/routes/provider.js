@@ -120,7 +120,7 @@ router.get('/tasks', async (req, res) => {
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
   const bizName = provider.business_name;
   const fullName = provider.firstname + ' ' + provider.lastname;
-  const tasks = await db.prepare("SELECT t.*, u.firstname AS customer_firstname, u.lastname AS customer_lastname, u.phone AS customer_phone FROM tasks t LEFT JOIN users u ON t.customer_email = u.email WHERE (t.provider_id = ? OR t.provider_name = ? OR t.provider_name = ? OR t.provider_name = '' OR t.provider_name IS NULL) AND t.status IN ('pending_confirmation', 'active')").all(provider.id, bizName, fullName);
+  const tasks = await db.prepare("SELECT t.*, u.firstname AS customer_firstname, u.lastname AS customer_lastname, u.phone AS customer_phone FROM tasks t LEFT JOIN users u ON t.customer_email = u.email WHERE (t.provider_id = ? OR t.provider_name = ? OR t.provider_name = ? OR t.provider_email = ? OR t.provider_name = '' OR t.provider_name IS NULL) AND t.status IN ('pending_confirmation', 'active')").all(provider.id, bizName, fullName, provider.email);
   res.json(tasks);
 });
 

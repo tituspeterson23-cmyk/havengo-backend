@@ -293,7 +293,7 @@ router.post('/tasks/reassign/:taskId', async (req, res) => {
   // Look up provider_id by name
   const newProv = await db.prepare("SELECT id, email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(providerName, providerName);
   if (!newProv) return res.status(404).json({ error: 'Provider not found' });
-  await db.prepare("UPDATE tasks SET provider_name = ?, provider_id = ?, status = 'pending_confirmation' WHERE id = ?").run(providerName, newProv.id, parseInt(req.params.taskId));
+  await db.prepare("UPDATE tasks SET provider_name = ?, provider_id = ?, provider_email = ?, status = 'pending_confirmation' WHERE id = ?").run(providerName, newProv.id, newProv.email, parseInt(req.params.taskId));
   await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
     .run(newProv.email, '📋', 'Order Assigned to You', 'A new order has been assigned to you by admin. Please review and confirm.', 'task');
   res.json({ success: true, message: 'Task reassigned to ' + providerName });

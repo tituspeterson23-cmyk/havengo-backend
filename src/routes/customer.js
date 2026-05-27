@@ -43,19 +43,20 @@ router.post('/place-order', async (req, res) => {
   const pName = providerName || '';
   // Look up provider_id when provider_name is known
   let providerId = null;
+  let providerEmail = null;
   if (pName) {
-    const provRow = await db.prepare("SELECT id FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(pName, pName);
-    if (provRow) providerId = provRow.id;
+    const provRow = await db.prepare("SELECT id, email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(pName, pName);
+    if (provRow) { providerId = provRow.id; providerEmail = provRow.email; }
   }
-  const inserted = await db.prepare('INSERT INTO tasks (customer_email, service_id, service_name, provider_name, provider_id, price, status, address, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id')
-    .get(req.user.email, serviceId, sanitize(serviceName), sanitize(pName), providerId, price, 'pending_confirmation', sanitize(address || ''), sanitize(details || ''));
+  const inserted = await db.prepare('INSERT INTO tasks (customer_email, service_id, service_name, provider_name, provider_id, provider_email, price, status, address, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id')
+    .get(req.user.email, serviceId, sanitize(serviceName), sanitize(pName), providerId, providerEmail, price, 'pending_confirmation', sanitize(address || ''), sanitize(details || ''));
   const newTaskId = inserted.id;
 
   if (!pName) {
-    const providers = await db.prepare("SELECT id, business_name FROM providers WHERE services LIKE ? AND verified = 1").all(`%${sanitize(serviceName)}%`);
+    const providers = await db.prepare("SELECT id, business_name, email FROM providers WHERE services LIKE ? AND verified = 1").all(`%${sanitize(serviceName)}%`);
     if (providers.length > 0) {
-      await db.prepare("UPDATE tasks SET provider_name = ?, provider_id = ? WHERE id = ?")
-        .run(providers[0].business_name, providers[0].id, newTaskId);
+      await db.prepare("UPDATE tasks SET provider_name = ?, provider_id = ?, provider_email = ? WHERE id = ?")
+        .run(providers[0].business_name, providers[0].id, providers[0].email, newTaskId);
     }
   }
 

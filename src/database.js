@@ -124,6 +124,7 @@ async function initDatabase() {
       service_name TEXT NOT NULL,
       provider_name TEXT,
       provider_id INTEGER,
+      provider_email TEXT,
       price REAL NOT NULL,
       status TEXT DEFAULT 'pending_confirmation',
       address TEXT,
@@ -288,6 +289,8 @@ async function initDatabase() {
   // Fix column types for PostgreSQL compatibility (frontend sends string service IDs)
   await pool.query("ALTER TABLE tasks ALTER COLUMN service_id TYPE TEXT USING service_id::text").catch(function(e) { /* column already TEXT */ });
   await pool.query("ALTER TABLE price_requests ALTER COLUMN service_id TYPE TEXT USING service_id::text").catch(function(e) { /* column already TEXT */ });
+  // Add provider_email column if not exists (may already exist from new table creation)
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS provider_email TEXT").catch(function(e) { /* column may already exist */ });
 
   // Seed admin if not exists
   const adminCheck = await pool.query("SELECT id FROM admin_settings WHERE key = 'admin_initialized'");
