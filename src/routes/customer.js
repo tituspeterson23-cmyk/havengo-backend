@@ -29,7 +29,7 @@ router.get('/bookings', async (req, res) => {
 });
 
 router.post('/place-order', async (req, res) => {
-  const { serviceId, serviceName, providerName, price, address, details } = req.body;
+  const { serviceId, serviceName, providerName, price, address, details, latitude, longitude } = req.body;
   if (!serviceId || !serviceName || !price) {
     return res.status(400).json({ error: 'Missing required fields' });
   }
@@ -41,6 +41,10 @@ router.post('/place-order', async (req, res) => {
   }
 
   const pName = providerName || '';
+  const lat = parseFloat(latitude);
+  const lng = parseFloat(longitude);
+  const validLat = !isNaN(lat) ? lat : null;
+  const validLng = !isNaN(lng) ? lng : null;
   // Look up provider_id when provider_name is known
   let providerId = null;
   let providerEmail = null;
@@ -48,8 +52,8 @@ router.post('/place-order', async (req, res) => {
     const provRow = await db.prepare("SELECT id, email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(pName, pName);
     if (provRow) { providerId = provRow.id; providerEmail = provRow.email; }
   }
-  const inserted = await db.prepare('INSERT INTO tasks (customer_email, service_id, service_name, provider_name, provider_id, provider_email, price, status, address, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id')
-    .get(req.user.email, serviceId, sanitize(serviceName), sanitize(pName), providerId, providerEmail, price, 'pending_confirmation', sanitize(address || ''), sanitize(details || ''));
+  const inserted = await db.prepare('INSERT INTO tasks (customer_email, service_id, service_name, provider_name, provider_id, provider_email, price, status, address, details, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id')
+    .get(req.user.email, serviceId, sanitize(serviceName), sanitize(pName), providerId, providerEmail, price, 'pending_confirmation', sanitize(address || ''), sanitize(details || ''), validLat, validLng);
   const newTaskId = inserted.id;
 
   if (!pName) {

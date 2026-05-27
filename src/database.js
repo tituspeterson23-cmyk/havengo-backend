@@ -291,6 +291,9 @@ async function initDatabase() {
   await pool.query("ALTER TABLE price_requests ALTER COLUMN service_id TYPE TEXT USING service_id::text").catch(function(e) { /* column already TEXT */ });
   // Add provider_email column if not exists (may already exist from new table creation)
   await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS provider_email TEXT").catch(function(e) { /* column may already exist */ });
+  // Add latitude/longitude for map location
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS latitude REAL").catch(function(e) { /* column may already exist */ });
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS longitude REAL").catch(function(e) { /* column may already exist */ });
 
   // Seed admin if not exists
   const adminCheck = await pool.query("SELECT id FROM admin_settings WHERE key = 'admin_initialized'");

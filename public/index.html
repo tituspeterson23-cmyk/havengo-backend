@@ -2883,6 +2883,8 @@ async function placeOrder(event) {
             if (assignedProvider) break;
         }
     }
+    var orderLat = typeof mapSelectedLat === "number" ? mapSelectedLat : null;
+    var orderLng = typeof mapSelectedLng === "number" ? mapSelectedLng : null;
     try {
         var orderResp = await fetch(apiUrl + "/customer/place-order", {
             method: "POST",
@@ -2890,7 +2892,8 @@ async function placeOrder(event) {
             body: JSON.stringify({
                 serviceId: currentService.id, serviceName: currentService.name,
                 providerName: assignedProvider, price: finalPrice,
-                address: address, details: instructions + " | Date: " + date + " Time: " + time
+                address: address, details: instructions + " | Date: " + date + " Time: " + time,
+                latitude: orderLat, longitude: orderLng
             }),
             signal: AbortSignal.timeout(30000)
         });
@@ -2902,6 +2905,7 @@ async function placeOrder(event) {
                     serviceName: currentService.name,
                     price: finalPrice,
                     date: date, time: time, address: address, instructions: instructions,
+                    latitude: orderLat, longitude: orderLng,
                     status: "Pending",
                     customerName: currentUser ? (currentUser.name || currentUser.firstname + " " + currentUser.lastname) : "Guest User",
                     customerPhone: currentUser ? currentUser.phone : "+256 777 062 518",
@@ -2923,7 +2927,9 @@ async function placeOrder(event) {
                     instructions: booking.instructions,
                     providerName: assignedProvider,
                     providerId: booking.providerId,
-                    providerEmail: orderData.providerEmail || ""
+                    providerEmail: orderData.providerEmail || "",
+                    latitude: orderLat,
+                    longitude: orderLng
                 });
                 // Payment will be deducted when provider completes the task
                 closeModal("checkout-modal");
@@ -3014,7 +3020,7 @@ function renderBookings() {
                     var rp = registeredProviders[pi];
                     if (rp.name === b.providerName || rp.business_name === b.providerName || rp.businessName === b.providerName) { pc = rp; break; }
                 }
-                return pc.phone ? "<p class=\"text-xs text-gray-500\">\uD83D\uDCDE <a href=\"tel:" + pc.phone.replace(/[^0-9+]/g,'') + "\" class=\"text-blue-600 hover:underline\">" + pc.phone + "</a>" + (pc.email ? " \u2022 \u2709 " + pc.email : "") + "</p>" : "";
+                return pc.phone || pc.email ? "<p class=\"text-xs text-gray-500\">" + (pc.phone ? "\uD83D\uDCDE <a href=\"tel:" + pc.phone.replace(/[^0-9+]/g,'') + "\" class=\"text-blue-600 hover:underline\">" + pc.phone + "</a>" : "") + (pc.email ? " \u2022 \u2709 <a href=\"mailto:" + pc.email + "\" class=\"text-blue-600 hover:underline\">" + pc.email + "</a>" : "") + "</p>" : "";
             })() + "</div>" +
             "<div class=\"text-right\"><span class=\"bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-medium\">" + b.status + "</span>" +
             "<p class=\"font-bold text-emerald-600 mt-2\">UGX " + b.price.toLocaleString() + "</p></div></div>" +
@@ -3174,6 +3180,8 @@ async function enterProviderDashboard(provider) {
                         providerName: bt.provider_name || "",
                         providerId: bt.provider_id || null,
                         providerEmail: bt.provider_email || "",
+                        latitude: bt.latitude,
+                        longitude: bt.longitude,
                         status: bt.status
                     });
                 }
@@ -3229,7 +3237,8 @@ async function enterProviderDashboard(provider) {
                         customerName: bt.customer_firstname ? (bt.customer_firstname + " " + (bt.customer_lastname || "")) : (bt.customer_email || ""),
                         customerEmail: bt.customer_email || "", customerPhone: bt.customer_phone || "", address: bt.address || "",
                         date: "", time: "", price: bt.price, instructions: bt.details || "",
-                        providerName: bt.provider_name || "", providerId: bt.provider_id || null, providerEmail: bt.provider_email || "", status: bt.status
+                        providerName: bt.provider_name || "", providerId: bt.provider_id || null, providerEmail: bt.provider_email || "",
+                        latitude: bt.latitude, longitude: bt.longitude, status: bt.status
                     });
                 }
                 if (providerTasks.length > prevCount) {
@@ -3331,9 +3340,9 @@ function renderProviderDashboard() {
                     "<div class=\"flex justify-between items-start\">" +
                     "<div><h3 class=\"font-bold text-xl\">" + t.serviceName + "</h3>" +
                     "<p class=\"text-sm text-gray-600\"><strong>Customer:</strong> " + t.customerName + "</p>" +
-                    "<p class=\"text-sm text-gray-600\"><strong>Email:</strong> " + (t.customerEmail || "N/A") + "</p>" +
+                    "<p class=\"text-sm text-gray-600\"><strong>Email:</strong> " + (t.customerEmail ? "<a href=\"mailto:" + t.customerEmail + "\" class=\"text-blue-600 hover:underline\">" + t.customerEmail + "</a>" : "N/A") + "</p>" +
                     "<p class=\"text-sm text-gray-600\"><strong>Phone:</strong> " + (t.customerPhone ? "<a href=\"tel:" + t.customerPhone.replace(/[^0-9+]/g,'') + "\" class=\"text-blue-600 hover:underline\">" + t.customerPhone + "</a>" : "N/A") + "</p>" +
-                    "<p class=\"text-sm text-gray-600\"><strong>Address:</strong> " + t.address + "</p>" +
+                    "<p class=\"text-sm text-gray-600\"><strong>Address:</strong> " + t.address + (t.latitude && t.longitude ? " <a href=\"https://www.google.com/maps?q=" + t.latitude + "," + t.longitude + "\" target=\"_blank\" class=\"text-blue-600 hover:underline text-xs\"><i class=\"fa-solid fa-map-location-dot\"></i> View on Map</a>" : "") + "</p>" +
                     "<p class=\"text-sm text-gray-600\"><strong>Date:</strong> " + t.date + " at " + t.time + "</p>" +
                     "<p class=\"text-sm text-gray-600\"><strong>Price:</strong> UGX " + t.price.toLocaleString() + "</p>" +
                     (t.instructions ? "<p class=\"text-sm text-gray-600\"><strong>Instructions:</strong> " + t.instructions + "</p>" : "") +
@@ -3356,13 +3365,17 @@ function renderProviderDashboard() {
             var html2 = "";
             for (var i = 0; i < myCompleted.length; i++) {
                 var ct = myCompleted[i];
-                html2 += "<div class=\"bg-white rounded-3xl p-6 shadow\">" +
+                var earningAmt = Math.round(ct.price * 0.85);
+                html2 += "<div class=\"bg-white rounded-3xl p-6 shadow border-l-4 border-emerald-500 hover:shadow-lg transition-shadow\">" +
                     "<div class=\"flex justify-between items-start\">" +
-                    "<div><h3 class=\"font-bold text-xl\">" + ct.serviceName + "</h3>" +
-                    "<p class=\"text-sm text-gray-600\">" + ct.customerName + " \u2022 " + ct.date + "</p>" +
+                    "<div class=\"flex-1\"><div class=\"flex items-center gap-2 mb-1\"><span class=\"text-emerald-600 text-lg\"><i class=\"fa-solid fa-check-circle\"></i></span><h3 class=\"font-bold text-xl\">" + ct.serviceName + "</h3></div>" +
+                    "<p class=\"text-sm text-gray-600\"><strong>Customer:</strong> " + ct.customerName + "</p>" +
+                    "<p class=\"text-sm text-gray-600\"><strong>Completed:</strong> " + (ct.date ? new Date(ct.date).toLocaleDateString() : "N/A") + "</p>" +
+                    (ct.paid ? "<p class=\"text-sm text-emerald-600 mt-1\"><i class=\"fa-solid fa-circle-check\"></i> Payment received — UGX " + earningAmt.toLocaleString() + "</p>" : "<p class=\"text-sm text-amber-600 mt-1\"><i class=\"fa-solid fa-clock\"></i> Awaiting customer payment</p>") +
                     "</div>" +
-                    "<div><span class=\"bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium\">Completed</span>" +
-                    "<p class=\"font-bold text-emerald-600 mt-2\">UGX " + ct.price.toLocaleString() + "</p></div></div></div>";
+                    "<div class=\"text-right flex flex-col items-end min-w-[100px]\"><span class=\"bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-medium\">Completed</span>" +
+                    "<p class=\"font-bold text-emerald-600 mt-2 text-lg\">UGX " + ct.price.toLocaleString() + "</p>" +
+                    "<p class=\"text-xs text-gray-400 mt-1\">You earn UGX " + earningAmt.toLocaleString() + "</p></div></div></div>";
             }
             completedList.innerHTML = html2;
         }
@@ -4137,11 +4150,11 @@ function renderAdminOrders() {
             "<div class=\"flex justify-between items-start\"><div><p class=\"font-semibold\">" + t.serviceName + "</p>" +
             "<p class=\"text-sm text-gray-500\">Order #" + t.id + "</p>" +
             "<p class=\"text-sm\"><strong>Customer:</strong> " + (t.customerName || "N/A") + "</p>" +
-            "<p class=\"text-sm\"><strong>Customer Email:</strong> " + (t.customerEmail || "N/A") + "</p>" +
+            "<p class=\"text-sm\"><strong>Customer Email:</strong> " + (t.customerEmail ? "<a href=\"mailto:" + t.customerEmail + "\" class=\"text-blue-600 hover:underline\">" + t.customerEmail + "</a>" : "N/A") + "</p>" +
             "<p class=\"text-sm\"><strong>Customer Phone:</strong> " + (t.customerPhone ? "<a href=\"tel:" + t.customerPhone.replace(/[^0-9+]/g,'') + "\" class=\"text-blue-600 hover:underline\">" + t.customerPhone + "</a>" : "N/A") + "</p>" +
             "<p class=\"text-sm\"><strong>Provider:</strong> " + (t.providerName || "Unassigned") + "</p>" +
-            "<p class=\"text-sm\"><strong>Provider Email:</strong> " + (t.providerEmail || "N/A") + "</p>" +
-            "<p class=\"text-sm\"><strong>Provider Phone:</strong> " + (t.providerPhone || "N/A") + "</p>" +
+            "<p class=\"text-sm\"><strong>Provider Email:</strong> " + (t.providerEmail ? "<a href=\"mailto:" + t.providerEmail + "\" class=\"text-blue-600 hover:underline\">" + t.providerEmail + "</a>" : "N/A") + "</p>" +
+            "<p class=\"text-sm\"><strong>Provider Phone:</strong> " + (t.providerPhone ? "<a href=\"tel:" + t.providerPhone.replace(/[^0-9+]/g,'') + "\" class=\"text-blue-600 hover:underline\">" + t.providerPhone + "</a>" : "N/A") + "</p>" +
             "<p class=\"text-sm\"><strong>Address:</strong> " + (t.address || "N/A") + "</p>" +
             "<p class=\"text-sm\"><strong>Price:</strong> UGX " + (t.price || 0).toLocaleString() + "</p>" +
             "<p class=\"text-sm\"><strong>Status:</strong> " + t.status + "</p>" +
@@ -5912,7 +5925,8 @@ window.onload = function() {
                                 customerName: bt.customer_firstname ? (bt.customer_firstname + " " + (bt.customer_lastname || "")) : (bt.customer_email || ""),
                                 customerEmail: bt.customer_email || "", customerPhone: bt.customer_phone || "", address: bt.address || "",
                                 date: "", time: "", price: bt.price, instructions: bt.details || "",
-                                providerName: bt.provider_name || "", providerId: bt.provider_id || null, providerEmail: bt.provider_email || "", status: bt.status
+                                providerName: bt.provider_name || "", providerId: bt.provider_id || null, providerEmail: bt.provider_email || "",
+                                latitude: bt.latitude, longitude: bt.longitude, status: bt.status
                             });
                         }
                     }
@@ -5953,7 +5967,8 @@ window.onload = function() {
                                 customerName: bt.customer_firstname ? (bt.customer_firstname + " " + (bt.customer_lastname || "")) : (bt.customer_email || ""),
                                 customerEmail: bt.customer_email || "", customerPhone: bt.customer_phone || "", address: bt.address || "",
                                 date: "", time: "", price: bt.price, instructions: bt.details || "",
-                                providerName: bt.provider_name || "", providerId: bt.provider_id || null, providerEmail: bt.provider_email || "", status: bt.status
+                                providerName: bt.provider_name || "", providerId: bt.provider_id || null, providerEmail: bt.provider_email || "",
+                                latitude: bt.latitude, longitude: bt.longitude, status: bt.status
                             });
                         }
                         var compResp = await fetch(apiUrl + "/provider/completed-tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }, signal: AbortSignal.timeout(35000) });
