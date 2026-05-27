@@ -137,7 +137,7 @@
 .theme-violet .accent-text { color: rgb(124 58 237); }
 .theme-cyan .accent-text { color: rgb(8 145 178); }
 .theme-slate .accent-text { color: rgb(71 85 105); }
-.whatsapp-float{ position:fixed; width:60px; height:60px; bottom:25px; right:25px; background:#25D366; color:white; border-radius:50%; text-align:center; font-size:30px; box-shadow:2px 2px 10px rgba(0,0,0,.25); z-index:999; display:flex; align-items:center; justify-content:center; }@media(max-width:640px){.whatsapp-float{ width:44px; height:44px; font-size:22px; bottom:16px; right:16px; }}
+.whatsapp-float{ position:fixed; width:60px; height:60px; bottom:25px; right:25px; background:#25D366; color:white; border-radius:50%; text-align:center; font-size:30px; box-shadow:2px 2px 10px rgba(0,0,0,.25); z-index:999; display:flex; align-items:center; justify-content:center; }@media(max-width:640px){.whatsapp-float{ width:44px; height:44px; font-size:22px; bottom:16px; right:16px; }}.scrollbar-hide::-webkit-scrollbar{ display:none; }.scrollbar-hide{ -ms-overflow-style:none; scrollbar-width:none; }
 .search-results{ max-height:250px; overflow:auto; }
 .blog-post { transition: all 0.3s ease; }
 .blog-post:hover { transform: translateY(-4px); }
@@ -507,13 +507,13 @@
 <div class="flex items-center gap-4"><div class="w-16 h-16 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-2xl flex items-center justify-center text-3xl"><i class="fa-solid fa-user text-emerald-600"></i></div><div><h2 id="profile-fullname" class="text-3xl font-bold">Guest User</h2><p id="profile-email" class="text-gray-500 flex items-center gap-2"><i class="fa-solid fa-envelope text-gray-400 text-xs"></i>guest@havengo.ug</p><p id="profile-phone" class="text-gray-500 flex items-center gap-2"><i class="fa-solid fa-phone text-gray-400 text-xs"></i>+256 777 062 518</p></div></div>
 <button onclick="handleProfileAuthButton()" id="profile-auth-button" class="bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white px-6 py-3 rounded-2xl text-sm shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-right-to-bracket"></i> Log In</button>
 </div>
-<div class="flex border-b mt-8 gap-1">
-    <button onclick="switchProfileTab(0)" class="profile-tab px-5 py-3 border-b-2 border-emerald-600 font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-gauge-high text-emerald-600"></i>Overview</button>
-    <button onclick="switchProfileTab(1)" class="profile-tab px-5 py-3 text-gray-500 text-sm flex items-center gap-2"><i class="fa-solid fa-wallet"></i>Payments</button>
-    <button onclick="switchProfileTab(2)" class="profile-tab px-5 py-3 text-gray-500 text-sm flex items-center gap-2"><i class="fa-solid fa-location-dot"></i>Addresses</button>
-    <button onclick="switchProfileTab(3)" class="profile-tab px-5 py-3 text-gray-500 text-sm flex items-center gap-2"><i class="fa-solid fa-bell"></i>Notifications</button>
-    <button onclick="switchProfileTab(4)" class="profile-tab px-5 py-3 text-gray-500 text-sm flex items-center gap-2"><i class="fa-solid fa-heart"></i>Favorites</button>
-    <button onclick="switchProfileTab(5)" class="profile-tab px-5 py-3 text-gray-500 text-sm flex items-center gap-2"><i class="fa-solid fa-comment"></i>Chat</button>
+<div class="flex border-b mt-8 gap-1 overflow-x-auto whitespace-nowrap scrollbar-hide">
+    <button onclick="switchProfileTab(0)" class="profile-tab px-4 py-3 border-b-2 border-emerald-600 font-medium text-xs flex items-center gap-1.5 shrink-0"><i class="fa-solid fa-gauge-high text-emerald-600"></i>Overview</button>
+    <button onclick="switchProfileTab(1)" class="profile-tab px-4 py-3 text-gray-500 text-xs flex items-center gap-1.5 shrink-0"><i class="fa-solid fa-wallet"></i>Payments</button>
+    <button onclick="switchProfileTab(2)" class="profile-tab px-4 py-3 text-gray-500 text-xs flex items-center gap-1.5 shrink-0"><i class="fa-solid fa-location-dot"></i>Addresses</button>
+    <button onclick="switchProfileTab(3)" class="profile-tab px-4 py-3 text-gray-500 text-xs flex items-center gap-1.5 shrink-0"><i class="fa-solid fa-bell"></i>Notifications</button>
+    <button onclick="switchProfileTab(4)" class="profile-tab px-4 py-3 text-gray-500 text-xs flex items-center gap-1.5 shrink-0"><i class="fa-solid fa-heart"></i>Favorites</button>
+    <button onclick="switchProfileTab(5)" class="profile-tab px-4 py-3 text-gray-500 text-xs flex items-center gap-1.5 shrink-0"><i class="fa-solid fa-comment"></i>Chat</button>
 </div>
 <div id="profile-tab-0" class="profile-tab-content mt-8">
 <div class="grid md:grid-cols-3 gap-5">
