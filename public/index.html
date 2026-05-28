@@ -902,6 +902,8 @@ function connectFirebaseChat(email, role, name) {
             firebaseAuth.signInWithEmailAndPassword(data.email, data.password).catch(function(e) {
                 console.warn("Firebase signIn error:", e);
             });
+        } else {
+            console.warn("Firebase login response missing password. Server:", JSON.stringify(data).substring(0, 200));
         }
     }).catch(function(e) { console.warn("Firebase connect error:", e); });
 }
@@ -6040,6 +6042,7 @@ window.onload = function() {
             document.getElementById("admin-header").classList.remove("hidden");
             document.getElementById("admin-nav-link").classList.remove("hidden");
             renderAdminDashboard();
+            connectFirebaseChat("thermypetson@gmail.com", "admin", "Admin");
             _syncAdminData();
             fetchBackendNotifications();
             updateNotifCount();
@@ -6089,6 +6092,7 @@ window.onload = function() {
                     }
                 } catch(e) { console.warn(e); }
             }
+            connectFirebaseChat(prov.email, "provider", prov.name || (prov.firstname + " " + prov.lastname) || "Provider");
             renderProviderDashboard();
             fetchBackendNotifications();
             updateNotifCount();
@@ -6135,6 +6139,7 @@ window.onload = function() {
             }, 30000);
         }
         if (currentUser) {
+            connectFirebaseChat(currentUser.email, "customer", currentUser.firstname || currentUser.name || "Customer");
             updateProfileWithUser();
             renderProfilePage();
             updateProfilePicCursor();
