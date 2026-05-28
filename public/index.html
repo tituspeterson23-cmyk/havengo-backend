@@ -6149,7 +6149,7 @@ window.onload = function() {
             updateNotifCount();
         }
         renderAllProviderLists();
-    })();
+    })().catch(function(e) { console.warn("State restore error:", e); });
 
     // Auto-save every 10 seconds
     setInterval(saveAppState, 10000);

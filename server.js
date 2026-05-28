@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 3000;
 
 // Security middleware
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: '*', credentials: true }));
+app.use(cors({ origin: ['https://havengo-chat.web.app', 'https://havengo.netlify.app', 'https://havengo-backend.onrender.com'], credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 
 // Rate limiting
@@ -78,7 +78,10 @@ app.get('/api/providers/verified', async (req, res) => {
   res.json(mapped);
 });
 
-// Serve the frontend HTML
+// Serve static files (favicon.svg, etc.)
+app.use(express.static(path.join(__dirname, 'public')));
+
+// Serve the frontend HTML for root path
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
