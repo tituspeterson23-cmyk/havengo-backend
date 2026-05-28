@@ -875,7 +875,6 @@ function connectFirebaseChat(email, role, name) {
     }
     try {
         firebaseApp = firebase.initializeApp(FIREBASE_CONFIG);
-        firestoreDb = firebase.firestore();
         firebaseAuth = firebase.auth();
         // Get a Firebase custom token from our backend
         var jwt = window.__HAVENGO_JWT__;
@@ -886,7 +885,10 @@ function connectFirebaseChat(email, role, name) {
             body: JSON.stringify({ email: email, role: role, name: name })
         }).then(function(r) { return r.json(); }).then(function(data) {
             if (data.firebaseToken) {
-                return firebaseAuth.signInWithCustomToken(data.firebaseToken);
+                return firebaseAuth.signInWithCustomToken(data.firebaseToken).then(function() {
+                    // Only enable Firestore after successful auth
+                    firestoreDb = firebase.firestore();
+                });
             }
         }).catch(function(e) { console.warn("Firebase connect error:", e); });
     } catch(e) { console.warn("Firebase init error:", e); }
@@ -926,7 +928,6 @@ function subscribeToChat(conversationId, callback) {
     var convId = getFirestoreConversationId(conversationId);
     var unsub = firestoreDb.collection("messages")
         .where("conversationId", "==", convId)
-        .orderBy("createdAt", "asc")
         .onSnapshot(function(snapshot) {
             var msgs = [];
             snapshot.forEach(function(doc) {
@@ -936,9 +937,11 @@ function subscribeToChat(conversationId, callback) {
                     text: data.text,
                     sender: data.senderRole,
                     senderName: data.senderName,
-                    time: data.createdAt ? data.createdAt.toMillis() : Date.now()
+                    time: data.createdAt ? data.createdAt.toMillis() : (data._clientTime || Date.now())
                 });
             });
+            // Server timestamps may not arrive immediately; keep message order by _clientTime fallback
+            msgs.sort(function(a, b) { return a.time - b.time; });
             callback(msgs);
         }, function(error) {
             console.warn("Firestore subscription error:", error);
@@ -982,7 +985,8 @@ function sendFirestoreMessage(conversationId, text, senderRole, senderName, send
         senderName: senderName || senderRole,
         text: text,
         participants: participants,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        _clientTime: Date.now()
     }).catch(function(e) { console.warn("Firestore send error:", e); });
     return true;
 }
