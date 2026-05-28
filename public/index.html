@@ -8,6 +8,10 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css"/>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<!-- Firebase SDKs for real-time chat -->
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/11.0.1/firebase-auth-compat.js"></script>
 <style>
 .hero-gradient{ background:linear-gradient(135deg,#0f172a 0%,#1e40af 100%); }
 .page{display:none;}
@@ -843,6 +847,145 @@
 // Set this to your Render backend URL after deploying
 var HAVENGO_BACKEND_URL = "https://havengo-backend.onrender.com";
 
+// ============================================================
+// FIREBASE CONFIG — Real-time Chat (replace with your project)
+// ============================================================
+// After creating your Firebase project (see firestore.rules),
+// paste your web app's config object here:
+var FIREBASE_CONFIG = {
+    apiKey: "AIzaSyA32pfZa8cVi0fpZp2aFFE0Wqpi0FndXSc",
+    authDomain: "havengo-chat.firebaseapp.com",
+    projectId: "havengo-chat",
+    storageBucket: "havengo-chat.firebasestorage.app",
+    messagingSenderId: "907962422923",
+    appId: "1:907962422923:web:ec70299801f26e3ccb668e"
+};
+var firebaseApp = null;
+var firestoreDb = null;
+var firebaseAuth = null;
+var _chatUnsubscribers = {};  // { conversationId: unsubscribeFn }
+var _taskParticipants = {};  // { taskId: [participantEmail1, participantEmail2] }
+
+function connectFirebaseChat(email, role, name) {
+    if (firebaseApp) return; // already connected
+    if (!FIREBASE_CONFIG || FIREBASE_CONFIG.apiKey === "YOUR_API_KEY") {
+        console.warn("Firebase not configured — chat polling will be used as fallback");
+        return;
+    }
+    try {
+        firebaseApp = firebase.initializeApp(FIREBASE_CONFIG);
+        firestoreDb = firebase.firestore();
+        firebaseAuth = firebase.auth();
+        // Get a Firebase custom token from our backend
+        var jwt = window.__HAVENGO_JWT__;
+        if (!jwt) return;
+        fetch(HAVENGO_BACKEND_URL + "/api/auth/firebase-token", {
+            method: "POST",
+            headers: { "Authorization": "Bearer " + jwt, "Content-Type": "application/json" },
+            body: JSON.stringify({ email: email, role: role, name: name })
+        }).then(function(r) { return r.json(); }).then(function(data) {
+            if (data.firebaseToken) {
+                return firebaseAuth.signInWithCustomToken(data.firebaseToken);
+            }
+        }).catch(function(e) { console.warn("Firebase connect error:", e); });
+    } catch(e) { console.warn("Firebase init error:", e); }
+}
+
+function disconnectFirebaseChat() {
+    // Unsubscribe all Firestore listeners
+    for (var key in _chatUnsubscribers) {
+        if (typeof _chatUnsubscribers[key] === 'function') {
+            _chatUnsubscribers[key]();
+        }
+    }
+    _chatUnsubscribers = {};
+    if (firebaseAuth && firebaseAuth.currentUser) {
+        firebaseAuth.signOut().catch(function(e) { console.warn(e); });
+    }
+    firebaseApp = null;
+    firestoreDb = null;
+    firebaseAuth = null;
+}
+
+function getFirestoreConversationId(rawId) {
+    // Keep task IDs numeric, prefix others with their type
+    if (/^\d+$/.test(rawId)) return "task-" + rawId;
+    return rawId;
+}
+
+function subscribeToChat(conversationId, callback) {
+    if (!firestoreDb) {
+        console.warn("Firebase not connected, cannot subscribe");
+        return null;
+    }
+    // Unsubscribe previous listener for this conversation if any
+    if (_chatUnsubscribers[conversationId]) {
+        _chatUnsubscribers[conversationId]();
+    }
+    var convId = getFirestoreConversationId(conversationId);
+    var unsub = firestoreDb.collection("messages")
+        .where("conversationId", "==", convId)
+        .orderBy("createdAt", "asc")
+        .onSnapshot(function(snapshot) {
+            var msgs = [];
+            snapshot.forEach(function(doc) {
+                var data = doc.data();
+                msgs.push({
+                    id: doc.id,
+                    text: data.text,
+                    sender: data.senderRole,
+                    senderName: data.senderName,
+                    time: data.createdAt ? data.createdAt.toMillis() : Date.now()
+                });
+            });
+            callback(msgs);
+        }, function(error) {
+            console.warn("Firestore subscription error:", error);
+        });
+    _chatUnsubscribers[conversationId] = unsub;
+    return unsub;
+}
+
+function sendFirestoreMessage(conversationId, text, senderRole, senderName, senderEmail) {
+    if (!firestoreDb) return false;
+    var convId = getFirestoreConversationId(conversationId);
+    var participants = [];
+
+    if (convId.indexOf("task-") === 0) {
+        // Task conversation — look up stored participants
+        var taskNum = convId.replace("task-", "");
+        if (_taskParticipants[taskNum]) {
+            participants = _taskParticipants[taskNum];
+        } else {
+            // Fallback: if sender email is known, add it; add admin as well
+            if (senderEmail) participants.push(senderEmail);
+            participants.push("thermypetson@gmail.com");
+        }
+    } else if (convId.indexOf("customer-admin-") === 0) {
+        var cEmail = convId.replace("customer-admin-", "");
+        participants.push(cEmail);
+        participants.push("thermypetson@gmail.com");
+    } else if (convId.indexOf("provider-admin-") === 0) {
+        var pEmail = convId.replace("provider-admin-", "");
+        participants.push(pEmail);
+        participants.push("thermypetson@gmail.com");
+    }
+
+    // Deduplicate
+    participants = participants.filter(function(v, i, a) { return a.indexOf(v) === i; });
+
+    firestoreDb.collection("messages").add({
+        conversationId: convId,
+        senderEmail: senderEmail || "unknown",
+        senderRole: senderRole,
+        senderName: senderName || senderRole,
+        text: text,
+        participants: participants,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(function(e) { console.warn("Firestore send error:", e); });
+    return true;
+}
+
 // Quick backend health check with 8s timeout
 async function checkBackend() {
     var controller = new AbortController();
@@ -1306,6 +1449,7 @@ async function verifySignupCode() {
             window.__HAVENGO_JWT__ = regData.token;
             userBalance = regData.user.balance !== undefined ? regData.user.balance : 2000000;
             closeAuthModal();
+            connectFirebaseChat(regData.user.email, "customer", regData.user.firstname);
             updateProfileWithUser();
             renderProfilePage();
             updateProfilePicCursor();
@@ -1396,6 +1540,7 @@ async function performLogin() {
             if (adminData.success) {
                 window.__HAVENGO_JWT__ = adminData.token;
                 closeAuthModal();
+                connectFirebaseChat("thermypetson@gmail.com", "admin", "Admin");
                 adminLoginSuccess();
                 return;
             }
@@ -1416,6 +1561,7 @@ async function performLogin() {
             window.__HAVENGO_JWT__ = data.token;
             userBalance = data.user.balance !== undefined ? data.user.balance : userBalance;
             closeAuthModal();
+            connectFirebaseChat(data.user.email, "customer", data.user.firstname);
             updateProfileWithUser();
             renderProfilePage();
             updateProfilePicCursor();
@@ -1443,6 +1589,7 @@ async function performLogin() {
 
 function logout(skipConfirm) {
     function doLogout() {
+        disconnectFirebaseChat();
         if (currentUser && currentUser.email) {
             userNotificationsMap[currentUser.email] = globalNotifications.slice();
         }
@@ -3135,6 +3282,7 @@ async function loginAsProvider() {
         if (data.success) {
             var p = data.provider;
             window.__HAVENGO_JWT__ = data.token;
+            connectFirebaseChat(p.email, "provider", p.firstname + " " + p.lastname);
             currentLoggedProvider = {
                 id: p.id,
                 name: p.firstname + " " + p.lastname,
@@ -3289,12 +3437,6 @@ async function enterProviderDashboard(provider) {
                     }
                 }
                 renderProviderDashboard();
-            }
-            // Background sync provider-admin chat messages
-            var provEmail = currentLoggedProvider.email || currentLoggedProvider.name || "unknown";
-            var chatId = "provider-admin-" + provEmail;
-            if (chatConversations[chatId]) {
-                await loadChatFromStorage(chatId);
             }
             // Fetch backend notifications
             fetchBackendNotifications();
@@ -3808,39 +3950,6 @@ async function _syncAdminData() {
                 });
             }
         } catch(et) { console.warn(et); }
-        // Fetch admin conversations from backend so admin sees all chats
-        try {
-            var convResp = await fetch(apiUrl + "/admin/chat/conversations", { headers: headers, signal: AbortSignal.timeout(35000) });
-            if (convResp.ok) {
-                var convIds = await convResp.json();
-                for (var ci = 0; ci < convIds.length; ci++) {
-                    var cid = convIds[ci];
-                    if (!chatConversations[cid]) chatConversations[cid] = [];
-                    // Fetch messages for this conversation
-                    var msgResp = await fetch(apiUrl + "/admin/chat/" + encodeURIComponent(cid), { headers: headers, signal: AbortSignal.timeout(35000) });
-                    if (msgResp.ok) {
-                        var msgs = await msgResp.json();
-                        // Preserve local-only messages (not yet on backend)
-                        var localOnly = [];
-                        var backendSet = {};
-                        for (var bi = 0; bi < msgs.length; bi++) {
-                            var backendSender = normalizeChatSender(msgs[bi].sender);
-                            backendSet[msgs[bi].message + "_" + backendSender] = true;
-                        }
-                        for (var li = 0; li < chatConversations[cid].length; li++) {
-                            var lm = chatConversations[cid][li];
-                            if (!backendSet[lm.text + "_" + lm.sender]) {
-                                localOnly.push(lm);
-                            }
-                        }
-                        chatConversations[cid] = msgs.map(function(m) {
-                            return { id: m.id, text: m.message, sender: normalizeChatSender(m.sender), time: new Date(m.created_at).getTime(), created_at: m.created_at };
-                        }).concat(localOnly);
-                        checkNewChatMessages(cid);
-                    }
-                }
-            }
-        } catch(ec) { console.warn(ec); }
         renderAdminDashboard();
         renderAllProviderLists();
     } catch(e) { console.log("Backend sync error:", e); }
@@ -3849,6 +3958,7 @@ async function _syncAdminData() {
 function logoutAdmin() {
     showAppConfirm("Are you sure you want to logout?", function(confirmed) {
         if (!confirmed) return;
+        disconnectFirebaseChat();
         userNotificationsMap["admin"] = globalNotifications.slice();
         if (window.__adminPollInterval) clearInterval(window.__adminPollInterval);
         window.__HAVENGO_JWT__ = null;
@@ -3863,6 +3973,7 @@ function logoutAdmin() {
 function logoutProvider() {
     showAppConfirm("Are you sure you want to logout?", function(confirmed) {
         if (!confirmed) return;
+        disconnectFirebaseChat();
         if (currentLoggedProvider && currentLoggedProvider.email) {
             userNotificationsMap[currentLoggedProvider.email] = globalNotifications.slice();
         }
@@ -4438,12 +4549,17 @@ function renderAdminChat() {
 function openAdminCustomerChat(chatKey) {
     currentChatTaskId = chatKey;
     if (!chatConversations[chatKey]) chatConversations[chatKey] = [];
-    loadChatFromStorage(chatKey);
+    // Subscribe to Firestore real-time updates
+    if (firestoreDb) {
+        subscribeToChat(chatKey, function(msgs) {
+            chatConversations[chatKey] = msgs;
+            renderChatMessages(msgs, "admin");
+        });
+    }
     document.getElementById("chat-provider-name").textContent = "Customer Support - " + chatKey.replace("customer-admin-", "");
     document.getElementById("chat-provider-avatar").textContent = "\uD83D\uDCAC";
     renderChatMessages(chatConversations[chatKey], "admin");
     document.getElementById("chat-modal").classList.remove("hidden");
-    startChatPolling(chatKey);
 }
 
 function openCustomerAdminChat() {
@@ -4451,13 +4567,19 @@ function openCustomerAdminChat() {
     var chatId = "customer-admin-" + (currentUser.email || currentUser.phone || "guest");
     currentChatTaskId = chatId;
     if (!chatConversations[chatId]) chatConversations[chatId] = [];
-    loadChatFromStorage(chatId).then(function() { renderCustomerAdminMessages(); }).catch(function() { renderCustomerAdminMessages(); });
+    // Subscribe to Firestore real-time updates
+    if (firestoreDb) {
+        subscribeToChat(chatId, function(msgs) {
+            chatConversations[chatId] = msgs;
+            renderCustomerAdminMessages();
+        });
+    }
     var area = document.getElementById("customer-admin-chat-area");
     if (area) area.classList.remove("hidden");
     renderCustomerAdminMessages();
 }
 
-async function sendCustomerAdminMessage() {
+function sendCustomerAdminMessage() {
     var input = document.getElementById("customer-admin-chat-input");
     var text = sanitizeInput(input ? input.value.trim() : "");
     if (!text || !currentUser) return;
@@ -4465,16 +4587,18 @@ async function sendCustomerAdminMessage() {
     if (!chatConversations[chatId]) chatConversations[chatId] = [];
     chatConversations[chatId].push({ text: text, sender: "customer", time: Date.now() });
 
-    // Send to backend
-    var jwt = window.__HAVENGO_JWT__;
-    if (jwt) {
-        try {
-            await fetch(HAVENGO_BACKEND_URL + "/api/chat/send", {
+    // Send via Firestore (real-time)
+    var sent = sendFirestoreMessage(chatId, text, "customer", currentUser.firstname || currentUser.name || "Customer", currentUser.email);
+    if (!sent) {
+        // Fallback to backend POST if Firestore not configured
+        var jwt = window.__HAVENGO_JWT__;
+        if (jwt) {
+            fetch(HAVENGO_BACKEND_URL + "/api/chat/send", {
                 method: "POST",
                 headers: { "Authorization": "Bearer " + jwt, "Content-Type": "application/json" },
                 body: JSON.stringify({ conversationId: chatId, message: text, sender: "Customer" })
-            });
-        } catch(e) { console.warn(e); }
+            }).catch(function(e) { console.warn(e); });
+        }
     }
 
     renderCustomerAdminMessages();
@@ -4501,14 +4625,6 @@ function renderCustomerAdminMessages() {
     container.innerHTML = html;
     container.scrollTop = container.scrollHeight;
 }
-
-// Customer admin chat polling (fetch from backend)
-setInterval(function() {
-    if (currentUser && !document.getElementById("customer-admin-chat-area").classList.contains("hidden")) {
-        var chatId = "customer-admin-" + (currentUser.email || currentUser.phone || "guest");
-        loadChatFromStorage(chatId);
-    }
-}, 10000);
 
 function startTracking(bookingId) {
     var nameEl = document.getElementById("tracking-provider-name");
@@ -4901,55 +5017,83 @@ function renderChatMessages(messages, currentRole) {
     container.scrollTop = container.scrollHeight;
 }
 
-async function deleteChatMessage(convId, msgId, index) {
-    showAppConfirm("Delete this message?", async function(confirmed) {
+function deleteChatMessage(convId, msgId, index) {
+    showAppConfirm("Delete this message?", function(confirmed) {
         if (!confirmed) return;
-        var jwt = window.__HAVENGO_JWT__;
-    // Try backend deletion
-    if (jwt && convId && msgId && !msgId.startsWith("msg_")) {
-        try {
-            var endpoint = currentAdmin ? "/admin/chat/" : "/chat/";
-            await fetch(HAVENGO_BACKEND_URL + "/api" + endpoint + encodeURIComponent(convId) + "/message/" + msgId, {
-                method: "DELETE", headers: { "Authorization": "Bearer " + jwt }
-            });
-        } catch(e) { console.warn(e); }
-    }
-    // Remove locally
-    if (chatConversations[convId] && chatConversations[convId][index]) {
-        chatConversations[convId].splice(index, 1);
-        var currentRole = currentAdmin ? "admin" : (currentLoggedProvider ? "provider" : "customer");
-        if (convId && (convId.indexOf("customer-admin") === 0 || convId.indexOf("provider-admin") === 0)) {
-            renderCustomerAdminMessages();
+        // Delete from Firestore if it's a Firestore message (has a real ID)
+        if (convId && msgId && msgId.indexOf("_") === -1 && firestoreDb) {
+            var convIdFs = getFirestoreConversationId(convId);
+            firestoreDb.collection("messages").doc(msgId).delete().catch(function(e) { console.warn(e); });
         }
-        if (document.getElementById("chat-messages")) {
-            renderChatMessages(chatConversations[convId], currentRole);
+        // Remove locally
+        if (chatConversations[convId] && chatConversations[convId][index]) {
+            chatConversations[convId].splice(index, 1);
+            var currentRole = currentAdmin ? "admin" : (currentLoggedProvider ? "provider" : "customer");
+            if (convId && (convId.indexOf("customer-admin") === 0 || convId.indexOf("provider-admin") === 0)) {
+                renderCustomerAdminMessages();
+            }
+            if (document.getElementById("chat-messages")) {
+                renderChatMessages(chatConversations[convId], currentRole);
+            }
         }
-    }
     });
+}
+
+function storeTaskParticipants(taskId) {
+    // Try to find the task in all known task arrays
+    var task = findTask(taskId);
+    if (!task) {
+        // Try provider tasks
+        if (currentLoggedProvider && providerTasks) {
+            for (var ti = 0; ti < providerTasks.length; ti++) {
+                if (providerTasks[ti].id == taskId) { task = providerTasks[ti]; break; }
+            }
+        }
+    }
+    if (task) {
+        var participants = [];
+        if (task.customerEmail) participants.push(task.customerEmail);
+        if (currentUser && currentUser.email) participants.push(currentUser.email);
+        if (currentLoggedProvider && currentLoggedProvider.email) participants.push(currentLoggedProvider.email);
+        if (participants.indexOf("thermypetson@gmail.com") === -1) participants.push("thermypetson@gmail.com");
+        _taskParticipants[taskId] = participants;
+    }
 }
 
 function openChatWithProvider(taskId) {
     currentChatTaskId = taskId;
     if (!chatConversations[taskId]) chatConversations[taskId] = [];
-    loadChatFromStorage(taskId).then(function() { renderChatMessages(chatConversations[taskId], "customer"); }).catch(function() {});
+    storeTaskParticipants(taskId);
+    // Subscribe to Firestore real-time updates
+    if (firestoreDb) {
+        subscribeToChat(taskId, function(msgs) {
+            chatConversations[taskId] = msgs;
+            renderChatMessages(msgs, "customer");
+        });
+    }
     var task = findTask(taskId);
     document.getElementById("chat-provider-name").textContent = (task ? task.serviceName : "Chat") + " \u2014 " + (task ? task.customerName : "Customer");
     document.getElementById("chat-provider-avatar").textContent = "\uD83D\uDCAC";
     renderChatMessages(chatConversations[taskId], "customer");
     document.getElementById("chat-modal").classList.remove("hidden");
-    startChatPolling(taskId);
 }
 
 function openProviderChat(taskId) {
     currentChatTaskId = taskId;
     if (!chatConversations[taskId]) chatConversations[taskId] = [];
-    loadChatFromStorage(taskId);
+    storeTaskParticipants(taskId);
+    // Subscribe to Firestore real-time updates
+    if (firestoreDb) {
+        subscribeToChat(taskId, function(msgs) {
+            chatConversations[taskId] = msgs;
+            renderChatMessages(msgs, "provider");
+        });
+    }
     var task = findTask(taskId);
     document.getElementById("chat-provider-name").textContent = task ? task.customerName : "Customer";
     document.getElementById("chat-provider-avatar").textContent = "\uD83D\uDC64";
     renderChatMessages(chatConversations[taskId], "provider");
     document.getElementById("chat-modal").classList.remove("hidden");
-    startChatPolling(taskId);
 }
 
 function openProviderAdminChat() {
@@ -4957,32 +5101,46 @@ function openProviderAdminChat() {
     var chatId = "provider-admin-" + provEmail;
     currentChatTaskId = chatId;
     if (!chatConversations[chatId]) chatConversations[chatId] = [];
-    loadChatFromStorage(chatId).then(function() { renderChatMessages(chatConversations[chatId], "provider"); }).catch(function() {});
+    // Subscribe to Firestore real-time updates
+    if (firestoreDb) {
+        subscribeToChat(chatId, function(msgs) {
+            chatConversations[chatId] = msgs;
+            renderChatMessages(msgs, "provider");
+        });
+    }
     document.getElementById("chat-provider-name").textContent = "Admin Support";
     document.getElementById("chat-provider-avatar").textContent = "\uD83D\uDC6E";
     renderChatMessages(chatConversations[chatId], "provider");
     document.getElementById("chat-modal").classList.remove("hidden");
-    startChatPolling(chatId);
 }
 
 function openAdminProviderChat(providerEmail, providerName) {
     var chatId = "provider-admin-" + providerEmail;
     currentChatTaskId = chatId;
     if (!chatConversations[chatId]) chatConversations[chatId] = [];
-    loadChatFromStorage(chatId).then(function() { renderChatMessages(chatConversations[chatId], "admin"); }).catch(function() {});
+    // Subscribe to Firestore real-time updates
+    if (firestoreDb) {
+        subscribeToChat(chatId, function(msgs) {
+            chatConversations[chatId] = msgs;
+            renderChatMessages(msgs, "admin");
+        });
+    }
     document.getElementById("chat-provider-name").textContent = providerName || "Provider";
     document.getElementById("chat-provider-avatar").textContent = "\uD83D\uDCAC";
     renderChatMessages(chatConversations[chatId], "admin");
     document.getElementById("chat-modal").classList.remove("hidden");
-    startChatPolling(chatId);
 }
 
 function closeChatModal() {
-    stopChatPolling();
+    // Unsubscribe from the current conversation's Firestore listener
+    if (currentChatTaskId && _chatUnsubscribers[currentChatTaskId]) {
+        _chatUnsubscribers[currentChatTaskId]();
+        delete _chatUnsubscribers[currentChatTaskId];
+    }
     document.getElementById("chat-modal").classList.add("hidden");
 }
 
-async function sendChatMessage() {
+function sendChatMessage() {
     var input = document.getElementById("chat-input");
     var text = sanitizeInput(input ? input.value.trim() : "");
     if (!text || !currentChatTaskId) return;
@@ -4995,20 +5153,23 @@ async function sendChatMessage() {
 
     chatConversations[currentChatTaskId].push(msg);
 
-    // Send to backend for cross-browser sync
-    var apiUrl = HAVENGO_BACKEND_URL + "/api";
-    var jwt = window.__HAVENGO_JWT__;
-    if (jwt) {
-        var convId = currentChatTaskId;
-        var chatSender = currentAdmin ? "Admin" : (currentLoggedProvider ? "Provider" : "Customer");
-        try {
+    // Send via Firestore (real-time)
+    var chatSender = currentAdmin ? "Admin" : (currentLoggedProvider ? "Provider" : "Customer");
+    var senderEmail = currentAdmin ? "thermypetson@gmail.com" : (currentLoggedProvider ? currentLoggedProvider.email : (currentUser ? currentUser.email : "unknown"));
+    var senderName = currentAdmin ? "Admin" : (currentLoggedProvider ? currentLoggedProvider.name : (currentUser ? currentUser.firstname : "Customer"));
+    var sent = sendFirestoreMessage(currentChatTaskId, text, currentRole, senderName, senderEmail);
+    if (!sent) {
+        // Fallback to backend POST if Firestore not configured
+        var jwt = window.__HAVENGO_JWT__;
+        if (jwt) {
+            var apiUrl = HAVENGO_BACKEND_URL + "/api";
             var endpoint = currentAdmin ? "/admin/chat/send" : "/chat/send";
-            await fetch(apiUrl + endpoint, {
+            fetch(apiUrl + endpoint, {
                 method: "POST",
                 headers: { "Authorization": "Bearer " + jwt, "Content-Type": "application/json" },
-                body: JSON.stringify({ conversationId: convId, message: text, sender: chatSender })
-            });
-        } catch(e) { console.warn(e); }
+                body: JSON.stringify({ conversationId: currentChatTaskId, message: text, sender: chatSender })
+            }).catch(function(e) { console.warn(e); });
+        }
     }
 
     renderChatMessages(chatConversations[currentChatTaskId], currentRole);
@@ -5016,90 +5177,6 @@ async function sendChatMessage() {
 
     var notifTitle = currentRole === "customer" ? "New Message from Customer" : "New Message from Provider";
     addNotification("\uD83D\uDCAC", notifTitle, text);
-}
-
-async function loadChatFromStorage(taskId) {
-    // Fetch from backend first (cross-browser sync)
-    var jwt = window.__HAVENGO_JWT__;
-    if (jwt && taskId) {
-        var apiUrl = HAVENGO_BACKEND_URL + "/api";
-        try {
-            var endpoint = currentAdmin ? "/admin/chat/" : "/chat/";
-            var resp = await fetch(apiUrl + endpoint + encodeURIComponent(taskId), {
-                headers: { "Authorization": "Bearer " + jwt }
-            });
-            if (resp.ok) {
-                var backendMsgs = await resp.json();
-                if (backendMsgs.length > 0) {
-                    // Build set of local (text+sender) to preserve unsent messages
-                    var localOnly = [];
-                    if (chatConversations[taskId]) {
-                        var backendSet = {};
-                        for (var bi = 0; bi < backendMsgs.length; bi++) {
-                            var bm = backendMsgs[bi];
-                            var backendSender = normalizeChatSender(bm.sender);
-                            backendSet[bm.message + "_" + backendSender] = true;
-                        }
-                        for (var li = 0; li < chatConversations[taskId].length; li++) {
-                            var lm = chatConversations[taskId][li];
-                            if (!backendSet[lm.text + "_" + lm.sender]) {
-                                localOnly.push(lm);
-                            }
-                        }
-                    }
-                    // Replace with backend messages + local-only messages, sorted by time
-                    var combined = backendMsgs.map(function(bm) {
-                        return { id: bm.id, text: bm.message, sender: normalizeChatSender(bm.sender), time: new Date(bm.created_at).getTime() };
-                    }).concat(localOnly);
-                    combined.sort(function(a, b) { return (a.time || 0) - (b.time || 0); });
-                    chatConversations[taskId] = combined;
-                    checkNewChatMessages(taskId);
-                    var currentRole = currentAdmin ? "admin" : (currentLoggedProvider ? "provider" : "customer");
-                    renderChatMessages(chatConversations[taskId], currentRole);
-                    return;
-                }
-            }
-        } catch(e) { console.warn(e); }
-    }
-}
-
-var lastChatMessageMaxId = {};
-
-function checkNewChatMessages(taskId) {
-    var msgs = chatConversations[taskId];
-    if (!msgs || msgs.length === 0) return;
-    var maxId = 0;
-    for (var mi = 0; mi < msgs.length; mi++) {
-        if (msgs[mi].id && msgs[mi].id > maxId) maxId = msgs[mi].id;
-    }
-    var prevMaxId = lastChatMessageMaxId[taskId] || 0;
-    if (maxId > prevMaxId && prevMaxId > 0) {
-        var currentRoleSender = currentAdmin ? "admin" : (currentLoggedProvider ? (currentLoggedProvider.name || currentLoggedProvider.business_name || "provider") : "customer");
-        for (var mi = 0; mi < msgs.length; mi++) {
-            if (msgs[mi].id && msgs[mi].id > prevMaxId && msgs[mi].sender !== currentRoleSender) {
-                addNotification("\uD83D\uDCAC", "New Message", msgs[mi].text.substring(0, 60));
-                break;
-            }
-        }
-    }
-    lastChatMessageMaxId[taskId] = maxId;
-}
-
-var chatPollInterval = null;
-
-function startChatPolling(taskId) {
-    stopChatPolling();
-    if (!taskId) return;
-    chatPollInterval = setInterval(function() {
-        if (document.getElementById("chat-modal").classList.contains("hidden")) {
-            return;
-        }
-        loadChatFromStorage(taskId);
-    }, 1500);
-}
-
-function stopChatPolling() {
-    if (chatPollInterval) { clearInterval(chatPollInterval); chatPollInterval = null; }
 }
 
 // ============================================================

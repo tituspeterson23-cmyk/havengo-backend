@@ -257,6 +257,43 @@ Migrate from SQLite (sql.js) to PostgreSQL (Neon) for persistent data storage, f
 ### Deployment
 - Both repos pushed to GitHub; Render + Netlify auto-deploy
 
+## Session 6 (May 28, 2026) — Firebase Real-time Chat
+
+### Changes
+- **Backend**: Added Firebase Admin SDK (`src/firebase-admin.js`). Reads `service-account.json` at startup.
+- **New endpoint**: `POST /api/auth/firebase-token` — generates a Firebase custom token from your JWT for Firestore auth.
+- **Frontend**: Replaced polling-based chat (1.5s interval fetching `/api/chat/:id`) with Firestore `onSnapshot` real-time listeners.
+- **Firestore collection**: `messages` — each doc has `conversationId`, `senderEmail`, `senderRole`, `senderName`, `text`, `participants[]`, `createdAt`.
+- **Conversation ID patterns**: `customer-admin-{email}`, `provider-admin-{email}`, `task-{taskId}` (prefixed with `task-` for Firestore).
+- **Privacy/isolation**: Firestore security rules (`firestore.rules`) enforce `request.auth.token.email in resource.data.participants`. Admin has global read. Write requires sender email match + participant membership.
+- **Fallback**: If `service-account.json` is missing, the frontend silently falls back to the old backend polling (no errors).
+- **`service-account.json`** is `.gitignore`'d — never commit it.
+- **Text-only**: No voice, images, or file uploads in chat (per requirements).
+
+### Private Chat Guarantee
+| Scenario | Allowed? |
+|---|---|
+| Customer A reads task-5 (their order) | ✅ |
+| Customer A reads task-6 (Customer B's order) | ❌ `participants` excludes A |
+| Provider X reads provider-admin-X chat | ✅ |
+| Provider X reads provider-admin-Y chat | ❌ `participants` excludes X |
+| Customer A reads customer-admin-B chat | ❌ `participants` excludes A |
+| Admin reads any conversation | ✅ `role == 'admin'` |
+
+### Deploy Checklist
+1. Create Firebase project → enable Firestore (test mode)
+2. Enable Custom Authentication in Firebase Console
+3. Copy Firebase config to `FIREBASE_CONFIG` in `index.html`
+4. Download service account JSON → save as `service-account.json` in backend root
+5. Deploy Firestore rules from `firestore.rules` to Firebase Console
+6. Push both repos to GitHub (Render + Netlify auto-deploy)
+
+### Key Files
+- `firestore.rules` — Firestore security rules (enforce chat isolation)
+- `src/firebase-admin.js` — Firebase Admin SDK init
+- `src/routes/auth.js` — `/api/auth/firebase-token` endpoint
+- `public/index.html` — Firebase config + `connectFirebaseChat()` + all Firestore chat functions
+
 ## Important Constraints (NEVER break these)
 - `index.html` is a single page — all JS, CSS, HTML in one file
 - NEVER remove `userBalance = 2000000` default — it's the only safety net for users when backend is unreachable

@@ -8,6 +8,7 @@ const path = require('path');
 
 const { initDatabase, getDb } = require('./src/database');
 const { sanitize } = require('./src/auth');
+const { initFirebaseAdmin } = require('./src/firebase-admin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -180,6 +181,7 @@ if (!fs.existsSync(publicDir)) {
 (async () => {
   try {
     await initDatabase();
+    initFirebaseAdmin();
     app.listen(PORT, () => {
       console.log(`\nHavenGo Backend running at http://localhost:${PORT}`);
       console.log(`Admin login at http://localhost:${PORT}/`);

@@ -4,6 +4,7 @@ const crypto = require('crypto');
 const { getDb } = require('../database');
 const { hashPassword, comparePassword, generateToken, sanitize, isValidEmail, isValidPhone } = require('../auth');
 const { sendVerificationEmail } = require('../mail');
+const { getFirebaseAuth, initFirebaseAdmin } = require('../firebase-admin');
 
 // POST /api/auth/send-verification-code
 router.post('/send-verification-code', async (req, res) => {
@@ -177,6 +178,34 @@ router.post('/admin/login', async (req, res) => {
   } catch (e) {
     console.error('Admin login error:', e);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// POST /api/auth/firebase-token — get a Firebase custom token (for real-time chat)
+router.post('/firebase-token', async (req, res) => {
+  try {
+    const fbAuth = getFirebaseAuth();
+    if (!fbAuth) {
+      return res.status(503).json({ error: 'Firebase not configured' });
+    }
+    // Extract user info from the request
+    // The frontend sends email and role (it already has the JWT)
+    const { email, role, name } = req.body;
+    if (!email || !role) {
+      return res.status(400).json({ error: 'email and role required' });
+    }
+
+    // Generate a Firebase custom token tied to this user's email
+    const firebaseToken = await fbAuth.createCustomToken(email, {
+      email: email,
+      role: role,
+      displayName: name || email
+    });
+
+    res.json({ firebaseToken, projectId: fbAuth.app.options.projectId });
+  } catch (e) {
+    console.error('Firebase token error:', e);
+    res.status(500).json({ error: 'Failed to generate Firebase token' });
   }
 });
 
