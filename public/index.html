@@ -861,53 +861,63 @@ var FIREBASE_CONFIG = {
     messagingSenderId: "907962422923",
     appId: "1:907962422923:web:ec70299801f26e3ccb668e"
 };
-var firebaseApp = null;
 var firestoreDb = null;
 var firebaseAuth = null;
+var _firebaseAuthed = false;
+var _pendingChatSubs = [];
 var _chatUnsubscribers = {};  // { conversationId: unsubscribeFn }
 var _taskParticipants = {};  // { taskId: [participantEmail1, participantEmail2] }
 
-function connectFirebaseChat(email, role, name) {
-    if (firebaseApp) return; // already connected
-    if (!FIREBASE_CONFIG || FIREBASE_CONFIG.apiKey === "YOUR_API_KEY") {
-        console.warn("Firebase not configured — chat polling will be used as fallback");
-        return;
-    }
+// Initialize Firebase immediately (like Hunnie pattern) — must be after SDK scripts load
+if (FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY") {
     try {
-        firebaseApp = firebase.initializeApp(FIREBASE_CONFIG);
+        firebase.initializeApp(FIREBASE_CONFIG);
+        firestoreDb = firebase.firestore();
         firebaseAuth = firebase.auth();
-        // Get a Firebase custom token from our backend
-        var jwt = window.__HAVENGO_JWT__;
-        if (!jwt) return;
-        fetch(HAVENGO_BACKEND_URL + "/api/auth/firebase-token", {
-            method: "POST",
-            headers: { "Authorization": "Bearer " + jwt, "Content-Type": "application/json" },
-            body: JSON.stringify({ email: email, role: role, name: name })
-        }).then(function(r) { return r.json(); }).then(function(data) {
-            if (data.firebaseToken) {
-                return firebaseAuth.signInWithCustomToken(data.firebaseToken).then(function() {
-                    // Only enable Firestore after successful auth
-                    firestoreDb = firebase.firestore();
-                });
+        firebaseAuth.onAuthStateChanged(function(user) {
+            _firebaseAuthed = !!user;
+            if (user) {
+                // Process any subscriptions that were queued before auth completed
+                for (var si = 0; si < _pendingChatSubs.length; si++) {
+                    var p = _pendingChatSubs[si];
+                    _doSubscribe(p.conversationId, p.callback);
+                }
+                _pendingChatSubs = [];
             }
-        }).catch(function(e) { console.warn("Firebase connect error:", e); });
+        });
     } catch(e) { console.warn("Firebase init error:", e); }
 }
 
+function connectFirebaseChat(email, role, name) {
+    if (_firebaseAuthed) return; // already authenticated
+    if (!firestoreDb) return; // Firebase not initialized
+    var jwt = window.__HAVENGO_JWT__;
+    if (!jwt) return;
+    fetch(HAVENGO_BACKEND_URL + "/api/auth/firebase-token", {
+        method: "POST",
+        headers: { "Authorization": "Bearer " + jwt, "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email, role: role, name: name })
+    }).then(function(r) { return r.json(); }).then(function(data) {
+        if (data.firebaseToken) {
+            firebaseAuth.signInWithCustomToken(data.firebaseToken).catch(function(e) {
+                console.warn("Firebase signInWithCustomToken error:", e);
+            });
+        }
+    }).catch(function(e) { console.warn("Firebase connect error:", e); });
+}
+
 function disconnectFirebaseChat() {
-    // Unsubscribe all Firestore listeners
     for (var key in _chatUnsubscribers) {
         if (typeof _chatUnsubscribers[key] === 'function') {
             _chatUnsubscribers[key]();
         }
     }
     _chatUnsubscribers = {};
+    _pendingChatSubs = [];
     if (firebaseAuth && firebaseAuth.currentUser) {
         firebaseAuth.signOut().catch(function(e) { console.warn(e); });
     }
-    firebaseApp = null;
-    firestoreDb = null;
-    firebaseAuth = null;
+    _firebaseAuthed = false;
 }
 
 function getFirestoreConversationId(rawId) {
@@ -921,7 +931,16 @@ function subscribeToChat(conversationId, callback) {
         console.warn("Firebase not connected, cannot subscribe");
         return null;
     }
-    // Unsubscribe previous listener for this conversation if any
+    if (!_firebaseAuthed) {
+        // Queue subscription — will fire after auth confirms via onAuthStateChanged
+        _pendingChatSubs.push({ conversationId: conversationId, callback: callback });
+        return null;
+    }
+    return _doSubscribe(conversationId, callback);
+}
+
+function _doSubscribe(conversationId, callback) {
+    if (!firestoreDb || !_firebaseAuthed) return null;
     if (_chatUnsubscribers[conversationId]) {
         _chatUnsubscribers[conversationId]();
     }
@@ -940,7 +959,6 @@ function subscribeToChat(conversationId, callback) {
                     time: data.createdAt ? data.createdAt.toMillis() : (data._clientTime || Date.now())
                 });
             });
-            // Server timestamps may not arrive immediately; keep message order by _clientTime fallback
             msgs.sort(function(a, b) { return a.time - b.time; });
             callback(msgs);
         }, function(error) {
@@ -951,7 +969,7 @@ function subscribeToChat(conversationId, callback) {
 }
 
 function sendFirestoreMessage(conversationId, text, senderRole, senderName, senderEmail) {
-    if (!firestoreDb) return false;
+    if (!firestoreDb || !_firebaseAuthed) return false;
     var convId = getFirestoreConversationId(conversationId);
     var participants = [];
 
