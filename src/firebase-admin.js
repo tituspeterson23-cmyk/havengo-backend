@@ -14,7 +14,9 @@ function loadServiceAccount() {
   const b64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
   if (b64) {
     console.log('Firebase: loading service account from FIREBASE_SERVICE_ACCOUNT_BASE64');
-    return JSON.parse(Buffer.from(b64, 'base64').toString('utf-8'));
+    const decoded = Buffer.from(b64.trim(), 'base64').toString('utf-8');
+    console.log('Firebase: decoded length:', decoded.length, 'chars, first 50:', JSON.stringify(decoded.substring(0, 50)));
+    return JSON.parse(decoded);
   }
   // 3. Try raw JSON env var
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;

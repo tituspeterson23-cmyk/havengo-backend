@@ -180,6 +180,18 @@ if (!fs.existsSync(publicDir)) {
   fs.mkdirSync(publicDir, { recursive: true });
 }
 
+// Write service-account.json from env var if it doesn't exist
+const saPath = path.join(__dirname, 'service-account.json');
+if (!fs.existsSync(saPath) && process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+  try {
+    const decoded = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64.trim(), 'base64').toString('utf-8');
+    fs.writeFileSync(saPath, decoded, 'utf-8');
+    console.log('Written service-account.json from FIREBASE_SERVICE_ACCOUNT_BASE64');
+  } catch (e) {
+    console.log('Could not decode FIREBASE_SERVICE_ACCOUNT_BASE64:', e.message);
+  }
+}
+
 // Start server after database is initialized
 (async () => {
   try {
