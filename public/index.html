@@ -1130,7 +1130,6 @@ function buildAppState() {
         hAvengoJwt: window.__HAVENGO_JWT__ || null,
         currentLoggedProvider: currentLoggedProvider,
         currentAdmin: currentAdmin,
-        currentPage: window.__currentPage || null,
         providerTab: window.__providerTab !== undefined ? window.__providerTab : 0,
         adminTab: window.__adminTab !== undefined ? window.__adminTab : 0
     };
@@ -1182,7 +1181,6 @@ function applyState(state) {
     if (state.hAvengoJwt) window.__HAVENGO_JWT__ = state.hAvengoJwt;
     if (state.currentLoggedProvider) currentLoggedProvider = state.currentLoggedProvider;
     if (state.currentAdmin) currentAdmin = state.currentAdmin;
-    if (state.currentPage) window.__currentPage = state.currentPage;
     if (state.providerTab !== undefined) window.__providerTab = state.providerTab;
     if (state.adminTab !== undefined) window.__adminTab = state.adminTab;
 }
@@ -3121,6 +3119,7 @@ async function placeOrder(event) {
     }
 
 // Fetch customer bookings from backend for cross-browser sync
+var _bookingsHash = "";
 async function fetchCustomerBookings() {
     if (!window.__HAVENGO_JWT__ || !currentUser) return;
     try {
@@ -3130,7 +3129,9 @@ async function fetchCustomerBookings() {
         if (resp.ok) {
             var data = await resp.json();
             var allTasks = (data.active || []).concat(data.completed || []);
-            // Replace local bookings with backend data (online-only)
+            var newHash = JSON.stringify(allTasks);
+            if (newHash === _bookingsHash) return;
+            _bookingsHash = newHash;
             bookings = [];
             for (var bi = 0; bi < allTasks.length; bi++) {
                 var b = allTasks[bi];
@@ -4700,6 +4701,7 @@ function checkAutoPayments() {
     saveAppState();
 }
 
+var _paymentsHash = "";
 async function fetchPendingPayments() {
     if (!window.__HAVENGO_JWT__ || !currentUser) return;
     try {
@@ -4708,6 +4710,9 @@ async function fetchPendingPayments() {
         });
         if (resp.ok) {
             var backendPps = await resp.json();
+            var newHash = JSON.stringify(backendPps);
+            if (newHash === _paymentsHash) return;
+            _paymentsHash = newHash;
             for (var bpi = 0; bpi < backendPps.length; bpi++) {
                 var bp = backendPps[bpi];
                 var exists = pendingPayments.some(function(pp) { return pp.taskId === bp.task_id; });
@@ -5762,6 +5767,7 @@ async function fetchApprovedServicePrices() {
     }
 }
 
+var _providersHash = "";
 // Fetch verified providers from backend for service listing
 async function fetchVerifiedProviders() {
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
@@ -5769,6 +5775,9 @@ async function fetchVerifiedProviders() {
         var resp = await fetch(apiUrl + "/providers/verified");
         if (resp.ok) {
             var data = await resp.json();
+            var newHash = JSON.stringify(data);
+            if (newHash === _providersHash) return;
+            _providersHash = newHash;
             var backendEmails = {};
             if (data && data.length > 0) {
                 for (var i = 0; i < data.length; i++) {
@@ -5921,6 +5930,7 @@ function checkAutoPayment() {
 // BACKEND NOTIFICATIONS
 // ============================================================
 
+var _notifHash = "";
 async function fetchBackendNotifications() {
     var jwt = window.__HAVENGO_JWT__;
     if (!jwt) return;
@@ -5938,13 +5948,14 @@ async function fetchBackendNotifications() {
         }
         if (resp.ok) {
             var notifs = await resp.json();
-            if (notifs && notifs.length > 0) {
-                for (var ni = 0; ni < notifs.length; ni++) {
-                    var n = notifs[ni];
-                    var exists = globalNotifications.some(function(gn) { return gn.notifId === n.id; });
-                    if (!exists) {
-                        addNotification(n.icon || "\uD83D\uDCE2", n.title || "Notification", n.message || "", n.id);
-                    }
+            var newHash = JSON.stringify(notifs);
+            if (newHash === _notifHash) return;
+            _notifHash = newHash;
+            for (var ni = 0; ni < notifs.length; ni++) {
+                var n = notifs[ni];
+                var exists = globalNotifications.some(function(gn) { return gn.notifId === n.id; });
+                if (!exists) {
+                    addNotification(n.icon || "\uD83D\uDCE2", n.title || "Notification", n.message || "", n.id);
                 }
             }
         }
@@ -6116,23 +6127,12 @@ window.onload = function() {
             updateNotifCount();
         }
         renderAllProviderLists();
-        // Restore last visited page
-        if (window.__currentPage) {
-            var pageEl = document.getElementById(window.__currentPage);
-            if (pageEl) navigateTo(window.__currentPage);
-        }
     })();
 
     // Auto-save every 10 seconds
     setInterval(saveAppState, 10000);
 
-    // Save on page unload and reset page to home for next visit
-    window.addEventListener("beforeunload", function() {
-        window.__currentPage = null;
-        window.__providerTab = 0;
-        window.__adminTab = 0;
-        saveAppState();
-    });
+    window.addEventListener("beforeunload", saveAppState);
 
     // Backend connectivity — uses HAVENGO_BACKEND_URL (set at top of script)
     (async function() {
@@ -6150,32 +6150,27 @@ window.onload = function() {
     })();
 
     fetchVerifiedProviders();
+    autoSyncData();
+    setInterval(autoSyncData, 10000);
+};
+
+function autoSyncData() {
+    fetchVerifiedProviders();
     fetchProviderRatings();
     fetchApprovedServicePrices();
-
-    // Poll verified providers every 15s for cross-browser sync
-    setInterval(fetchVerifiedProviders, 15000);
-
-    // Auto-sync every 15s when logged in
-    setInterval(function() {
-        fetchProviderRatings();
-        fetchApprovedServicePrices();
-        if (currentUser && window.__HAVENGO_JWT__) {
-            fetchCustomerBookings();
-            fetchPendingPayments();
-            fetchBackendNotifications();
-            fetchCustomerBalance();
-            renderBookings();
-            updateProfileWithUser();
-        }
-        if (currentLoggedProvider && window.__HAVENGO_JWT__) {
-            fetchBackendNotifications();
-        }
-        if (currentAdmin && window.__HAVENGO_JWT__) {
-            fetchBackendNotifications();
-        }
-    }, 15000);
-};
+    if (currentUser && window.__HAVENGO_JWT__) {
+        fetchCustomerBookings();
+        fetchPendingPayments();
+        fetchBackendNotifications();
+        fetchCustomerBalance();
+    }
+    if (currentLoggedProvider && window.__HAVENGO_JWT__) {
+        fetchBackendNotifications();
+    }
+    if (currentAdmin && window.__HAVENGO_JWT__) {
+        fetchBackendNotifications();
+    }
+}
 
 async function fetchCustomerBalance() {
     if (!window.__HAVENGO_JWT__ || !currentUser) return;
@@ -6193,9 +6188,5 @@ async function fetchCustomerBalance() {
 </script>
 </body>
 </html>
-
-
-
-
 
 
