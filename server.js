@@ -182,13 +182,18 @@ if (!fs.existsSync(publicDir)) {
 
 // Write service-account.json from env var if it doesn't exist
 const saPath = path.join(__dirname, 'service-account.json');
-if (!fs.existsSync(saPath) && process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
-  try {
-    const decoded = Buffer.from(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64.trim(), 'base64').toString('utf-8');
-    fs.writeFileSync(saPath, decoded, 'utf-8');
-    console.log('Written service-account.json from FIREBASE_SERVICE_ACCOUNT_BASE64');
-  } catch (e) {
-    console.log('Could not decode FIREBASE_SERVICE_ACCOUNT_BASE64:', e.message);
+if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
+  const b64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+  console.log('FIREBASE_SERVICE_ACCOUNT_BASE64 length:', b64.length, 'Last 10 chars:', JSON.stringify(b64.slice(-10)));
+  if (!fs.existsSync(saPath)) {
+    try {
+      const decoded = Buffer.from(b64.trim(), 'base64').toString('utf-8');
+      console.log('Decoded JSON length:', decoded.length, 'Last 80 chars:', JSON.stringify(decoded.slice(-80)));
+      fs.writeFileSync(saPath, decoded, 'utf-8');
+      console.log('Written service-account.json from FIREBASE_SERVICE_ACCOUNT_BASE64');
+    } catch (e) {
+      console.log('Could not decode FIREBASE_SERVICE_ACCOUNT_BASE64:', e.message);
+    }
   }
 }
 
