@@ -2,30 +2,25 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ============================================================
-    // HAVENGO CHAT — Privacy & Isolation Rules
-    // ============================================================
+    // Admin email — hardcoded for privacy enforcement
+    function isAdmin() {
+      return request.auth.token.email == 'thermypetson@gmail.com';
+    }
+
     // Each message document has a `participants` array containing
     // the emails of everyone allowed to read that message.
-    //
-    // Role-based access:
-    //   - admin: can read/write all conversations
-    //   - customer: can only read/write conversations they are a
-    //     participant in
-    //   - provider: same as customer — only their conversations
     //
     // Conversation ID patterns:
     //   customer-admin-{email}  → customer ↔ admin
     //   provider-admin-{email}  → provider ↔ admin
     //   task-{taskId}           → customer ↔ provider (order chat)
-    // ============================================================
 
     match /messages/{docId} {
 
       // ---- READ ----
       // Only the admin OR a participant in the conversation
       allow read: if request.auth != null && (
-        request.auth.token.role == 'admin' ||
+        isAdmin() ||
         request.auth.token.email in resource.data.participants
       );
 
@@ -39,7 +34,7 @@ service cloud.firestore {
       // ---- DELETE ----
       // Admin can delete any message; sender can delete their own
       allow delete: if request.auth != null && (
-        request.auth.token.role == 'admin' ||
+        isAdmin() ||
         request.auth.token.email == resource.data.senderEmail
       );
 
