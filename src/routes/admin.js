@@ -283,6 +283,15 @@ router.get('/tasks', async (req, res) => {
   res.json(tasks);
 });
 
+router.get('/task/:taskId', async (req, res) => {
+  const db = getDb();
+  const taskId = parseInt(req.params.taskId);
+  if (isNaN(taskId)) return res.status(400).json({ error: 'Invalid task ID' });
+  const task = await db.prepare("SELECT t.id, t.customer_email, p.email AS provider_email, p.firstname AS provider_firstname, p.lastname AS provider_lastname, u.firstname AS customer_firstname, u.lastname AS customer_lastname FROM tasks t LEFT JOIN users u ON t.customer_email = u.email LEFT JOIN providers p ON (t.provider_name = p.business_name OR t.provider_name = (p.firstname || ' ' || p.lastname)) WHERE t.id = ?").get(taskId);
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+  res.json(task);
+});
+
 router.post('/tasks/reassign/:taskId', async (req, res) => {
   const db = getDb();
   const { providerName } = req.body;

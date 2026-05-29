@@ -5319,7 +5319,8 @@ function forwardToProvider(msgId, index) {
     var taskNum = String(taskId).replace("task-", "");
     var participants = _taskParticipants[taskNum];
     if (!participants || participants.length < 2) {
-        addInAppAlert("error", "Task participants not found. Cannot forward.");
+        // Try fetching task from backend as fallback (adminTasks may not have it yet)
+        _forwardFetchFromBackend(taskId, convId, text);
         return;
     }
     participants = participants.filter(function(v,i,a) { return a.indexOf(v) === i; });
@@ -5339,6 +5340,41 @@ function forwardToProvider(msgId, index) {
             addInAppAlert("success", "Message forwarded to " + targetLabel);
         }).catch(function(e) { console.warn("Forward error:", e); addInAppAlert("error", "Failed to forward message"); });
     }
+}
+
+function _forwardFetchFromBackend(taskId, convId, text) {
+    if (!taskId) { addInAppAlert("error", "Task participants not found. Cannot forward."); return; }
+    var token = window.__HAVENGO_JWT__;
+    if (!token) { addInAppAlert("error", "Not authenticated"); return; }
+    fetch(HAVENGO_BACKEND_URL + "/api/admin/task/" + taskId, {
+        headers: { "Authorization": "Bearer " + token }
+    }).then(function(r) { return r.json(); }).then(function(task) {
+        if (task && task.customer_email && task.provider_email) {
+            var participants = [task.customer_email, task.provider_email, "thermypetson@gmail.com"];
+            participants = participants.filter(function(v,i,a) { return a.indexOf(v) === i; });
+            _taskParticipants[String(taskId).replace("task-", "")] = participants;
+            if (firestoreDb && _firebaseAuthed) {
+                firestoreDb.collection("messages").add({
+                    conversationId: convId,
+                    senderEmail: "thermypetson@gmail.com",
+                    senderRole: "admin",
+                    senderName: "Admin (forwarded)",
+                    text: text,
+                    participants: participants,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                    _clientTime: Date.now(),
+                    _forwardedFrom: currentChatTaskId
+                }).then(function() {
+                    addInAppAlert("success", "Message forwarded");
+                }).catch(function(e) { console.warn("Forward error:", e); addInAppAlert("error", "Failed to forward message"); });
+            }
+        } else {
+            addInAppAlert("error", "Task participants not found. Cannot forward.");
+        }
+    }).catch(function(e) {
+        console.warn("Fetch task error:", e);
+        addInAppAlert("error", "Could not fetch task data. Cannot forward.");
+    });
 }
 
 function deleteChatMessage(convId, msgId, index) {
