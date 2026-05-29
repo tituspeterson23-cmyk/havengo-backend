@@ -101,6 +101,12 @@ router.get('/revenue', async (req, res) => {
   res.json({ revenue: totalRevenue.revenue, completedJobs: totalCompleted.count, byProvider: revenueByProvider });
 });
 
+router.get('/users/count', async (req, res) => {
+  const db = getDb();
+  const row = await db.prepare("SELECT COUNT(*) as count FROM users").get();
+  res.json({ count: row.count });
+});
+
 router.get('/chat/conversations', async (req, res) => {
   const db = getDb();
   const convs = await db.prepare('SELECT DISTINCT conversation_id FROM chat_messages ORDER BY created_at DESC').all();
@@ -342,6 +348,12 @@ router.post('/tasks/remove/:taskId', async (req, res) => {
   if (!task) return res.status(404).json({ error: 'Cancelled task not found' });
   await db.prepare('DELETE FROM tasks WHERE id = ?').run(taskId);
   res.json({ success: true, message: 'Task removed' });
+});
+
+router.get('/users/count', async (req, res) => {
+  const db = getDb();
+  const row = await db.prepare("SELECT COUNT(*) as count FROM users").get();
+  res.json({ count: row.count });
 });
 
 router.post('/delete-notification/:id', async (req, res) => {
