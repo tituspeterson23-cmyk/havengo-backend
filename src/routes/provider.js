@@ -3,6 +3,7 @@ const router = express.Router();
 const { getDb } = require('../database');
 const { authenticate, providerOnly } = require('../middleware/authenticate');
 const { hashPassword, sanitize, isValidEmail, isValidPhone } = require('../auth');
+const { emitTaskEvent, emitNotification } = require('../firestore-events');
 
 router.post('/register', async (req, res) => {
   try {
@@ -143,6 +144,8 @@ router.post('/confirm-task/:taskId', async (req, res) => {
   await db.prepare("UPDATE tasks SET status = 'active' WHERE id = ? AND status = 'pending_confirmation'").run(taskId);
   await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
     .run(task.customer_email, '✅', 'Order Accepted', 'Your ' + task.service_name + ' order has been accepted by ' + task.provider_name + ' and is now in progress.', 'order');
+  emitTaskEvent(taskId, 'order_accepted', { customerEmail: task.customer_email, providerEmail: req.user.email, status: 'active', serviceName: task.service_name });
+  emitNotification(task.customer_email, '✅', 'Order Accepted', 'Your ' + task.service_name + ' order has been accepted.', 'order');
   res.json({ success: true, message: 'Task confirmed' });
 });
 
@@ -162,6 +165,8 @@ router.post('/complete-task/:taskId', async (req, res) => {
   await db.prepare('DELETE FROM tasks WHERE id = ?').run(task.id);
   await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
     .run(task.customer_email, '🎉', 'Task Completed', 'Your ' + task.service_name + ' has been completed by ' + task.provider_name + '. Please confirm payment.', 'order');
+  emitTaskEvent(task.id, 'order_completed', { customerEmail: task.customer_email, providerEmail: req.user.email, status: 'completed', serviceName: task.service_name });
+  emitNotification(task.customer_email, '🎉', 'Task Completed', 'Your ' + task.service_name + ' has been completed.', 'order');
 
   res.json({ success: true, message: 'Task marked complete' });
 });
@@ -307,6 +312,9 @@ router.post('/cancel-task/:taskId', async (req, res) => {
     await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
       .run(adminEmail, '🔄', 'Order Rejected', provName + ' rejected order #' + taskId + ' (' + task.service_name + '). Ready for reassignment.', 'task_rejected');
   }
+  emitTaskEvent(taskId, 'order_cancelled', { customerEmail: task.customer_email, providerEmail: req.user.email, status: 'cancelled', serviceName: task.service_name });
+  emitNotification(task.customer_email, '❌', 'Order Cancelled', 'Your ' + task.service_name + ' order was cancelled.', 'order');
+  if (adminEmail) emitNotification(adminEmail, '🔄', 'Order Rejected', provName + ' rejected order #' + taskId, 'task');
   res.json({ success: true, message: 'Task cancelled', reason: reason });
 });
 

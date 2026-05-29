@@ -3,6 +3,7 @@ const router = express.Router();
 const { getDb } = require('../database');
 const { authenticate } = require('../middleware/authenticate');
 const { sanitize } = require('../auth');
+const { emitTaskEvent, emitNotification } = require('../firestore-events');
 
 router.use(authenticate);
 
@@ -78,6 +79,12 @@ router.post('/place-order', async (req, res) => {
         .run(prov.email, '📋', 'New Order Assigned', 'New ' + sanitize(serviceName) + ' order assigned to you by ' + req.user.email + ' for UGX ' + price, 'order');
     }
   }
+
+  // Firestore real-time events
+  const provEmail = assignedTask ? assignedTask.provider_name : (providerEmail || '');
+  emitTaskEvent(newTaskId, 'order_placed', { customerEmail: req.user.email, providerEmail: provEmail, status: 'pending_confirmation', serviceName: sanitize(serviceName) });
+  emitNotification(req.user.email, '📋', 'Order Placed', 'Your ' + sanitize(serviceName) + ' order #' + newTaskId + ' has been placed.', 'order');
+  if (prov && prov.email) emitNotification(prov.email, '📋', 'New Order', 'New ' + sanitize(serviceName) + ' order #' + newTaskId + ' assigned to you.', 'order');
 
   res.json({ success: true, message: 'Order placed! Awaiting provider confirmation.', taskId: newTaskId, providerId: providerId || null, providerEmail: providerEmail || '' });
 });

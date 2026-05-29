@@ -3,6 +3,7 @@ const router = express.Router();
 const { getDb } = require('../database');
 const { authenticate, adminOnly } = require('../middleware/authenticate');
 const { sanitize, encrypt, decrypt, hashPassword } = require('../auth');
+const { emitTaskEvent, emitNotification } = require('../firestore-events');
 
 router.use(authenticate, adminOnly);
 
@@ -305,7 +306,32 @@ router.post('/tasks/reassign/:taskId', async (req, res) => {
   await db.prepare("UPDATE tasks SET provider_name = ?, provider_id = ?, provider_email = ?, status = 'pending_confirmation' WHERE id = ?").run(providerName, newProv.id, newProv.email, parseInt(req.params.taskId));
   await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
     .run(newProv.email, '📋', 'Order Assigned to You', 'A new order has been assigned to you by admin. Please review and confirm.', 'task');
+  emitTaskEvent(req.params.taskId, 'order_reassigned', { providerEmail: newProv.email, status: 'pending_confirmation', serviceName: task.service_name });
+  emitNotification(newProv.email, '📋', 'Order Assigned', 'Order #' + req.params.taskId + ' (' + task.service_name + ') assigned to you.', 'task');
   res.json({ success: true, message: 'Task reassigned to ' + providerName });
+});
+
+router.post('/tasks/cancel/:taskId', async (req, res) => {
+  const db = getDb();
+  const taskId = parseInt(req.params.taskId);
+  if (!taskId) return res.status(400).json({ error: 'Invalid task ID' });
+  const task = await db.prepare("SELECT * FROM tasks WHERE id = ?").get(taskId);
+  if (!task) return res.status(404).json({ error: 'Task not found' });
+  if (task.status === 'completed') return res.status(400).json({ error: 'Cannot cancel completed task' });
+  await db.prepare("UPDATE tasks SET status = 'cancelled' WHERE id = ?").run(taskId);
+  // Notify customer and provider
+  if (task.customer_email) {
+    await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+      .run(task.customer_email, '❌', 'Order Cancelled by Admin', 'Order #' + taskId + ' has been cancelled by admin.', 'task');
+  }
+  if (task.provider_email) {
+    await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+      .run(task.provider_email, '❌', 'Order Cancelled by Admin', 'Order #' + taskId + ' has been cancelled by admin.', 'task');
+  }
+  emitTaskEvent(taskId, 'order_cancelled', { customerEmail: task.customer_email, providerEmail: task.provider_email, status: 'cancelled', serviceName: task.service_name });
+  if (task.customer_email) emitNotification(task.customer_email, '❌', 'Order Cancelled', 'Your order #' + taskId + ' has been cancelled by admin.', 'order');
+  if (task.provider_email) emitNotification(task.provider_email, '❌', 'Order Cancelled', 'Order #' + taskId + ' has been cancelled by admin.', 'order');
+  res.json({ success: true, message: 'Order #' + taskId + ' cancelled' });
 });
 
 router.post('/tasks/remove/:taskId', async (req, res) => {
