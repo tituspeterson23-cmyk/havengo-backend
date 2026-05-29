@@ -5683,9 +5683,6 @@ function renderAllProviderLists() {
                 "<span class=\"text-yellow-500\">" + stars + "</span>" +
                 "<span>" + displayRating.toFixed(1) + "</span>" +
                 "<span>\u2022 " + jobCount + " jobs</span></div>" +
-                "<div class=\"flex items-center gap-2 mt-1\">" +
-                (provPhone ? "<a href=\"tel:" + provPhone.replace(/[^0-9+]/g,'') + "\" class=\"text-xs text-blue-600 hover:underline\" title=\"Call\"><i class=\"fa-solid fa-phone\"></i></a>" : "") +
-                (provEmail ? "<a href=\"mailto:" + provEmail.replace(/'/g,"\\'") + "\" class=\"text-xs text-blue-600 hover:underline\" title=\"Email\"><i class=\"fa-solid fa-envelope\"></i></a>" : "") +
                 "</div></div>" +
                 "<button onclick=\"toggleFavoriteProvider('" + (provEmail).replace(/'/g,"\\'") + "','" + displayName.replace(/'/g,"\\'") + "')\" class=\"text-lg mr-2\"><i class=\"" + favIcon + "\"></i></button></div>" +
                 "<button onclick=\"selectService('" + serviceId + "','" + displayName.replace(/'/g,"\\'") + "')\" class=\"mt-3 w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-xl text-sm font-medium transition-all\"><i class=\"fa-solid fa-bookmark mr-1\"></i> Book Now</button></div>";
