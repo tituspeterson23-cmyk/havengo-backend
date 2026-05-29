@@ -4825,6 +4825,7 @@ function _renderAdminChatList() {
 
 function openAdminCustomerChat(chatKey) {
     currentChatTaskId = chatKey;
+    currentChatTaskContext = null;
     if (!chatConversations[chatKey]) chatConversations[chatKey] = [];
     // Subscribe to Firestore real-time updates
     if (firestoreDb) {
@@ -4843,6 +4844,7 @@ function openCustomerAdminChat() {
     if (!currentUser) { addInAppAlert("info", "Please login first to chat with admin"); showAuthModal("login"); return; }
     var chatId = "customer-admin-" + (currentUser.email || currentUser.phone || "guest");
     currentChatTaskId = chatId;
+    currentChatTaskContext = null;
     if (!chatConversations[chatId]) chatConversations[chatId] = [];
     // Subscribe to Firestore real-time updates
     if (firestoreDb) {
@@ -5370,6 +5372,7 @@ function storeTaskParticipants(taskId) {
     if (task) {
         var participants = [];
         if (task.customerEmail) participants.push(task.customerEmail);
+        if (task.providerEmail) participants.push(task.providerEmail);
         if (currentUser && currentUser.email) participants.push(currentUser.email);
         if (currentLoggedProvider && currentLoggedProvider.email) participants.push(currentLoggedProvider.email);
         if (participants.indexOf("thermypetson@gmail.com") === -1) participants.push("thermypetson@gmail.com");
@@ -5419,6 +5422,7 @@ function openProviderAdminChat() {
     var provEmail = currentLoggedProvider ? (currentLoggedProvider.email || currentLoggedProvider.name) : "unknown";
     var chatId = "provider-admin-" + provEmail;
     currentChatTaskId = chatId;
+    currentChatTaskContext = null;
     if (!chatConversations[chatId]) chatConversations[chatId] = [];
     // Subscribe to Firestore real-time updates
     if (firestoreDb) {
@@ -5436,6 +5440,7 @@ function openProviderAdminChat() {
 function openAdminProviderChat(providerEmail, providerName) {
     var chatId = "provider-admin-" + providerEmail;
     currentChatTaskId = chatId;
+    currentChatTaskContext = null;
     if (!chatConversations[chatId]) chatConversations[chatId] = [];
     // Subscribe to Firestore real-time updates
     if (firestoreDb) {
