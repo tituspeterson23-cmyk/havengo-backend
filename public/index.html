@@ -962,6 +962,7 @@ function _doSubscribe(conversationId, callback) {
                     text: data.text,
                     sender: data.senderRole,
                     senderName: data.senderName,
+                    _taskContext: data._taskContext || null,
                     time: data.createdAt ? data.createdAt.toMillis() : (data._clientTime || Date.now())
                 });
             });
@@ -5287,7 +5288,33 @@ function sendChatMessage() {
     var chatSender = currentAdmin ? "Admin" : (currentLoggedProvider ? "Provider" : "Customer");
     var senderEmail = currentAdmin ? "thermypetson@gmail.com" : (currentLoggedProvider ? currentLoggedProvider.email : (currentUser ? currentUser.email : "unknown"));
     var senderName = currentAdmin ? "Admin" : (currentLoggedProvider ? currentLoggedProvider.name : (currentUser ? currentUser.firstname : "Customer"));
-    if (currentChatTaskContext && currentChatTaskId.indexOf("customer-admin-") === 0) {
+    // Admin gate: customer messages in task conversations go through admin first
+    if (currentRole === "customer" && /^\d+$/.test(currentChatTaskId)) {
+        var custChatId = "customer-admin-" + senderEmail;
+        var convId = getFirestoreConversationId(custChatId);
+        var taskCtx = currentChatTaskId;
+        if (firestoreDb && _firebaseAuthed) {
+            storeTaskParticipants(taskCtx);
+            var taskNum = String(taskCtx).replace("task-", "");
+            var participants = _taskParticipants[taskNum] || [senderEmail, "thermypetson@gmail.com"];
+            participants = participants.filter(function(v,i,a) { return a.indexOf(v) === i; });
+            firestoreDb.collection("messages").add({
+                conversationId: convId,
+                senderEmail: senderEmail || "unknown",
+                senderRole: currentRole,
+                senderName: senderName || senderRole,
+                text: text,
+                participants: participants,
+                _taskContext: taskCtx,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                _clientTime: Date.now()
+            }).catch(function(e) { console.warn("Firestore send error:", e); });
+        }
+        if (!chatConversations[custChatId]) chatConversations[custChatId] = [];
+        // Show a message in the task chat that the message was sent to admin for review
+        var adminMsg = { text: "Your message has been sent to admin for review. Waiting for response...", sender: "system", time: Date.now() };
+        chatConversations[currentChatTaskId].push(adminMsg);
+    } else if (currentChatTaskContext && currentChatTaskId.indexOf("customer-admin-") === 0) {
         // Send Firestore message with task context for admin moderation
         var convId = getFirestoreConversationId(currentChatTaskId);
         var taskCtx = currentChatTaskContext;
