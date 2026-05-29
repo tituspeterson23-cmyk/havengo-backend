@@ -7,6 +7,16 @@ service cloud.firestore {
       return request.auth.token.email == 'thermypetson@gmail.com';
     }
 
+    // Extract the target email from admin conversation IDs.
+    // Pattern: provider-admin-{email}  or  customer-admin-{email}
+    function adminConvTargetEmail(convId) {
+      return convId.startsWith('provider-admin-') ?
+        convId.substring('provider-admin-'.length) :
+        (convId.startsWith('customer-admin-') ?
+          convId.substring('customer-admin-'.length) :
+          null);
+    }
+
     // Each message document has a `participants` array containing
     // the emails of everyone allowed to read that message.
     //
@@ -18,10 +28,13 @@ service cloud.firestore {
     match /messages/{docId} {
 
       // ---- READ ----
-      // Only the admin OR a participant in the conversation
+      // Admin always reads. Otherwise: must be in participants,
+      // OR the conversationId must identify this user as the
+      // participant (covers old messages with stale participants).
       allow read: if request.auth != null && (
         isAdmin() ||
-        request.auth.token.email in resource.data.participants
+        request.auth.token.email in resource.data.participants ||
+        request.auth.token.email == adminConvTargetEmail(resource.data.conversationId)
       );
 
       // ---- CREATE ----
