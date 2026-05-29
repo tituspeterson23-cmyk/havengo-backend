@@ -301,8 +301,17 @@
         <p class="text-sm text-gray-500 mb-6">Enter your phone number to create an account and complete your booking.</p>
         <div id="gc-step-phone">
             <div class="space-y-4">
-                <div><label class="text-sm font-semibold text-gray-700 block mb-1.5"><i class="fa-solid fa-phone text-emerald-500 mr-1.5"></i>Phone Number</label><input id="gc-phone" type="tel" class="w-full border border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all bg-gray-50 focus:bg-white" placeholder="07XX XXXXXX"></div>
-                <button id="gc-send-code-btn" onclick="gcSendCode()" class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white py-3.5 rounded-xl font-semibold transition-all shadow-lg shadow-emerald-200 hover:shadow-xl hover:shadow-emerald-300 active:scale-[0.98]"><i class="fa-solid fa-paper-plane mr-2"></i>Send Code</button>
+                <div id="gc-step-phone-send">
+                    <div><label class="text-sm font-semibold text-gray-700 block mb-1.5"><i class="fa-solid fa-phone text-emerald-500 mr-1.5"></i>Phone Number</label><input id="gc-phone" type="tel" class="w-full border border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all bg-gray-50 focus:bg-white" placeholder="07XX XXXXXX"></div>
+                    <button id="gc-send-code-btn" onclick="gcSendCode()" class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white py-3.5 rounded-xl font-semibold transition-all shadow-lg shadow-emerald-200 hover:shadow-xl hover:shadow-emerald-300 active:scale-[0.98]"><i class="fa-solid fa-paper-plane mr-2"></i>Send Code</button>
+                </div>
+                <div id="gc-phone-already-exists" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center">
+                    <div class="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 mx-auto mb-3"><i class="fa-solid fa-circle-exclamation text-2xl"></i></div>
+                    <p class="font-semibold text-gray-800 mb-1">Account Already Exists</p>
+                    <p class="text-sm text-gray-600 mb-5">This phone number is already registered. Sign in to continue with your order.</p>
+                    <button id="gc-existing-account-btn" onclick="closeGuestCheckout();showAuthModal('login')" class="hidden w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white py-3.5 rounded-xl font-semibold transition-all shadow-lg shadow-emerald-200 hover:shadow-xl hover:shadow-emerald-300 active:scale-[0.98]"><i class="fa-solid fa-right-to-bracket mr-2"></i>Sign In</button>
+                </div>
+                <button id="gc-go-back-btn" onclick="gcResetPhone()" class="hidden w-full text-center text-gray-500 hover:text-emerald-600 py-2 text-sm font-medium"><i class="fa-solid fa-arrow-left mr-1"></i>Use a different number</button>
             </div>
         </div>
         <div id="gc-step-otp" class="hidden">
@@ -1404,13 +1413,55 @@ function closeGuestCheckout() {
     document.getElementById("gc-email").value = "";
     document.getElementById("gc-password").value = "";
     document.getElementById("gc-confirm-password").value = "";
+    var gcPhoneAlready = document.getElementById("gc-phone-already-exists");
+    if (gcPhoneAlready) gcPhoneAlready.classList.add("hidden");
+    document.getElementById("gc-phone").readOnly = false;
+    document.getElementById("gc-step-phone-send").classList.remove("hidden");
+    document.getElementById("gc-send-code-btn").classList.remove("hidden");
+    document.getElementById("gc-existing-account-btn").classList.add("hidden");
+    document.getElementById("gc-go-back-btn").classList.add("hidden");
 }
+
+function gcResetPhone() {
+    gcData = null;
+    gcExistingAccount = false;
+    document.getElementById("gc-phone-already-exists").classList.add("hidden");
+    document.getElementById("gc-phone").readOnly = false;
+    document.getElementById("gc-phone").value = "";
+    document.getElementById("gc-step-phone-send").classList.remove("hidden");
+    document.getElementById("gc-send-code-btn").classList.remove("hidden");
+    document.getElementById("gc-send-code-btn").disabled = false;
+    document.getElementById("gc-send-code-btn").innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i>Send Code';
+    document.getElementById("gc-existing-account-btn").classList.add("hidden");
+    document.getElementById("gc-go-back-btn").classList.add("hidden");
+}
+
+var gcExistingAccount = false;
 
 async function gcSendCode() {
     var phone = sanitizeInput(document.getElementById("gc-phone").value.trim());
     if (!phone) { addInAppAlert("error", "Please enter your phone number"); return; }
     var backendOk = await checkBackend();
     if (!backendOk) { addInAppAlert("error", "Server unavailable. Try again."); return; }
+    document.getElementById("gc-send-code-btn").disabled = true;
+    document.getElementById("gc-send-code-btn").innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Checking...';
+    gcExistingAccount = false;
+    // Check if this phone is already registered
+    try {
+        var checkResp = await fetch(HAVENGO_BACKEND_URL + "/api/auth/check-phone?identifier=" + encodeURIComponent(phone));
+        var checkData = await checkResp.json();
+        if (checkData.exists) {
+            gcExistingAccount = true;
+            document.getElementById("gc-phone").readOnly = true;
+            document.getElementById("gc-phone-already-exists").classList.remove("hidden");
+            document.getElementById("gc-step-phone-send").classList.add("hidden");
+            document.getElementById("gc-send-code-btn").classList.add("hidden");
+            document.getElementById("gc-existing-account-btn").classList.remove("hidden");
+            document.getElementById("gc-go-back-btn").classList.remove("hidden");
+            addInAppAlert("info", "This phone is already registered. Please sign in instead.");
+            return;
+        }
+    } catch(e) { console.warn(e); }
     var generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
     gcData = { phone: phone, code: generatedCode };
     document.getElementById("gc-display-code").textContent = generatedCode;
@@ -1421,8 +1472,7 @@ async function gcSendCode() {
     document.getElementById("gc-step-phone").classList.add("hidden");
     document.getElementById("gc-step-otp").classList.remove("hidden");
     addInAppAlert("info", "\u2709\uFE0F Your verification code: " + generatedCode);
-    document.getElementById("gc-send-code-btn").disabled = true;
-    document.getElementById("gc-send-code-btn").innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sent';
+    document.getElementById("gc-send-code-btn").innerHTML = '<i class="fa-solid fa-paper-plane mr-2"></i>Send Code';
     try {
         await fetch(HAVENGO_BACKEND_URL + "/api/auth/send-verification-code", {
             method: "POST",

@@ -6,6 +6,20 @@ const { hashPassword, comparePassword, generateToken, sanitize, isValidEmail, is
 const { sendVerificationEmail } = require('../mail');
 const { getFirebaseAuth, initFirebaseAdmin } = require('../firebase-admin');
 
+// GET /api/auth/check-phone — check if a phone/email is already registered
+router.get('/check-phone', async (req, res) => {
+  try {
+    const identifier = req.query.identifier;
+    if (!identifier) return res.status(400).json({ error: 'Identifier is required' });
+    const db = getDb();
+    const existing = await db.prepare('SELECT id FROM users WHERE email = $1 OR phone = $1 LIMIT 1').get(identifier);
+    res.json({ exists: !!existing });
+  } catch (e) {
+    console.error('Check phone error:', e);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // POST /api/auth/send-verification-code
 router.post('/send-verification-code', async (req, res) => {
   try {
