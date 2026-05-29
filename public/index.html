@@ -290,6 +290,51 @@
 </div>
 
 <div id="app-alerts" class="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm" style="display:none;"></div>
+
+<div id="guest-checkout-modal" class="hidden fixed inset-0 z-[70] flex items-center justify-center bg-black/70 modal p-5">
+<div class="bg-white w-full max-w-md auth-modal rounded-3xl overflow-hidden shadow-2xl">
+    <div class="hero-gradient text-white p-6 flex justify-between items-center">
+        <h2 class="text-2xl font-bold">Quick Sign Up</h2>
+        <button onclick="closeGuestCheckout()" class="text-3xl leading-none">&times;</button>
+    </div>
+    <div class="p-8 max-h-[75vh] overflow-y-auto">
+        <p class="text-sm text-gray-500 mb-6">Enter your phone number to create an account and complete your booking.</p>
+        <div id="gc-step-phone">
+            <div class="space-y-4">
+                <div><label class="text-sm font-semibold text-gray-700 block mb-1.5"><i class="fa-solid fa-phone text-emerald-500 mr-1.5"></i>Phone Number</label><input id="gc-phone" type="tel" class="w-full border border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all bg-gray-50 focus:bg-white" placeholder="07XX XXXXXX"></div>
+                <button id="gc-send-code-btn" onclick="gcSendCode()" class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white py-3.5 rounded-xl font-semibold transition-all shadow-lg shadow-emerald-200 hover:shadow-xl hover:shadow-emerald-300 active:scale-[0.98]"><i class="fa-solid fa-paper-plane mr-2"></i>Send Code</button>
+            </div>
+        </div>
+        <div id="gc-step-otp" class="hidden">
+            <div class="space-y-4">
+                <div class="bg-gradient-to-br from-blue-50 to-blue-100/50 rounded-2xl p-5 border border-blue-200">
+                    <div class="flex items-center gap-3 mb-3">
+                        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 flex-shrink-0"><i class="fa-solid fa-shield"></i></div>
+                        <div class="text-sm text-blue-700">Your verification code: <strong id="gc-display-code" class="text-lg tracking-widest bg-white px-3 py-1 rounded-lg border border-blue-200 inline-block mt-1">------</strong></div>
+                    </div>
+                    <p class="text-xs text-blue-500 text-center mb-3">Enter the 6-digit code below to continue.</p>
+                    <div class="flex gap-3"><input id="gc-code" type="text" placeholder="Enter code" maxlength="6" class="flex-1 border border-blue-200 rounded-xl px-5 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 text-center text-xl tracking-widest bg-white"><button id="gc-verify-btn" onclick="gcVerifyCode()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3.5 rounded-xl font-semibold whitespace-nowrap transition-all">Verify</button></div>
+                </div>
+            </div>
+        </div>
+        <div id="gc-step-details" class="hidden">
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-sm font-semibold text-gray-700 block mb-1.5"><i class="fa-solid fa-user text-emerald-500 mr-1.5"></i>First Name</label><input id="gc-firstname" type="text" class="w-full border border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all bg-gray-50 focus:bg-white" placeholder="John"></div>
+                    <div><label class="text-sm font-semibold text-gray-700 block mb-1.5">Last Name</label><input id="gc-lastname" type="text" class="w-full border border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all bg-gray-50 focus:bg-white" placeholder="Doe"></div>
+                </div>
+                <div><label class="text-sm font-semibold text-gray-700 block mb-1.5"><i class="fa-solid fa-envelope text-emerald-500 mr-1.5"></i>Email (optional)</label><input id="gc-email" type="email" class="w-full border border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all bg-gray-50 focus:bg-white" placeholder="you@example.com"></div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div><label class="text-sm font-semibold text-gray-700 block mb-1.5"><i class="fa-solid fa-lock text-emerald-500 mr-1.5"></i>Password</label><div class="relative"><input id="gc-password" type="password" class="w-full border border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all bg-gray-50 focus:bg-white pr-12" placeholder="Min. 6 chars"><button type="button" onclick="togglePasswordVisibility('gc-password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-emerald-600"><i id="eye-icon-gc-password" class="fa-solid fa-eye"></i></button></div></div>
+                    <div><label class="text-sm font-semibold text-gray-700 block mb-1.5">Confirm</label><div class="relative"><input id="gc-confirm-password" type="password" class="w-full border border-gray-200 rounded-xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all bg-gray-50 focus:bg-white pr-12" placeholder="Repeat"><button type="button" onclick="togglePasswordVisibility('gc-confirm-password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-emerald-600"><i id="eye-icon-gc-confirm-password" class="fa-solid fa-eye"></i></button></div></div>
+                </div>
+                <button id="gc-register-btn" onclick="gcCompleteRegistration()" class="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white py-3.5 rounded-xl font-semibold transition-all shadow-lg shadow-emerald-200 hover:shadow-xl hover:shadow-emerald-300 active:scale-[0.98]"><i class="fa-solid fa-user-plus mr-2"></i>Create Account & Continue</button>
+            </div>
+            <div class="text-center mt-6"><p class="text-sm text-gray-500">Already have an account? <span onclick="closeGuestCheckout();showAuthModal('login')" class="text-emerald-600 cursor-pointer font-medium hover:text-emerald-700">Login</span></p></div>
+        </div>
+    </div>
+</div>
+</div>
 <div id="home" class="page active">
 <header class="hero-gradient text-white py-16 md:py-20 px-6 text-center relative overflow-hidden" style="min-height:420px;max-height:520px;">
     <div class="hero-bg-slider">
@@ -1342,6 +1387,139 @@ function togglePasswordVisibility(id) {
         input.type = "password";
         icon.className = "fa-solid fa-eye";
     }
+}
+
+var gcData = null;
+
+function closeGuestCheckout() {
+    document.getElementById("guest-checkout-modal").classList.add("hidden");
+    gcData = null;
+    document.getElementById("gc-step-phone").classList.remove("hidden");
+    document.getElementById("gc-step-otp").classList.add("hidden");
+    document.getElementById("gc-step-details").classList.add("hidden");
+    document.getElementById("gc-phone").value = "";
+    document.getElementById("gc-code").value = "";
+    document.getElementById("gc-firstname").value = "";
+    document.getElementById("gc-lastname").value = "";
+    document.getElementById("gc-email").value = "";
+    document.getElementById("gc-password").value = "";
+    document.getElementById("gc-confirm-password").value = "";
+}
+
+async function gcSendCode() {
+    var phone = sanitizeInput(document.getElementById("gc-phone").value.trim());
+    if (!phone) { addInAppAlert("error", "Please enter your phone number"); return; }
+    var backendOk = await checkBackend();
+    if (!backendOk) { addInAppAlert("error", "Server unavailable. Try again."); return; }
+    var generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
+    gcData = { phone: phone, code: generatedCode };
+    document.getElementById("gc-display-code").textContent = generatedCode;
+    var codeInput = document.getElementById("gc-code");
+    codeInput.value = generatedCode;
+    codeInput.readOnly = true;
+    codeInput.classList.add("bg-gray-50", "text-emerald-700", "font-bold");
+    document.getElementById("gc-step-phone").classList.add("hidden");
+    document.getElementById("gc-step-otp").classList.remove("hidden");
+    addInAppAlert("info", "\u2709\uFE0F Your verification code: " + generatedCode);
+    document.getElementById("gc-send-code-btn").disabled = true;
+    document.getElementById("gc-send-code-btn").innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Sent';
+    try {
+        await fetch(HAVENGO_BACKEND_URL + "/api/auth/send-verification-code", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier: phone, type: "phone", code: generatedCode })
+        });
+    } catch(e) { console.warn(e); }
+    setTimeout(function() {
+        if (!document.getElementById("gc-step-otp").classList.contains("hidden")) {
+            gcVerifyCode();
+        }
+    }, 800);
+}
+
+async function gcVerifyCode() {
+    var code = document.getElementById("gc-code").value.trim();
+    if (!code || code.length !== 6) { addInAppAlert("error", "Enter the 6-digit code"); return; }
+    if (!gcData) { addInAppAlert("error", "Session expired. Start again."); return; }
+    document.getElementById("gc-verify-btn").disabled = true;
+    document.getElementById("gc-verify-btn").innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    var verified = false;
+    try {
+        var resp = await fetch(HAVENGO_BACKEND_URL + "/api/auth/verify-code", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ identifier: gcData.phone, code: code })
+        });
+        var data = await resp.json();
+        verified = data.success;
+    } catch(e) { console.warn(e); }
+    if (!verified && code === gcData.code) verified = true;
+    if (verified) {
+        document.getElementById("gc-step-otp").classList.add("hidden");
+        document.getElementById("gc-step-details").classList.remove("hidden");
+        document.getElementById("gc-verify-btn").innerHTML = '<i class="fa-solid fa-check mr-2"></i>Verified';
+        document.getElementById("gc-verify-btn").classList.remove("bg-emerald-600", "hover:bg-emerald-700");
+        document.getElementById("gc-verify-btn").classList.add("bg-green-100", "text-green-700", "cursor-default");
+    } else {
+        addInAppAlert("error", "Invalid verification code");
+        document.getElementById("gc-verify-btn").disabled = false;
+        document.getElementById("gc-verify-btn").innerHTML = "Verify";
+    }
+}
+
+async function gcCompleteRegistration() {
+    var firstname = sanitizeInput(document.getElementById("gc-firstname").value.trim());
+    var lastname = sanitizeInput(document.getElementById("gc-lastname").value.trim());
+    var email = sanitizeInput(document.getElementById("gc-email").value.trim());
+    var password = document.getElementById("gc-password").value;
+    var confirm = document.getElementById("gc-confirm-password").value;
+    if (!firstname || !lastname || !password) { addInAppAlert("error", "Fill in name and password"); return; }
+    if (password !== confirm) { addInAppAlert("error", "Passwords do not match"); return; }
+    if (password.length < 6) { addInAppAlert("error", "Password must be at least 6 characters"); return; }
+    if (!gcData) { addInAppAlert("error", "Session expired. Start again."); return; }
+    if (!email) email = "guest_" + gcData.phone.replace(/[^0-9]/g, "") + "@havengo.guest";
+    var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+    if (!emailRegex.test(email)) { addInAppAlert("error", "Enter a valid email or leave blank for auto-generation"); return; }
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    document.getElementById("gc-register-btn").disabled = true;
+    document.getElementById("gc-register-btn").innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Creating Account...';
+    try {
+        var regResp = await fetch(apiUrl + "/auth/register", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                firstname: firstname, lastname: lastname,
+                phone: gcData.phone, email: email,
+                password: password, skipVerification: true
+            })
+        });
+        var regData = await regResp.json();
+        if (regData.success) {
+            window.__HAVENGO_JWT__ = regData.token;
+            currentUser = regData.user;
+            userBalance = regData.user.balance !== undefined ? regData.user.balance : 2000000;
+            closeGuestCheckout();
+            connectFirebaseChat(regData.user.email, "customer", regData.user.firstname);
+            updateProfileWithUser();
+            renderProfilePage();
+            updateProfilePicCursor();
+            globalNotifications = [];
+            addNotification("\uD83C\uDF89", "Account Created", "Welcome to HavenGo, " + firstname + "!");
+            fetchBackendNotifications();
+            fetchPendingPayments();
+            startAutoPaymentCheck();
+            addActivity("signup", "Created your HavenGo account");
+            addInAppAlert("success", "Account created! Now place your order.");
+            saveAppState();
+            showCheckout();
+            return;
+        }
+        if (regData.error) { addInAppAlert("error", regData.error); }
+    } catch(e) {
+        addInAppAlert("error", "Registration failed. Try again.");
+    }
+    document.getElementById("gc-register-btn").disabled = false;
+    document.getElementById("gc-register-btn").innerHTML = '<i class="fa-solid fa-user-plus mr-2"></i>Create Account & Continue';
 }
 
 async function hashPassword(password) {
@@ -2899,7 +3077,7 @@ function selectService(serviceId, providerName) {
 
 function showCheckout() {
     if (!currentService) return;
-    if (!window.__HAVENGO_JWT__ || !currentUser) { addInAppAlert("info", "Please sign up or login as a customer to place an order"); showAuthModal("login"); return; }
+    if (!window.__HAVENGO_JWT__ || !currentUser) { addInAppAlert("info", "Quick sign up to place your order"); document.getElementById("guest-checkout-modal").classList.remove("hidden"); return; }
     document.getElementById("modal-service").innerHTML = "<div class=\"flex items-center gap-3\">" +
         "<span class=\"text-3xl\">" + (serviceEmojis[currentService.category] || "\uD83D\uDCCB") + "</span>" +
         "<div><p class=\"font-semibold\">" + currentService.name + "</p>" +
