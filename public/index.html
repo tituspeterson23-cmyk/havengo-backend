@@ -916,6 +916,10 @@ function disconnectFirebaseChat() {
     }
     _chatUnsubscribers = {};
     _pendingChatSubs = [];
+    if (_adminConversationListener) {
+        _adminConversationListener();
+        _adminConversationListener = null;
+    }
     if (firebaseAuth && firebaseAuth.currentUser) {
         firebaseAuth.signOut().catch(function(e) { console.warn(e); });
     }
@@ -1056,6 +1060,7 @@ let userActivity = [];
 let chatConversations = {};
 let signupVerificationData = null;
 let currentChatTaskId = null;
+let currentChatTaskContext = null;
 
 // Map state
 let mapInstance = null;
@@ -1585,6 +1590,15 @@ async function performLogin() {
             userBalance = data.user.balance !== undefined ? data.user.balance : userBalance;
             closeAuthModal();
             connectFirebaseChat(data.user.email, "customer", data.user.firstname);
+            if (firestoreDb && data.user.email) {
+                var custChatId = "customer-admin-" + data.user.email;
+                if (!chatConversations[custChatId]) chatConversations[custChatId] = [];
+                subscribeToChat(custChatId, function(msgs) {
+                    chatConversations[custChatId] = msgs;
+                    var area = document.getElementById("customer-admin-chat-area");
+                    if (area && !area.classList.contains("hidden")) renderCustomerAdminMessages();
+                });
+            }
             updateProfileWithUser();
             renderProfilePage();
             updateProfilePicCursor();
@@ -3101,6 +3115,7 @@ async function placeOrder(event) {
                     status: "Pending",
                     customerName: currentUser ? (currentUser.name || currentUser.firstname + " " + currentUser.lastname) : "Guest User",
                     customerPhone: currentUser ? currentUser.phone : "+256 777 062 518",
+                    customerEmail: currentUser ? currentUser.email : "",
                     providerName: assignedProvider,
                     providerId: orderData.providerId || null
                 };
@@ -3285,6 +3300,7 @@ function customerCancelBooking(bookingId) {
 // ============================================================
 
 async function loginAsProvider() {
+    chatConversations = {};
     var identifier = document.getElementById("prov-login-id");
     var password = document.getElementById("prov-login-pass");
     var idVal = identifier ? sanitizeInput(identifier.value.trim()) : "";
@@ -3410,6 +3426,17 @@ async function enterProviderDashboard(provider) {
 
     renderProviderDashboard();
     fetchBackendNotifications();
+    // Subscribe to provider's admin chat so they receive admin replies in real-time
+    if (firestoreDb && provider.email) {
+        var provChatId = "provider-admin-" + provider.email;
+        if (!chatConversations[provChatId]) chatConversations[provChatId] = [];
+        subscribeToChat(provChatId, function(msgs) {
+            chatConversations[provChatId] = msgs;
+            if (document.getElementById("chat-modal") && !document.getElementById("chat-modal").classList.contains("hidden") && currentChatTaskId === provChatId) {
+                renderChatMessages(msgs, "provider");
+            }
+        });
+    }
     addNotification("\uD83D\uDD10", "Provider Login", provider.name + " logged into dashboard");
     if (!provider.registration_fee_paid) {
         setTimeout(function() { showProviderPaymentPrompt(); }, 1000);
@@ -4504,39 +4531,58 @@ function renderAdminRevenue() {
     }
 }
 
+var _adminConversationListener = null;
+
 function renderAdminChat() {
     var list = document.getElementById("admin-chat-list");
     if (!list) return;
+
+    if (firestoreDb && !_adminConversationListener) {
+        _adminConversationListener = firestoreDb.collection("messages")
+            .onSnapshot(function(snapshot) {
+                snapshot.docChanges().forEach(function(change) {
+                    var data = change.doc.data();
+                    var convId = data.conversationId;
+                    if (convId && !chatConversations[convId]) {
+                        chatConversations[convId] = [];
+                    }
+                });
+                _renderAdminChatList();
+            }, function(e) { console.warn("Admin chat listener error:", e); });
+    }
+    _renderAdminChatList();
+}
+
+function _renderAdminChatList() {
+    var list = document.getElementById("admin-chat-list");
+    if (!list) return;
     var html = "";
-    // Customer support chats from chatConversations
     var customerChatKeys = [];
+    var providerChatKeys = [];
     for (var key in chatConversations) {
         if (key.indexOf("customer-admin-") === 0 && customerChatKeys.indexOf(key) === -1) customerChatKeys.push(key);
+        if ((key.indexOf("provider-admin-") === 0 || key.indexOf("admin-") === 0) && providerChatKeys.indexOf(key) === -1) providerChatKeys.push(key);
     }
     if (customerChatKeys.length > 0) {
         html += "<h4 class=\"font-semibold mb-3 text-blue-700\">Customer Support</h4>";
         for (var ck = 0; ck < customerChatKeys.length; ck++) {
             var chatKey = customerChatKeys[ck];
             var customerEmail = chatKey.replace("customer-admin-", "");
-            var lastMsg = chatConversations[chatKey][chatConversations[chatKey].length - 1] || {};
+            var msgs = chatConversations[chatKey] || [];
+            var lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : {};
             html += "<div class=\"bg-white rounded-2xl p-4 shadow flex justify-between items-center mb-2 border-l-4 border-blue-600\"><div><p class=\"font-semibold\">Customer: " + customerEmail + "</p><p class=\"text-xs text-gray-500\">" + (lastMsg.text ? lastMsg.text.substring(0, 40) : "No messages") + "</p></div><button onclick=\"openAdminCustomerChat('" + chatKey + "')\" class=\"bg-blue-600 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-comment\"></i> Reply</button></div>";
         }
-    }
-    // Provider chats from chatConversations
-    var providerChatKeys = [];
-    for (var key in chatConversations) {
-        if ((key.indexOf("provider-admin-") === 0 || key.indexOf("admin-") === 0) && providerChatKeys.indexOf(key) === -1) providerChatKeys.push(key);
     }
     if (providerChatKeys.length > 0) {
         html += "<h4 class=\"font-semibold mb-3 mt-4 text-emerald-700\">Provider Support</h4>";
         for (var pk = 0; pk < providerChatKeys.length; pk++) {
             var chatKey = providerChatKeys[pk];
             var providerEmail = chatKey.replace("provider-admin-", "").replace("admin-", "");
-            var lastMsg = chatConversations[chatKey][chatConversations[chatKey].length - 1] || {};
+            var msgs = chatConversations[chatKey] || [];
+            var lastMsg = msgs.length > 0 ? msgs[msgs.length - 1] : {};
             html += "<div class=\"bg-white rounded-2xl p-4 shadow flex justify-between items-center mb-2 border-l-4 border-emerald-600\"><div><p class=\"font-semibold\">Provider: " + providerEmail + "</p><p class=\"text-xs text-gray-500\">" + (lastMsg.text ? lastMsg.text.substring(0, 40) : "No messages") + "</p></div><button onclick=\"openAdminProviderChat('" + providerEmail + "','" + providerEmail + "')\" class=\"bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-comment\"></i> Reply</button></div>";
         }
     }
-    // Per-provider chat buttons
     if (registeredProviders.length > 0) {
         html += "<h4 class=\"font-semibold mb-3 mt-4 text-amber-700\">Chat with Providers</h4>";
         for (var pi = 0; pi < registeredProviders.length; pi++) {
@@ -4545,7 +4591,6 @@ function renderAdminChat() {
             html += "<div class=\"bg-white rounded-2xl p-4 shadow flex justify-between items-center mb-2 border-l-4 border-amber-600\"><div><p class=\"font-semibold\">" + p.name + "</p><p class=\"text-xs text-gray-500\">" + (p.service || "Provider") + " \u2022 " + (p.location || "") + "</p></div><button onclick=\"openAdminProviderChat('" + provEmail + "','" + p.name.replace(/'/g,"\\'") + "')\" class=\"bg-amber-600 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-comment\"></i> Chat</button></div>";
         }
     }
-    // Task conversations
     var allTaskIds = [];
     for (var i = 0; i < providerTasks.length; i++) {
         if (allTaskIds.indexOf(providerTasks[i].id) === -1) allTaskIds.push(providerTasks[i].id);
@@ -5037,14 +5082,49 @@ function renderChatMessages(messages, currentRole) {
         var msgId = m.id || ("msg_" + i + "_" + m.time);
         html += "<div class=\"chat-bubble " + bubbleClass + "\" data-msg-id=\"" + msgId + "\">" +
             "<div class=\"flex items-start justify-between gap-2\">" +
-            "<div>" + m.text + "</div>" +
+            "<div>" + m.text + "<br><small class=\"text-xs opacity-60\">" + (m.senderName || m.sender) + "</small></div>" +
             "<button onclick=\"deleteChatMessage('" + currentChatTaskId + "','" + msgId + "'," + i + ")\" class=\"text-xs text-red-400 hover:text-red-600 flex-shrink-0 ml-1\" title=\"Delete\"><i class=\"fa-solid fa-times\"></i></button>" +
             "</div>" +
             "<div class=\"text-xs mt-1 " + timeClass + "\">" + new Date(m.time).toLocaleTimeString() + "</div>" +
+            (currentRole === "admin" && m._taskContext ? "<div class=\"mt-1\"><button onclick=\"forwardToProvider('" + msgId + "'," + i + ")\" class=\"bg-blue-600 hover:bg-blue-700 text-white px-2 py-0.5 rounded text-xs\"><i class=\"fa-solid fa-forward\"></i> Forward to Provider</button></div>" : "") +
             "</div>";
     }
     container.innerHTML = html;
     container.scrollTop = container.scrollHeight;
+}
+
+function forwardToProvider(msgId, index) {
+    var msgs = chatConversations[currentChatTaskId];
+    if (!msgs || !msgs[index]) return;
+    var msg = msgs[index];
+    var taskId = msg._taskContext;
+    if (!taskId) { addInAppAlert("error", "No task context for this message"); return; }
+    var taskConvId = "task-" + taskId;
+    var text = msg.text;
+    var convId = getFirestoreConversationId(taskId);
+    storeTaskParticipants(taskId);
+    var taskNum = String(taskId).replace("task-", "");
+    var participants = _taskParticipants[taskNum];
+    if (!participants || participants.length < 2) {
+        addInAppAlert("error", "Task participants not found. Cannot forward.");
+        return;
+    }
+    participants = participants.filter(function(v,i,a) { return a.indexOf(v) === i; });
+    if (firestoreDb && _firebaseAuthed) {
+        firestoreDb.collection("messages").add({
+            conversationId: convId,
+            senderEmail: "thermypetson@gmail.com",
+            senderRole: "admin",
+            senderName: "Admin (forwarded)",
+            text: text,
+            participants: participants,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            _clientTime: Date.now(),
+            _forwardedFrom: currentChatTaskId
+        }).then(function() {
+            addInAppAlert("success", "Message forwarded to provider");
+        }).catch(function(e) { console.warn("Forward error:", e); addInAppAlert("error", "Failed to forward message"); });
+    }
 }
 
 function deleteChatMessage(convId, msgId, index) {
@@ -5091,20 +5171,22 @@ function storeTaskParticipants(taskId) {
 }
 
 function openChatWithProvider(taskId) {
-    currentChatTaskId = taskId;
-    if (!chatConversations[taskId]) chatConversations[taskId] = [];
-    storeTaskParticipants(taskId);
-    // Subscribe to Firestore real-time updates
+    // Route customer messages through admin for moderation
+    var adminConvId = "customer-admin-" + (currentUser ? currentUser.email : "guest");
+    currentChatTaskId = adminConvId;
+    currentChatTaskContext = taskId;
+    if (!chatConversations[adminConvId]) chatConversations[adminConvId] = [];
+    var task = findTask(taskId);
+    var taskLabel = task ? (task.serviceName || "Task #" + taskId) : "Task #" + taskId;
+    document.getElementById("chat-provider-name").textContent = "Admin (re: " + taskLabel + ")";
+    document.getElementById("chat-provider-avatar").textContent = "\uD83D\uDC6E";
     if (firestoreDb) {
-        subscribeToChat(taskId, function(msgs) {
-            chatConversations[taskId] = msgs;
+        subscribeToChat(adminConvId, function(msgs) {
+            chatConversations[adminConvId] = msgs;
             renderChatMessages(msgs, "customer");
         });
     }
-    var task = findTask(taskId);
-    document.getElementById("chat-provider-name").textContent = (task ? task.serviceName : "Chat") + " \u2014 " + (task ? task.customerName : "Customer");
-    document.getElementById("chat-provider-avatar").textContent = "\uD83D\uDCAC";
-    renderChatMessages(chatConversations[taskId], "customer");
+    renderChatMessages(chatConversations[adminConvId], "customer");
     document.getElementById("chat-modal").classList.remove("hidden");
 }
 
@@ -5161,6 +5243,24 @@ function openAdminProviderChat(providerEmail, providerName) {
     document.getElementById("chat-modal").classList.remove("hidden");
 }
 
+function openAdminChat(taskId) {
+    var chatId = "task-" + taskId;
+    currentChatTaskId = chatId;
+    if (!chatConversations[chatId]) chatConversations[chatId] = [];
+    storeTaskParticipants(taskId);
+    if (firestoreDb) {
+        subscribeToChat(taskId, function(msgs) {
+            chatConversations[chatId] = msgs;
+            renderChatMessages(msgs, "admin");
+        });
+    }
+    var task = findTask(taskId);
+    document.getElementById("chat-provider-name").textContent = (task ? task.serviceName : "Task") + " \u2014 " + (task ? task.customerName : "Customer");
+    document.getElementById("chat-provider-avatar").textContent = "\uD83D\uDCAC";
+    renderChatMessages(chatConversations[chatId], "admin");
+    document.getElementById("chat-modal").classList.remove("hidden");
+}
+
 function closeChatModal() {
     // Unsubscribe from the current conversation's Firestore listener
     if (currentChatTaskId && _chatUnsubscribers[currentChatTaskId]) {
@@ -5187,7 +5287,29 @@ function sendChatMessage() {
     var chatSender = currentAdmin ? "Admin" : (currentLoggedProvider ? "Provider" : "Customer");
     var senderEmail = currentAdmin ? "thermypetson@gmail.com" : (currentLoggedProvider ? currentLoggedProvider.email : (currentUser ? currentUser.email : "unknown"));
     var senderName = currentAdmin ? "Admin" : (currentLoggedProvider ? currentLoggedProvider.name : (currentUser ? currentUser.firstname : "Customer"));
-    var sent = sendFirestoreMessage(currentChatTaskId, text, currentRole, senderName, senderEmail);
+    if (currentChatTaskContext && currentChatTaskId.indexOf("customer-admin-") === 0) {
+        // Send Firestore message with task context for admin moderation
+        var convId = getFirestoreConversationId(currentChatTaskId);
+        var taskCtx = currentChatTaskContext;
+        if (firestoreDb && _firebaseAuthed) {
+            storeTaskParticipants(taskCtx);
+            var taskNum = String(taskCtx).replace("task-", "");
+            var participants = _taskParticipants[taskNum] || [senderEmail, "thermypetson@gmail.com"];
+            participants = participants.filter(function(v,i,a) { return a.indexOf(v) === i; });
+            firestoreDb.collection("messages").add({
+                conversationId: convId,
+                senderEmail: senderEmail || "unknown",
+                senderRole: currentRole,
+                senderName: senderName || senderRole,
+                text: text,
+                participants: participants,
+                _taskContext: taskCtx,
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                _clientTime: Date.now()
+            }).catch(function(e) { console.warn("Firestore send error:", e); });
+        }
+    } else {
+        var sent = sendFirestoreMessage(currentChatTaskId, text, currentRole, senderName, senderEmail);
     if (!sent) {
         // Fallback to backend POST if Firestore not configured
         var jwt = window.__HAVENGO_JWT__;
@@ -5200,6 +5322,7 @@ function sendChatMessage() {
                 body: JSON.stringify({ conversationId: currentChatTaskId, message: text, sender: chatSender })
             }).catch(function(e) { console.warn(e); });
         }
+    }
     }
 
     renderChatMessages(chatConversations[currentChatTaskId], currentRole);
@@ -6043,6 +6166,43 @@ window.onload = function() {
             document.getElementById("admin-nav-link").classList.remove("hidden");
             renderAdminDashboard();
             connectFirebaseChat("thermypetson@gmail.com", "admin", "Admin");
+            // Subscribe to ALL conversations where admin is a participant
+            (function() {
+                var waitForFirebase = setInterval(function() {
+                    if (_firebaseAuthed && firestoreDb) {
+                        clearInterval(waitForFirebase);
+                        var unsub = firestoreDb.collection("messages")
+                            .where("participants", "array-contains", "thermypetson@gmail.com")
+                            .onSnapshot(function(snapshot) {
+                                snapshot.docChanges().forEach(function(change) {
+                                    var data = change.doc.data();
+                                    var convId = data.conversationId;
+                                    if (!convId) return;
+                                    if (!chatConversations[convId]) chatConversations[convId] = [];
+                                    if (change.type === "added" || change.type === "modified") {
+                                        var idx = chatConversations[convId].findIndex(function(m) { return m.id === change.doc.id; });
+                                        var msg = {
+                                            id: change.doc.id,
+                                            text: data.text,
+                                            sender: data.senderRole,
+                                            senderName: data.senderName,
+                                            time: data.createdAt ? data.createdAt.toMillis() : (data._clientTime || Date.now()),
+                                            _taskContext: data._taskContext || null
+                                        };
+                                        if (idx >= 0) {
+                                            chatConversations[convId][idx] = msg;
+                                        } else {
+                                            chatConversations[convId].push(msg);
+                                        }
+                                    } else if (change.type === "removed") {
+                                        chatConversations[convId] = chatConversations[convId].filter(function(m) { return m.id !== change.doc.id; });
+                                    }
+                                });
+                                renderAdminChat();
+                            }, function(error) { console.warn("Admin global chat subscription error:", error); });
+                    }
+                }, 1000);
+            })();
             _syncAdminData();
             fetchBackendNotifications();
             updateNotifCount();
@@ -6093,6 +6253,17 @@ window.onload = function() {
                 } catch(e) { console.warn(e); }
             }
             connectFirebaseChat(prov.email, "provider", prov.name || (prov.firstname + " " + prov.lastname) || "Provider");
+            // Subscribe to provider's admin chat on state restore too
+            if (firestoreDb && prov.email) {
+                var provChatId = "provider-admin-" + prov.email;
+                if (!chatConversations[provChatId]) chatConversations[provChatId] = [];
+                subscribeToChat(provChatId, function(msgs) {
+                    chatConversations[provChatId] = msgs;
+                    if (document.getElementById("chat-modal") && !document.getElementById("chat-modal").classList.contains("hidden") && currentChatTaskId === provChatId) {
+                        renderChatMessages(msgs, "provider");
+                    }
+                });
+            }
             renderProviderDashboard();
             fetchBackendNotifications();
             updateNotifCount();
@@ -6140,6 +6311,15 @@ window.onload = function() {
         }
         if (currentUser) {
             connectFirebaseChat(currentUser.email, "customer", currentUser.firstname || currentUser.name || "Customer");
+            if (firestoreDb && currentUser.email) {
+                var custChatId = "customer-admin-" + currentUser.email;
+                if (!chatConversations[custChatId]) chatConversations[custChatId] = [];
+                subscribeToChat(custChatId, function(msgs) {
+                    chatConversations[custChatId] = msgs;
+                    var area = document.getElementById("customer-admin-chat-area");
+                    if (area && !area.classList.contains("hidden")) renderCustomerAdminMessages();
+                });
+            }
             updateProfileWithUser();
             renderProfilePage();
             updateProfilePicCursor();
