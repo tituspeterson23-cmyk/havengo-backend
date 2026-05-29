@@ -2,57 +2,38 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Admin email — hardcoded for privacy enforcement
     function isAdmin() {
       return request.auth.token.email == 'thermypetson@gmail.com';
     }
 
-    // Extract the target email from admin conversation IDs.
-    // Pattern: provider-admin-{email}  or  customer-admin-{email}
-    function adminConvTargetEmail(convId) {
-      return convId.startsWith('provider-admin-') ?
-        convId.substring('provider-admin-'.length) :
-        (convId.startsWith('customer-admin-') ?
-          convId.substring('customer-admin-'.length) :
-          null);
-    }
-
-    // Each message document has a `participants` array containing
-    // the emails of everyone allowed to read that message.
-    //
-    // Conversation ID patterns:
-    //   customer-admin-{email}  → customer ↔ admin
-    //   provider-admin-{email}  → provider ↔ admin
-    //   task-{taskId}           → customer ↔ provider (order chat)
-
     match /messages/{docId} {
 
-      // ---- READ ----
       // Admin always reads. Otherwise: must be in participants,
-      // OR the conversationId must identify this user as the
-      // participant (covers old messages with stale participants).
+      // OR the conversationId identifies this user (provider-admin-{email}
+      // or customer-admin-{email}) — covers old messages with stale
+      // participants arrays.
       allow read: if request.auth != null && (
         isAdmin() ||
         request.auth.token.email in resource.data.participants ||
-        request.auth.token.email == adminConvTargetEmail(resource.data.conversationId)
+        resource.data.conversationId ==
+          ('provider-admin-' + request.auth.token.email) ||
+        resource.data.conversationId ==
+          ('customer-admin-' + request.auth.token.email)
       );
 
-      // ---- CREATE ----
       // Must be authenticated, sender must match your token,
       // and your email must be in the participants array
       allow create: if request.auth != null &&
         request.auth.token.email == request.resource.data.senderEmail &&
         request.auth.token.email in request.resource.data.participants;
 
-      // ---- DELETE ----
       // Admin can delete any message; sender can delete their own
       allow delete: if request.auth != null && (
         isAdmin() ||
         request.auth.token.email == resource.data.senderEmail
       );
 
-      // ---- UPDATE ----
-      // Not needed for text-only chat (no editing)
+      // No editing
       allow update: if false;
     }
 

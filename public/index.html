@@ -5261,6 +5261,11 @@ function findTask(taskId) {
     for (var i = 0; i < completedTasks.length; i++) {
         if (completedTasks[i].id === taskId) return completedTasks[i];
     }
+    if (adminTasks && adminTasks.length > 0) {
+        for (var i = 0; i < adminTasks.length; i++) {
+            if (adminTasks[i].id === taskId) return adminTasks[i];
+        }
+    }
     return null;
 }
 
