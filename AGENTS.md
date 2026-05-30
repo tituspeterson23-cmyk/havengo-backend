@@ -327,6 +327,16 @@ Migrate from SQLite (sql.js) to PostgreSQL (Neon) for persistent data storage, f
 ### New Dependencies
 - `web-push` — VAPID-based push notification delivery
 
+## Session 8 (May 30, 2026) — Provider Contact Hidden + Token Expiry Fix
+
+### Changes
+1. **Provider contact hidden from customer bookings** — `renderBookings()` no longer looks up provider email/phone from `registeredProviders`. All non-Pending orders show "Provider contact hidden. Chat with Support" linking to support chat. Tracking modal shows admin support number 0757 532 066 instead of provider's phone.
+2. **Token expiry alert** — `src/middleware/authenticate.js` now returns `session_expired: true` alongside `code: 'TOKEN_EXPIRED'`. Frontend checks for both `session_expired` and `code === 'TOKEN_EXPIRED'` in `fetchBackendNotifications()`, `confirmPayment()`, and `placeOrder()` → triggers `handleSessionExpired()` which shows "Your session has expired. Please login again."
+
+### Deploy
+- Backend: GitHub → Render
+- Frontend: GitHub → Netlify + Firebase Hosting (`havengo-chat.web.app`)
+
 ## Important Constraints (NEVER break these)
 - `index.html` is a single page — all JS, CSS, HTML in one file
 - NEVER remove `userBalance = 2000000` default — it's the only safety net for users when backend is unreachable
