@@ -188,8 +188,8 @@
 .dark .text-emerald-800, .dark .text-amber-800 { color: #86efac !important; }
 .dark .shadow-sm, .dark .shadow, .dark .shadow-md { box-shadow: 0 1px 3px 0 rgba(0,0,0,.4) !important; }
 .dark .bg-blue-50 { background: #1e293b !important; border-color: #374151 !important; }
-.dark .bg-emerald-100, .dark .bg-blue-100, .dark .bg-pink-100 { background: #334155 !important; }
-.dark .text-blue-600, .dark .text-pink-600 { color: #93c5fd !important; }
+.dark .bg-emerald-100, .dark .bg-blue-100, .dark .bg-pink-100, .dark .bg-sky-100, .dark .bg-cyan-100 { background: #334155 !important; }
+.dark .text-blue-600, .dark .text-pink-600, .dark .text-sky-700, .dark .text-cyan-700 { color: #93c5fd !important; }
 .dark .text-blue-500 { color: #60a5fa !important; }
 .dark .bg-gradient-to-r { color: #f3f4f6 !important; }
 .dark .from-emerald-100.to-emerald-50 { background: #1e293b !important; }
@@ -203,6 +203,35 @@
 .dark .hover\:bg-green-700:hover { background-color: #166534 !important; }
 .dark .hover\:bg-blue-700:hover { background-color: #1e40af !important; }
 .dark .hover\:bg-emerald-700:hover { background-color: #047857 !important; }
+.dark .service-card { background: #1e293b !important; border-color: #374151 !important; }
+.dark .service-card .bg-white\/90 { background: #1e293b !important; color: #f3f4f6 !important; }
+.dark .bg-white\/80 { background: rgba(30,41,59,0.8) !important; }
+.dark .backdrop-blur-sm { backdrop-filter: blur(4px); }
+.dark .border-gray-100\/50 { border-color: rgba(55,65,81,0.5) !important; }
+.dark .bg-gradient-to-br.from-yellow-50.to-white { background: #1e293b !important; border-color: #374151 !important; }
+.dark .bg-gradient-to-br.from-amber-50.to-white { background: #1e293b !important; border-color: #374151 !important; }
+.dark .border-yellow-100 { border-color: #374151 !important; }
+.dark .border-amber-100 { border-color: #374151 !important; }
+.dark .border-dashed.border-gray-200 { border-color: #374151 !important; }
+.dark .bg-pink-100 { background: #334155 !important; }
+.dark .text-pink-500 { color: #f9a8d4 !important; }
+.dark .text-pink-600 { color: #f472b6 !important; }
+.dark .bg-gradient-to-r.from-pink-600.to-pink-500 { background: linear-gradient(to right, #db2777, #ec4899) !important; }
+.dark .bg-gray-200.text-gray-400 { background: #334155 !important; color: #6b7280 !important; }
+.dark .bg-red-100.text-red-700 { background: #1e293b !important; border: 1px solid #374151; color: #fca5a5 !important; }
+.dark .text-yellow-600 { color: #fbbf24 !important; }
+.dark .text-yellow-500 { color: #f59e0b !important; }
+.dark .bg-yellow-100 { background: #334155 !important; }
+.dark .bg-yellow-50 { background: #1e293b !important; border-color: #374151 !important; }
+.dark .text-violet-600 { color: #a78bfa !important; }
+.dark .text-violet-500 { color: #8b5cf6 !important; }
+.dark .border-l-4.border-green-500 { border-left-color: #22c55e !important; }
+.dark .border-l-4.border-red-400 { border-left-color: #f87171 !important; }
+.dark .text-emerald-600 { color: #34d399 !important; }
+.dark .text-red-400 { color: #f87171 !important; }
+.dark .text-red-500 { color: #ef4444 !important; }
+.dark .hover\:text-red-700:hover { color: #b91c1c !important; }
+.dark .bg-gradient-to-r.from-violet-600.to-violet-500 { background: linear-gradient(to right, #7c3aed, #8b5cf6) !important; }
 .chat-bubble-sent { background: #10b981; color: white; border-bottom-right-radius: 4px; }
 .auth-modal { max-width: 420px; }
 #mobile-menu { overflow-y: auto; transition: max-height 0.4s ease, opacity 0.3s ease; max-height: 80vh; opacity: 1; }
@@ -1322,6 +1351,7 @@ const services = [
     { id: "gardening", name: "Gardening & Landscaping", basePrice: 65000, category: "gardening" },
     { id: "hair", name: "Mobile Hair Styling", basePrice: 75000, category: "hair" },
     { id: "event", name: "Event Infrastructure Hire", basePrice: 250000, category: "event" },
+    { id: "auto", name: "Car Wash & Maintenance", basePrice: 75000, category: "auto" },
     { id: "laundry", name: "Laundry & Dry Cleaning", basePrice: 35000, category: "laundry" },
     { id: "water", name: "Drinking Water Delivery", basePrice: 15000, category: "water" }
 ];
@@ -3203,7 +3233,7 @@ var serviceMeta = {
     event: { image: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1200", desc: "Tents, plastic & executive chairs, sound systems, PA setups for your events.", badge: "Events", badgeColor: "bg-indigo-100 text-indigo-700" },
     auto: { image: "https://images.unsplash.com/photo-1581235720704-06d3acfcb36f?w=1200", desc: "Professional car washing and detailing at your home or office.", badge: "Vehicle", badgeColor: "bg-cyan-100 text-cyan-700" },
     laundry: { image: "https://images.unsplash.com/photo-1610557892470-55d9e80c0bce?w=1200", desc: "Professional laundry, dry cleaning and ironing services with free pickup & delivery within Kampala.", badge: "Fresh", badgeColor: "bg-sky-100 text-sky-700" },
-    water: { image: "https://images.unsplash.com/photo-1544396821-4dd40b938ad3?w=1200", desc: "Safe, clean drinking water delivered to your doorstep. 20L jerrycans, express options available.", badge: "Essential", badgeColor: "bg-blue-100 text-blue-700" }
+    water: { image: "https://images.unsplash.com/photo-1564419320508-a3780cfc97ef?w=1200", desc: "Safe, clean drinking water delivered to your doorstep. 20L jerrycans, express options available.", badge: "Essential", badgeColor: "bg-blue-100 text-blue-700" }
 };
 
 function renderServices() {
