@@ -294,6 +294,39 @@ Migrate from SQLite (sql.js) to PostgreSQL (Neon) for persistent data storage, f
 - `src/routes/auth.js` — `/api/auth/firebase-token` endpoint
 - `public/index.html` — Firebase config + `connectFirebaseChat()` + all Firestore chat functions
 
+## Session 7 (May 30, 2026) — Notification Routing Fix + Web Push
+
+### Root Cause
+11 provider lookups used `WHERE business_name = ? OR firstname||' '||lastname = ?` (name-based matching). When multiple providers have similar names, or when provider_name in tasks differs from the stored name, notifications go to the wrong recipient.
+
+### Fix: All 11 lookups replaced with `provider_id`
+| File | Location | What changed |
+|---|---|---|
+| `src/routes/customer.js` | place-order, confirm-payment, report-payment-issue | Used `taskRow.provider_email` / `completed.provider_id` / `payment.provider_id` |
+| `src/routes/admin.js` | notify-provider, resolve-payment-dispute (x2), tasks list JOIN, single task JOIN | `payment.provider_id`, accept `providerId` param, `t.provider_id = p.id` |
+| `server.js` | payment reminder, auto-payment | `p.provider_id` / `payment.provider_id` |
+| `src/routes/chat.js` | chat notification | `task.provider_email` directly |
+
+### Web Push Notifications
+- **`public/service-worker.js`** — Self-skipWaiting, activate, push (showNotification), notificationclick (focus/open)
+- **`src/routes/push.js`** — VAPID key auto-generation stored in `admin_settings`, `GET /api/push/vapid-public-key` (public), `POST /api/push/subscribe` + `/unsubscribe` (JWT), `sendPushNotification()` export
+- **`src/database.js`** — `push_subscriptions` table (user_email, endpoint, p256dh, auth)
+- **`server.js`** — Mounts `/api/push`, calls `ensureVapidKeys()` on startup
+- **`src/firestore-events.js`** — `emitNotification()` lazy-requires `sendPushNotification()` (no circular dep)
+- **`index.html`** — `registerForPushNotifications()` called from customer login, provider login, admin login, and 2FA verify flows. Registers SW → requests permission → subscribes → sends to backend.
+
+### Notification Display Polish
+- Backend queries now `ORDER BY read ASC, created_at DESC LIMIT 50` (unread first, then history)
+- `globalNotifications` and `userNotificationsMap` saved/restored in `buildAppState()`/`applyState()` (survives page reload)
+- `userNotificationsMap` restored on customer login
+
+### Deploy
+- Backend: GitHub → Render (auto-deploy)
+- Frontend: GitHub → Netlify (auto-deploy) + `npx firebase deploy --only hosting` → `https://havengo-chat.web.app`
+
+### New Dependencies
+- `web-push` — VAPID-based push notification delivery
+
 ## Important Constraints (NEVER break these)
 - `index.html` is a single page — all JS, CSS, HTML in one file
 - NEVER remove `userBalance = 2000000` default — it's the only safety net for users when backend is unreachable
