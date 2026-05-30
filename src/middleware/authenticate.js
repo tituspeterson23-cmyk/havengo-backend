@@ -14,7 +14,7 @@ function authenticate(req, res, next) {
       return res.status(401).json({ error: 'Authentication required' });
     } catch (e) {
       if (e.name === 'TokenExpiredError') {
-        return res.status(401).json({ error: 'Token expired', code: 'TOKEN_EXPIRED' });
+        return res.status(401).json({ session_expired: true, error: 'Token expired. Please login again.', code: 'TOKEN_EXPIRED' });
       }
       return res.status(401).json({ error: 'Authentication required' });
     }
