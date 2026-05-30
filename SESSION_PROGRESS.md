@@ -95,8 +95,25 @@
 - **Mobile Money**: 077→MTN ✓, +25670→Airtel ✓, 075→Airtel ✓, invalid→rejected ✓
 - **Server prices**: cleaning (2 rooms, 1 bath) = 80,000; water (10 express) = 540,000; laundry standard = 50,000 ✓
 
+### 14. Session (May 30, Afternoon) — Provider Cancel via Support, Subscription Redesign, Order Error Fixes
+- **Provider Cancel → Request Cancel via Admin**: Replaced `cancelProviderTask()` with `requestCancelViaAdmin()` — opens admin chat with pre-filled cancel request
+- **Cancel button replaced**: Provider task cards now show "Request Cancel" button instead of "Cancel Order"
+- **Backend**: `POST /provider/cancel-task/:taskId` now only notifies admin (no direct cancellation)
+- **Subscription Redesign**: 
+  - Subscribe modal now includes **provider selection** (dropdown of verified providers), **days per month** (default 30), **exact days** (optional comma-separated)
+  - Active subscriptions show "Place Order for a Day" button to place orders under subscription
+  - Backend enforces `days_per_month` limit, prevents duplicate dates
+  - **Admin subscription prices**: Admin tab 6 has a "Subscription Prices" section — set per-service monthly price via dropdown
+  - New tables: `subscription_prices` (admin-set prices), `subscription_orders` (tracks orders per subscription)
+  - New endpoints: `GET/POST /admin/subscription-prices`, `POST /customer/subscriptions/place-order`, `GET /customer/subscriptions/orders`, `GET /api/subscription-prices/public`
+  - Columns added to `subscriptions`: `provider_id`, `provider_name`, `days_per_month`, `exact_days`
+- **Mobile grid fix**: `#services-grid` changed to `grid-cols-2` for mobile view (2 per row on small screens)
+- **Order button error fix**: Wrapped post-order notification code in try-catch in backend; frontend now shows "Check your bookings before re-ordering" on error to prevent duplicate orders
+- **All JS syntax**: ✓ Valid
+
 ### What Still Needs User Action
 1. Check Render Dashboard for deploy logs / trigger manual deploy
 2. Set `FIREBASE_SERVICE_ACCOUNT_BASE64` env var in Render Dashboard
 3. Enable Email/Password in Firebase Console Authentication
 4. Paste Firestore rules in Firebase Console
+5. Push both repos to GitHub to deploy changes

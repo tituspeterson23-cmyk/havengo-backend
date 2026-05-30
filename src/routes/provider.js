@@ -304,18 +304,14 @@ router.post('/cancel-task/:taskId', async (req, res) => {
   const provider = await db.prepare('SELECT * FROM providers WHERE email = ?').get(req.user.email);
   if (!provider) return res.status(404).json({ error: 'Provider not found' });
   const provName = provider.business_name || provider.firstname + ' ' + provider.lastname;
-  await db.prepare("UPDATE tasks SET status = 'cancelled' WHERE id = ?").run(taskId);
-  await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
-    .run(task.customer_email, '❌', 'Order Cancelled', 'Your ' + task.service_name + ' order was cancelled by ' + provName + '. Reason: ' + sanitize(reason) + '.', 'order_cancelled');
+  // Do NOT cancel directly — send cancel request to admin instead
   const adminEmail = await db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
   if (adminEmail) {
     await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
-      .run(adminEmail, '🔄', 'Order Rejected', provName + ' rejected order #' + taskId + ' (' + task.service_name + '). Ready for reassignment.', 'task_rejected');
+      .run(adminEmail, '🔄', 'Cancel Request', provName + ' requested cancellation of order #' + taskId + ' (' + task.service_name + '). Reason: ' + sanitize(reason) + '.', 'cancel_request');
   }
-  emitTaskEvent(taskId, 'order_cancelled', { customerEmail: task.customer_email, providerEmail: req.user.email, status: 'cancelled', serviceName: task.service_name });
-  emitNotification(task.customer_email, '❌', 'Order Cancelled', 'Your ' + task.service_name + ' order was cancelled.', 'order');
-  if (adminEmail) emitNotification(adminEmail, '🔄', 'Order Rejected', provName + ' rejected order #' + taskId, 'task');
-  res.json({ success: true, message: 'Task cancelled', reason: reason });
+  try { emitNotification(adminEmail, '🔄', 'Cancel Request', provName + ' requested cancellation of order #' + taskId, 'task'); } catch(e) {}
+  res.json({ success: true, message: 'Cancel request sent to admin. Awaiting approval.', reason: reason });
 });
 
 module.exports = router;

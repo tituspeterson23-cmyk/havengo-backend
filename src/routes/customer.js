@@ -65,26 +65,27 @@ router.post('/place-order', async (req, res) => {
     }
   }
 
-  const adminEmail = await db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
-  if (adminEmail) {
-    await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
-      .run(adminEmail, '📋', 'New Order', sanitize(serviceName) + ' ordered by ' + req.user.email + ' for UGX ' + price, 'order');
-  }
-  const assignedTask = await db.prepare("SELECT provider_name FROM tasks WHERE id = ?").get(newTaskId);
-  const assignedProviderName = assignedTask ? assignedTask.provider_name : '';
-  if (assignedProviderName) {
-    const prov = await db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(assignedProviderName, assignedProviderName);
-    if (prov) {
+  try {
+    const adminEmail = await db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
+    if (adminEmail) {
       await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
-        .run(prov.email, '📋', 'New Order Assigned', 'New ' + sanitize(serviceName) + ' order assigned to you by ' + req.user.email + ' for UGX ' + price, 'order');
+        .run(adminEmail, '📋', 'New Order', sanitize(serviceName) + ' ordered by ' + req.user.email + ' for UGX ' + price, 'order');
     }
-  }
-
-  // Firestore real-time events
-  const provEmail = assignedTask ? assignedTask.provider_name : (providerEmail || '');
-  emitTaskEvent(newTaskId, 'order_placed', { customerEmail: req.user.email, providerEmail: provEmail, status: 'pending_confirmation', serviceName: sanitize(serviceName) });
-  emitNotification(req.user.email, '📋', 'Order Placed', 'Your ' + sanitize(serviceName) + ' order #' + newTaskId + ' has been placed.', 'order');
-  if (prov && prov.email) emitNotification(prov.email, '📋', 'New Order', 'New ' + sanitize(serviceName) + ' order #' + newTaskId + ' assigned to you.', 'order');
+    const assignedTask = await db.prepare("SELECT provider_name FROM tasks WHERE id = ?").get(newTaskId);
+    const assignedProviderName = assignedTask ? assignedTask.provider_name : '';
+    let prov = null;
+    if (assignedProviderName) {
+      prov = await db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(assignedProviderName, assignedProviderName);
+      if (prov) {
+        await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+          .run(prov.email, '📋', 'New Order Assigned', 'New ' + sanitize(serviceName) + ' order assigned to you by ' + req.user.email + ' for UGX ' + price, 'order');
+      }
+    }
+    const provEmail = assignedTask ? assignedTask.provider_name : (providerEmail || '');
+    emitTaskEvent(newTaskId, 'order_placed', { customerEmail: req.user.email, providerEmail: provEmail, status: 'pending_confirmation', serviceName: sanitize(serviceName) });
+    emitNotification(req.user.email, '📋', 'Order Placed', 'Your ' + sanitize(serviceName) + ' order #' + newTaskId + ' has been placed.', 'order');
+    if (prov && prov.email) emitNotification(prov.email, '📋', 'New Order', 'New ' + sanitize(serviceName) + ' order #' + newTaskId + ' assigned to you.', 'order');
+  } catch(e) { console.warn('Post-order notifications failed:', e); }
 
   res.json({ success: true, message: 'Order placed! Awaiting provider confirmation.', taskId: newTaskId, providerId: providerId || null, providerEmail: providerEmail || '' });
 });
@@ -290,8 +291,14 @@ router.get('/subscriptions', async (req, res) => {
   res.json(subs);
 });
 
+router.get('/subscriptions/all', async (req, res) => {
+  const db = getDb();
+  const subs = await db.prepare("SELECT * FROM subscriptions WHERE user_email = ? ORDER BY created_at DESC").all(req.user.email);
+  res.json(subs);
+});
+
 router.post('/subscriptions/create', async (req, res) => {
-  const { serviceId, serviceName, amount, discountPercent } = req.body;
+  const { serviceId, serviceName, amount, discountPercent, providerId, providerName, daysPerMonth, exactDays } = req.body;
   if (!serviceId || !serviceName) return res.status(400).json({ error: 'Missing required fields' });
   const db = getDb();
   const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(req.user.email);
@@ -301,9 +308,11 @@ router.post('/subscriptions/create', async (req, res) => {
   await db.prepare('UPDATE users SET balance = balance - ? WHERE email = ?').run(amount, req.user.email);
   const nextBilling = new Date();
   nextBilling.setMonth(nextBilling.getMonth() + 1);
-  await db.prepare("INSERT INTO subscriptions (user_email, service_id, service_name, plan, amount, discount_percent, status, next_billing_at) VALUES (?, ?, ?, 'monthly', ?, ?, 'active', ?)")
-    .run(req.user.email, serviceId, sanitize(serviceName), amount, discountPercent || 0, nextBilling.toISOString());
-  res.json({ success: true, message: 'Subscribed to ' + serviceName + ' monthly for UGX ' + amount });
+  const dp = parseInt(daysPerMonth) || 30;
+  const ed = exactDays ? exactDays.toString() : null;
+  const result = await db.prepare("INSERT INTO subscriptions (user_email, service_id, service_name, plan, amount, discount_percent, status, next_billing_at, provider_id, provider_name, days_per_month, exact_days) VALUES (?, ?, ?, 'monthly', ?, ?, 'active', ?, ?, ?, ?, ?) RETURNING id")
+    .get(req.user.email, serviceId, sanitize(serviceName), amount, discountPercent || 0, nextBilling.toISOString(), providerId || null, providerName ? sanitize(providerName) : null, dp, ed);
+  res.json({ success: true, message: 'Subscribed to ' + serviceName + ' monthly for UGX ' + amount, subscriptionId: result.id });
 });
 
 router.post('/subscriptions/cancel', async (req, res) => {
@@ -312,6 +321,42 @@ router.post('/subscriptions/cancel', async (req, res) => {
   const db = getDb();
   await db.prepare("UPDATE subscriptions SET status = 'cancelled', cancelled_at = NOW() WHERE id = ? AND user_email = ?").run(parseInt(id), req.user.email);
   res.json({ success: true, message: 'Subscription cancelled' });
+});
+
+router.post('/subscriptions/place-order', async (req, res) => {
+  const { subscriptionId, orderDate } = req.body;
+  if (!subscriptionId || !orderDate) return res.status(400).json({ error: 'Missing subscription ID or order date' });
+  const db = getDb();
+  const sub = await db.prepare("SELECT * FROM subscriptions WHERE id = ? AND user_email = ? AND status = 'active'").get(parseInt(subscriptionId), req.user.email);
+  if (!sub) return res.status(404).json({ error: 'Active subscription not found' });
+  // Check if already ordered for this date
+  const existing = await db.prepare("SELECT id FROM subscription_orders WHERE subscription_id = ? AND order_date = ? AND status != 'cancelled'").get(parseInt(subscriptionId), orderDate);
+  if (existing) return res.status(400).json({ error: 'An order for this date already exists under this subscription' });
+  // Count orders this month to enforce days_per_month limit
+  const monthStart = orderDate.substring(0, 7) + '-01';
+  const orderCount = await db.prepare("SELECT COUNT(*) as c FROM subscription_orders WHERE subscription_id = ? AND order_date >= ? AND order_date < (CAST(? AS DATE) + INTERVAL '1 month')::date AND status != 'cancelled'").pluck().get(parseInt(subscriptionId), monthStart, monthStart);
+  if (orderCount >= sub.days_per_month) return res.status(400).json({ error: 'You have reached the maximum of ' + sub.days_per_month + ' orders for this month under this subscription' });
+  // Place the order as a regular task (no extra charge — covered by subscription fee)
+  const sanitize = (s) => (typeof s === 'string' ? s.replace(/[<>"'&]/g, '') : '');
+  const inserted = await db.prepare("INSERT INTO tasks (customer_email, service_id, service_name, provider_name, provider_id, price, status, address, details, latitude, longitude) VALUES (?, ?, ?, ?, ?, ?, 'pending_confirmation', '', ?, ?, ?, ?) RETURNING id")
+    .get(req.user.email, sub.service_id, sub.service_name, sub.provider_name, sub.provider_id, sub.amount, 'Subscription order on ' + orderDate, null, null);
+  // Record in subscription_orders
+  await db.prepare("INSERT INTO subscription_orders (subscription_id, user_email, service_id, order_date, status, task_id) VALUES (?, ?, ?, ?, 'active', ?)")
+    .run(parseInt(subscriptionId), req.user.email, sub.service_id, orderDate, inserted.id);
+  // Notify provider
+  if (sub.provider_email) {
+    try {
+      await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+        .run(sub.provider_email, '📋', 'Subscription Order', sub.service_name + ' subscription order for ' + orderDate + ' from ' + req.user.email, 'order');
+    } catch(e) { /* silent */ }
+  }
+  res.json({ success: true, message: 'Subscription order placed for ' + orderDate, taskId: inserted.id });
+});
+
+router.get('/subscriptions/orders', async (req, res) => {
+  const db = getDb();
+  const orders = await db.prepare("SELECT so.*, s.service_name, s.provider_name, s.provider_id FROM subscription_orders so JOIN subscriptions s ON so.subscription_id = s.id WHERE so.user_email = ? ORDER BY so.order_date DESC").all(req.user.email);
+  res.json(orders);
 });
 
 // ============================================================

@@ -283,7 +283,39 @@ async function initDatabase() {
       status TEXT DEFAULT 'active',
       next_billing_at TIMESTAMPTZ NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW(),
-      cancelled_at TIMESTAMPTZ
+      cancelled_at TIMESTAMPTZ,
+      provider_id INTEGER,
+      provider_name TEXT,
+      days_per_month INTEGER DEFAULT 30,
+      exact_days TEXT
+    )
+  `);
+  await pool.query("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS provider_id INTEGER").catch(function(e) {});
+  await pool.query("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS provider_name TEXT").catch(function(e) {});
+  await pool.query("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS days_per_month INTEGER DEFAULT 30").catch(function(e) {});
+  await pool.query("ALTER TABLE subscriptions ADD COLUMN IF NOT EXISTS exact_days TEXT").catch(function(e) {});
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS subscription_prices (
+      id SERIAL PRIMARY KEY,
+      service_id TEXT NOT NULL,
+      price REAL NOT NULL,
+      updated_by TEXT,
+      updated_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(service_id)
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS subscription_orders (
+      id SERIAL PRIMARY KEY,
+      subscription_id INTEGER NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+      user_email TEXT NOT NULL,
+      service_id TEXT NOT NULL,
+      order_date DATE NOT NULL,
+      status TEXT DEFAULT 'pending',
+      task_id INTEGER,
+      created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
 

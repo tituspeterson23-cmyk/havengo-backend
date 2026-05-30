@@ -172,6 +172,27 @@ router.get('/subscriptions', async (req, res) => {
   res.json(subs);
 });
 
+router.get('/subscription-prices', async (req, res) => {
+  const db = getDb();
+  const prices = await db.prepare('SELECT * FROM subscription_prices ORDER BY service_id').all();
+  res.json(prices);
+});
+
+router.post('/subscription-prices', async (req, res) => {
+  const { serviceId, price } = req.body;
+  if (!serviceId || price === undefined) return res.status(400).json({ error: 'Missing service_id or price' });
+  const db = getDb();
+  await db.prepare("INSERT INTO subscription_prices (service_id, price, updated_by) VALUES (?, ?, ?) ON CONFLICT (service_id) DO UPDATE SET price = EXCLUDED.price, updated_by = EXCLUDED.updated_by, updated_at = NOW()")
+    .run(serviceId, parseFloat(price), req.user.email);
+  res.json({ success: true, message: 'Subscription price set for ' + serviceId });
+});
+
+router.delete('/subscription-prices/:serviceId', async (req, res) => {
+  const db = getDb();
+  await db.prepare("DELETE FROM subscription_prices WHERE service_id = ?").run(req.params.serviceId);
+  res.json({ success: true });
+});
+
 router.get('/notifications', async (req, res) => {
   const db = getDb();
   const adminEmail = await db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();

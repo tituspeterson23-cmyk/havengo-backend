@@ -66,6 +66,13 @@ app.get('/api/services/prices', async (req, res) => {
   res.json(prices);
 });
 
+// Public: get admin-set subscription prices
+app.get('/api/subscription-prices/public', async (req, res) => {
+  const db = getDb();
+  const prices = await db.prepare('SELECT * FROM subscription_prices').all();
+  res.json(prices);
+});
+
 // Public: list verified providers for service listing
 app.get('/api/providers/verified', async (req, res) => {
   const db = getDb();

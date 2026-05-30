@@ -478,7 +478,7 @@
 <div id="services" class="page">
 <div class="max-w-7xl mx-auto px-5 py-10">
 <div class="flex items-center justify-between mb-10"><h2 class="text-4xl font-bold">All Services</h2><div class="flex gap-2"><input type="text" id="service-search" oninput="renderServices()" class="border rounded-xl px-4 py-3 outline-none focus:border-emerald-500 w-48 text-sm" placeholder="Search services..."><select id="service-category-filter" onchange="renderServices()" class="border rounded-xl px-4 py-3 text-sm"><option value="all">All Categories</option></select></div></div>
-<div id="services-grid" class="grid md:grid-cols-2 lg:grid-cols-3 gap-8"></div></div></div>
+<div id="services-grid" class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-8"></div></div></div>
 
 <div id="provider-tasks" class="page">
 <div class="max-w-5xl mx-auto px-5 py-10">
@@ -746,7 +746,15 @@
             <div class="bg-white rounded-3xl p-6"><h3 class="font-semibold mb-4">Chat with Providers</h3><div id="admin-chat-list" class="space-y-3"></div></div>
         </div>
         <div id="admin-content-5" class="admin-content hidden"><div id="admin-orders-list" class="space-y-4"></div></div>
-        <div id="admin-content-6" class="admin-content hidden"><div id="admin-subscriptions-list" class="space-y-4"></div></div>
+        <div id="admin-content-6" class="admin-content hidden">
+            <div class="mb-6 bg-white rounded-3xl p-6">
+                <h3 class="font-semibold text-lg mb-4"><i class="fa-solid fa-tag text-violet-500 mr-2"></i>Subscription Prices</h3>
+                <p class="text-sm text-gray-500 mb-4">Set monthly subscription prices per service. Leave blank to use 10% off base price.</p>
+                <div id="admin-sub-prices-list" class="space-y-2 mb-4"></div>
+                <div class="flex gap-3 items-end"><div class="flex-1"><label class="text-xs font-medium text-gray-600 block mb-1">Service</label><select id="admin-sub-price-service" class="w-full border rounded-xl px-4 py-3 text-sm"></select></div><div class="w-40"><label class="text-xs font-medium text-gray-600 block mb-1">Price (UGX)</label><input type="number" id="admin-sub-price-amount" class="w-full border rounded-xl px-4 py-3 text-sm" placeholder="Monthly price"></div><button onclick="saveAdminSubscriptionPrice()" class="bg-violet-600 hover:bg-violet-700 text-white px-5 py-3 rounded-xl text-sm font-medium"><i class="fa-solid fa-save mr-1"></i> Set Price</button></div>
+            </div>
+            <div id="admin-subscriptions-list" class="space-y-4"></div>
+        </div>
     </div>
 </div></div>
 
@@ -819,10 +827,13 @@
 <div id="subscribe-modal" class="hidden fixed inset-0 z-[65] flex items-center justify-center bg-black/60 backdrop-blur-sm modal p-5">
 <div class="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl">
     <div class="hero-gradient text-white p-6 relative overflow-hidden"><div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-8 -mt-8"></div><div class="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-6 -mb-6"></div><h2 class="text-3xl font-bold relative z-10"><i class="fa-solid fa-calendar-check mr-2"></i>Monthly Subscription</h2><p class="text-gray-200 relative z-10" id="sub-modal-service-type">Subscribe to a service</p></div>
-    <div class="p-8 space-y-5">
+    <div class="p-8 space-y-4 max-h-[70vh] overflow-y-auto">
         <div class="bg-gradient-to-br from-violet-50 to-white rounded-2xl p-5 border border-violet-100"><label class="font-medium text-violet-800 text-sm flex items-center gap-2"><i class="fa-solid fa-tag text-violet-500"></i>Service</label><div id="sub-modal-service" class="mt-2 font-semibold"></div></div>
-        <div class="bg-gradient-to-br from-amber-50 to-white rounded-2xl p-5 border border-amber-100"><label class="font-medium text-amber-800 text-sm flex items-center gap-2"><i class="fa-solid fa-coins text-amber-500"></i>Monthly Price</label><div id="sub-modal-price" class="mt-1 text-2xl font-bold text-violet-600"></div><p class="text-xs text-gray-500 mt-1">Billed once per month. Cancel anytime.</p></div>
-        <div class="bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-4 border border-emerald-100"><div class="flex items-center gap-3"><i class="fa-solid fa-gift text-emerald-500 text-xl"></i><div><p class="text-sm font-medium text-emerald-800">Subscription Perks</p><p class="text-xs text-emerald-600">10% discount on every booking of this service</p></div></div></div>
+        <div class="bg-gradient-to-br from-amber-50 to-white rounded-2xl p-5 border border-amber-100"><label class="font-medium text-amber-800 text-sm flex items-center gap-2"><i class="fa-solid fa-coins text-amber-500"></i>Monthly Price</label><div id="sub-modal-price" class="mt-1 text-2xl font-bold text-violet-600"></div><p class="text-xs text-gray-500 mt-1">Unlimited orders within your plan. Billed once per month.</p></div>
+        <div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-user-tie text-emerald-500"></i>Preferred Provider</label><select id="sub-provider-select" class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm"><option value="">Any available provider</option></select></div>
+        <div class="grid grid-cols-2 gap-4"><div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-calendar-days text-emerald-500"></i>Days per Month</label><input type="number" id="sub-days-month" value="30" min="1" max="31" class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm"></div><div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-calendar-week text-amber-500"></i>Exact Days</label><input type="text" id="sub-exact-days" placeholder="e.g. 1,5,10,15,20" class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm"><p class="text-xs text-gray-400 mt-1">Optional: comma-separated day numbers</p></div></div>
+        <div class="bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-4 border border-emerald-100"><div class="flex items-center gap-3"><i class="fa-solid fa-gift text-emerald-500 text-xl"></i><div><p class="text-sm font-medium text-emerald-800">Subscription Perks</p><p class="text-xs text-emerald-600">Place orders on your subscribed days at the subscription price</p></div></div></div>
+        <div class="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-4 border border-blue-100"><div class="flex items-center gap-3"><i class="fa-solid fa-circle-info text-blue-500 text-xl"></i><div><p class="text-sm font-medium text-blue-800">How to Place Orders</p><p class="text-xs text-blue-600">After subscribing, go to <strong>My Profile → Subscriptions</strong> and tap <strong>"Place Order for a Day"</strong> when you're ready to order that month.</p></div></div></div>
         <div class="flex gap-4 pt-2"><button type="button" onclick="closeModal('subscribe-modal')" class="flex-1 border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 py-3.5 rounded-2xl font-semibold text-gray-600 transition-all">Cancel</button><button id="sub-confirm-btn" onclick="confirmSubscription()" class="flex-1 bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-700 hover:to-violet-600 text-white py-3.5 rounded-2xl font-semibold shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-circle-check mr-1"></i> Subscribe Now</button></div>
     </div>
 </div></div>
@@ -3041,15 +3052,34 @@ var userLoyaltyPoints = 0;
 var availableGifts = [];
 var userRedemptions = [];
 
+var subscriptionPrices = {};
+
 function showSubscribeModal(serviceId, serviceName, basePrice) {
     if (!window.__HAVENGO_JWT__ || !currentUser) { addInAppAlert("info", "Please login first to subscribe"); showAuthModal("login"); return; }
-    var monthlyPrice = Math.round(basePrice * 0.9); // 10% discount for subscribing
+    var subPrice = subscriptionPrices[serviceId];
+    var monthlyPrice = subPrice ? subPrice : Math.round(basePrice * 0.9);
     document.getElementById("sub-modal-service").textContent = serviceName;
-    document.getElementById("sub-modal-price").innerHTML = "UGX " + monthlyPrice.toLocaleString() + " <span class=\"text-xs font-normal text-gray-500\">(10% off)</span>";
+    document.getElementById("sub-modal-price").innerHTML = "UGX " + monthlyPrice.toLocaleString() + (subPrice ? " <span class=\"text-xs font-normal text-gray-500\">(admin-set price)</span>" : " <span class=\"text-xs font-normal text-gray-500\">(10% off base)</span>");
     document.getElementById("sub-modal-service-type").textContent = "Monthly subscription for " + serviceName;
     document.getElementById("sub-confirm-btn").dataset.serviceId = serviceId;
     document.getElementById("sub-confirm-btn").dataset.serviceName = serviceName;
     document.getElementById("sub-confirm-btn").dataset.amount = monthlyPrice;
+    // Populate provider dropdown
+    var sel = document.getElementById("sub-provider-select");
+    if (sel) {
+        sel.innerHTML = "<option value=''>Any available provider</option>";
+        for (var pi = 0; pi < registeredProviders.length; pi++) {
+            var rp = registeredProviders[pi];
+            var provName = rp.business_name || rp.businessName || rp.name || "";
+            var provId = rp.id || "";
+            if (provName) {
+                var opt = document.createElement("option");
+                opt.value = provId + ":" + provName;
+                opt.textContent = provName + (rp.location ? " (" + rp.location + ")" : "");
+                sel.appendChild(opt);
+            }
+        }
+    }
     document.getElementById("subscribe-modal").classList.remove("hidden");
 }
 
@@ -3059,13 +3089,25 @@ async function confirmSubscription() {
     var serviceName = btn.dataset.serviceName;
     var amount = parseFloat(btn.dataset.amount);
     if (!serviceId || !serviceName || !amount) return;
+    // Get provider selection
+    var sel = document.getElementById("sub-provider-select");
+    var providerVal = sel ? sel.value : "";
+    var providerId = null;
+    var providerName = "";
+    if (providerVal && providerVal.indexOf(":") > -1) {
+        var parts = providerVal.split(":");
+        providerId = parseInt(parts[0]) || null;
+        providerName = parts.slice(1).join(":");
+    }
+    var daysPerMonth = parseInt(document.getElementById("sub-days-month").value) || 30;
+    var exactDays = document.getElementById("sub-exact-days").value.trim() || null;
     closeModal("subscribe-modal");
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
     if (window.__HAVENGO_BACKEND__ && window.__HAVENGO_JWT__) {
         try {
             var resp = await fetch(apiUrl + "/customer/subscriptions/create", {
                 method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + window.__HAVENGO_JWT__ },
-                body: JSON.stringify({ serviceId: serviceId, serviceName: serviceName, amount: amount, discountPercent: 10 })
+                body: JSON.stringify({ serviceId: serviceId, serviceName: serviceName, amount: amount, discountPercent: 10, providerId: providerId, providerName: providerName || null, daysPerMonth: daysPerMonth, exactDays: exactDays })
             });
             var data = await resp.json();
             if (data.success) {
@@ -3083,6 +3125,29 @@ async function confirmSubscription() {
         addInAppAlert("info", "Please login to subscribe");
         showAuthModal("login");
     }
+}
+
+async function placeSubscriptionOrder(subscriptionId) {
+    if (!window.__HAVENGO_JWT__ || !currentUser) { addInAppAlert("info", "Please login"); return; }
+    showAppPrompt("Enter the date for this subscription order (YYYY-MM-DD):", "", async function(orderDate) {
+        if (!orderDate || !orderDate.match(/^\d{4}-\d{2}-\d{2}$/)) { addInAppAlert("error", "Please enter a valid date (YYYY-MM-DD)"); return; }
+        var apiUrl = HAVENGO_BACKEND_URL + "/api";
+        try {
+            var resp = await fetch(apiUrl + "/customer/subscriptions/place-order", {
+                method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + window.__HAVENGO_JWT__ },
+                body: JSON.stringify({ subscriptionId: subscriptionId, orderDate: orderDate })
+            });
+            var data = await resp.json();
+            if (data.success) {
+                addInAppAlert("success", "Subscription order placed for " + orderDate);
+                fetchUserSubscriptions();
+            } else {
+                addInAppAlert("error", data.error || "Failed to place subscription order");
+            }
+        } catch(e) {
+            addInAppAlert("error", "Backend unreachable");
+        }
+    });
 }
 
 async function cancelSubscription(subId) {
@@ -3159,6 +3224,8 @@ async function redeemGift(giftId) {
     } catch(e) { addInAppAlert("error", "Backend unreachable"); }
 }
 
+var userSubscriptionOrders = [];
+
 function renderSubscriptionPlans() {
     var container = document.getElementById("subscription-plans");
     var statusEl = document.getElementById("subscription-status");
@@ -3170,15 +3237,33 @@ function renderSubscriptionPlans() {
     if (userSubscriptions.length === 0) {
         html += "<div class=\"text-center text-gray-400 py-6 bg-white rounded-2xl border border-dashed border-gray-200\"><i class=\"fa-solid fa-calendar-plus text-3xl mb-2\"></i><p class=\"text-sm\">No active subscriptions. Tap 'Subscribe' on any service card to start.</p></div>";
     } else {
+        html += "<div class=\"space-y-3\">";
         for (var si = 0; si < userSubscriptions.length; si++) {
             var sub = userSubscriptions[si];
             var subEmoji = serviceEmojis[sub.service_id] || "\uD83D\uDCCB";
-            html += "<div class=\"flex items-center justify-between bg-white rounded-2xl p-4 border border-gray-100 hover:shadow-md transition-all\"><div class=\"flex items-center gap-3\"><span class=\"text-2xl\">" + subEmoji + "</span><div><p class=\"font-medium text-sm\">" + sub.service_name + "</p><p class=\"text-xs text-gray-500\">UGX " + sub.amount.toLocaleString() + "/mo</p></div></div><button onclick=\"cancelSubscription(" + sub.id + ")\" class=\"text-xs text-red-500 hover:text-red-700 font-medium\">Cancel</button></div>";
+            html += "<div class=\"bg-white rounded-2xl p-4 border border-gray-100 hover:shadow-md transition-all\">" +
+                "<div class=\"flex items-center justify-between mb-3\"><div class=\"flex items-center gap-3\"><span class=\"text-2xl\">" + subEmoji + "</span><div><p class=\"font-medium text-sm\">" + sub.service_name + "</p><p class=\"text-xs text-gray-500\">UGX " + sub.amount.toLocaleString() + "/mo" + (sub.provider_name ? " — " + sub.provider_name : "") + (sub.days_per_month ? " — " + sub.days_per_month + " days/mo" : "") + "</p></div></div><button onclick=\"cancelSubscription(" + sub.id + ")\" class=\"text-xs text-red-500 hover:text-red-700 font-medium\">Cancel</button></div>" +
+                "<button onclick=\"placeSubscriptionOrder(" + sub.id + ")\" class=\"w-full bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-700 hover:to-violet-600 text-white py-2.5 rounded-2xl text-sm font-medium transition-all\"><i class=\"fa-solid fa-calendar-plus mr-1\"></i> Place Order for a Day</button>" +
+                "</div>";
+        }
+        html += "</div>";
+    }
+    html += "</div>";
+
+    // Section 2: Subscription Orders (this month)
+    html += "<div class=\"mb-8\"><h4 class=\"font-semibold text-lg flex items-center gap-2 mb-4\"><i class=\"fa-solid fa-clock text-blue-500\"></i>Subscription Orders This Month</h4>";
+    if (userSubscriptionOrders.length === 0) {
+        html += "<div class=\"text-center text-gray-400 py-6 bg-white rounded-2xl border border-dashed border-gray-200\"><i class=\"fa-solid fa-calendar-xmark text-3xl mb-2\"></i><p class=\"text-sm\">No subscription orders yet. Use 'Place Order for a Day' above.</p></div>";
+    } else {
+        for (var oi = 0; oi < userSubscriptionOrders.length; oi++) {
+            var o = userSubscriptionOrders[oi];
+            var statusBadge = o.status === "active" ? "bg-blue-100 text-blue-700" : (o.status === "completed" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500");
+            html += "<div class=\"flex items-center justify-between bg-white rounded-2xl p-3 border border-gray-100\"><div class=\"flex items-center gap-3\"><i class=\"fa-solid fa-calendar-day text-blue-500\"></i><div><p class=\"text-sm font-medium\">" + o.service_name + "</p><p class=\"text-xs text-gray-500\">" + o.order_date + (o.provider_name ? " — " + o.provider_name : "") + "</p></div></div><span class=\"text-xs font-medium px-3 py-1 rounded-full " + statusBadge + "\">" + o.status + "</span></div>";
         }
     }
     html += "</div>";
 
-    // Section 2: Loyalty Points
+    // Section 3: Loyalty Points
     html += "<div class=\"mb-8\"><h4 class=\"font-semibold text-lg flex items-center gap-2 mb-4\"><i class=\"fa-solid fa-star text-yellow-500\"></i>Loyalty Rewards</h4>";
     html += "<div class=\"bg-gradient-to-br from-yellow-50 to-white rounded-2xl p-6 border border-yellow-100 text-center\">" +
         "<div class=\"text-4xl mb-2\">\uD83C\uDFC6</div>" +
@@ -3187,7 +3272,7 @@ function renderSubscriptionPlans() {
         "<p class=\"text-xs text-gray-400 mt-2\">Earn 10 points for every 100,000 UGX spent</p></div>";
     html += "</div>";
 
-    // Section 3: Available Gifts
+    // Section 4: Available Gifts
     html += "<div class=\"mb-8\"><h4 class=\"font-semibold text-lg flex items-center gap-2 mb-4\"><i class=\"fa-solid fa-gift text-pink-500\"></i>Redeem Gifts</h4>";
     if (availableGifts.length === 0) {
         html += "<div class=\"text-center text-gray-400 py-6\"><p class=\"text-sm\">No gifts available yet.</p></div>";
@@ -3207,7 +3292,7 @@ function renderSubscriptionPlans() {
     }
     html += "</div>";
 
-    // Section 4: Redemption History
+    // Section 5: Redemption History
     if (userRedemptions.length > 0) {
         html += "<div class=\"mb-8\"><h4 class=\"font-semibold text-lg flex items-center gap-2 mb-4\"><i class=\"fa-solid fa-clock-rotate-left text-gray-500\"></i>Redemption History</h4>";
         for (var ri = 0; ri < userRedemptions.length; ri++) {
@@ -3219,8 +3304,34 @@ function renderSubscriptionPlans() {
 
     container.innerHTML = html;
     if (statusEl) {
-        statusEl.innerHTML = "<div class=\"flex items-center gap-3 text-sm text-gray-600\"><i class=\"fa-solid fa-circle-info text-violet-500\"></i>Subscribe to any service monthly and earn loyalty points with every payment.</div>";
+        statusEl.innerHTML = "<div class=\"flex items-center gap-3 text-sm text-gray-600\"><i class=\"fa-solid fa-circle-info text-violet-500\"></i>Subscribe to any service monthly, choose your provider and days, then place orders on specific days.</div>";
     }
+}
+
+async function fetchSubscriptionOrders() {
+    if (!window.__HAVENGO_JWT__ || !currentUser) return;
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    if (!window.__HAVENGO_BACKEND__) return;
+    try {
+        var resp = await fetch(apiUrl + "/customer/subscriptions/orders", {
+            headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }
+        });
+        if (resp.ok) userSubscriptionOrders = await resp.json();
+    } catch(e) { /* silent */ }
+}
+
+async function fetchSubscriptionPrices() {
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    if (!window.__HAVENGO_BACKEND__) return;
+    try {
+        var resp = await fetch(apiUrl + "/subscription-prices/public");
+        if (resp.ok) {
+            var prices = await resp.json();
+            for (var pi = 0; pi < prices.length; pi++) {
+                subscriptionPrices[prices[pi].service_id] = prices[pi].price;
+            }
+        }
+    } catch(e) { /* silent */ }
 }
 
 // ============================================================
@@ -3342,6 +3453,7 @@ function navigateTo(page) {
     if (page === "profile" && currentUser) {
         renderProfilePage();
         fetchUserSubscriptions();
+        fetchSubscriptionOrders();
         fetchLoyaltyPoints();
         fetchAvailableGifts();
         fetchUserRedemptions();
@@ -3767,12 +3879,18 @@ async function placeOrder(event) {
                 return;
             }
             if (orderData.session_expired) { handleSessionExpired(); return; }
-            if (orderData.error) { addInAppAlert("error", orderData.error); return; }
+            if (orderData.error) {
+                addInAppAlert("error", orderData.error + " — Check your bookings below to confirm if the order went through. Do NOT re-order if it appears.");
+                fetchCustomerBookings();
+                return;
+            }
         } catch(e) {
-            addInAppAlert("error", "Cannot reach server. It may be waking up — please try again in 30 seconds.");
+            addInAppAlert("error", "Cannot reach server. It may be waking up — please check your bookings to see if the order went through. Do NOT re-order if it did.");
+            fetchCustomerBookings();
             return;
         }
-        addInAppAlert("error", "Failed to place order on server. Please try again.");
+        addInAppAlert("error", "Failed to place order on server. Please check your bookings below to confirm, and do NOT re-order if it appears.");
+        fetchCustomerBookings();
     }
 
 // Fetch customer bookings from backend for cross-browser sync
@@ -4156,8 +4274,8 @@ function renderProviderDashboard() {
                     (t.instructions ? "<p class=\"text-sm text-gray-600\"><strong>Instructions:</strong> " + t.instructions + "</p>" : "") +
                     "</div>" +
                     "<div><span class=\"bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium\">" + t.status + "</span></div></div>" +
-                    (t.status === "pending_confirmation" ? "<div class=\"mt-4 pt-4 border-t flex gap-3 flex-wrap\"><button onclick=\"confirmProviderTask(" + t.id + ")\" class=\"bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-check\"></i> Confirm Order</button><button onclick=\"openProviderChat(" + t.id + ")\" class=\"bg-amber-500 hover:bg-amber-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-comment\"></i> Chat</button><button onclick=\"cancelProviderTask(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-ban\"></i> Cancel Order</button></div>" : "") +
-                    (t.status === "active" ? "<div class=\"mt-4 pt-4 border-t flex gap-3 flex-wrap\"><button onclick=\"completeProviderTask(" + t.id + ")\" class=\"bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-check-double\"></i> Mark Complete</button><button onclick=\"openProviderChat(" + t.id + ")\" class=\"bg-amber-500 hover:bg-amber-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-comment\"></i> Chat</button><button onclick=\"startProviderTracking(" + t.id + ")\" class=\"bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-location-dot\"></i> Share Location</button><button onclick=\"cancelProviderTask(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-ban\"></i> Cancel Order</button></div>" :
+                    (t.status === "pending_confirmation" ? "<div class=\"mt-4 pt-4 border-t flex gap-3 flex-wrap\"><button onclick=\"confirmProviderTask(" + t.id + ")\" class=\"bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-check\"></i> Confirm Order</button><button onclick=\"openProviderChat(" + t.id + ")\" class=\"bg-amber-500 hover:bg-amber-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-comment\"></i> Chat</button><button onclick=\"requestCancelViaAdmin(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-headset\"></i> Request Cancel</button></div>" : "") +
+                    (t.status === "active" ? "<div class=\"mt-4 pt-4 border-t flex gap-3 flex-wrap\"><button onclick=\"completeProviderTask(" + t.id + ")\" class=\"bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-check-double\"></i> Mark Complete</button><button onclick=\"openProviderChat(" + t.id + ")\" class=\"bg-amber-500 hover:bg-amber-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-comment\"></i> Chat</button><button onclick=\"startProviderTracking(" + t.id + ")\" class=\"bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-location-dot\"></i> Share Location</button><button onclick=\"requestCancelViaAdmin(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-2xl text-sm\"><i class=\"fa-solid fa-headset\"></i> Request Cancel</button></div>" :
  "") +
                     "</div>";
             }
@@ -4256,48 +4374,24 @@ async function confirmProviderTask(taskId) {
     saveAppState();
 }
 
-async function cancelProviderTask(taskId) {
-    showAppPrompt("Please provide the reason for cancelling this order:", "", function(reason) {
-        if (!reason || reason.trim() === "") { addInAppAlert("error", "A cancellation reason is required."); return; }
-        var apiUrl = HAVENGO_BACKEND_URL + "/api";
-        if (window.__HAVENGO_JWT__) {
-            (async function() {
-                try {
-                    var resp = await fetch(apiUrl + "/provider/cancel-task/" + taskId, {
-                        method: "POST",
-                        headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" },
-                        body: JSON.stringify({ reason: reason.trim() })
-                    });
-                    var data = await resp.json();
-                    if (data.success) {
-                        for (var i = 0; i < providerTasks.length; i++) {
-                            if (providerTasks[i].id === taskId) {
-                                providerTasks.splice(i, 1);
-                                break;
-                            }
-                        }
-                        for (var ati = 0; ati < adminTasks.length; ati++) {
-                            if (adminTasks[ati].id === taskId) { adminTasks.splice(ati, 1); break; }
-                        }
-                        for (var j = 0; j < bookings.length; j++) {
-                            if (bookings[j].id === taskId) {
-                                bookings[j].status = "Cancelled";
-                                break;
-                            }
-                        }
-                        addNotification("\u274C", "Order Cancelled", "Order #" + taskId + " cancelled. Reason: " + reason);
-                        renderProviderDashboard();
-                        renderBookings();
-                        saveAppState();
-                        addInAppAlert("success", "Order cancelled successfully. Customer has been notified.");
-                        return;
-                    }
-                    if (data.error) { addInAppAlert("error", data.error); return; }
-                } catch(e) { addInAppAlert("error", "Network error cancelling task"); return; }
-            })();
-        } else {
-            addInAppAlert("error", "You must be logged in to cancel an order");
-        }
+function requestCancelViaAdmin(taskId) {
+    if (!currentLoggedProvider) { addInAppAlert("info", "Please login as provider first"); return; }
+    var task = null;
+    for (var i = 0; i < providerTasks.length; i++) {
+        if (providerTasks[i].id === taskId) { task = providerTasks[i]; break; }
+    }
+    showAppPrompt("Why do you want to cancel order #" + taskId + "?", "", function(reason) {
+        if (!reason || reason.trim() === "") { addInAppAlert("error", "A reason is required."); return; }
+        openProviderAdminChat();
+        setTimeout(function() {
+            var msg = "Request: Cancel order #" + taskId + (task ? " (" + task.serviceName + ")" : "") + ". Reason: " + reason.trim() + ". Please assist.";
+            var input = document.getElementById("chat-input");
+            if (input) {
+                input.value = msg;
+                sendChatMessage();
+            }
+            addInAppAlert("info", "Cancel request sent to admin. Awaiting response.");
+        }, 500);
     });
 }
 
@@ -4599,6 +4693,11 @@ async function _syncAdminData() {
             var subsResp = await fetch(apiUrl + "/admin/subscriptions", { headers: headers, signal: AbortSignal.timeout(35000) });
             if (subsResp.ok) adminSubscriptions = await subsResp.json();
         } catch(es) { console.warn(es); }
+        // Fetch subscription prices
+        try {
+            var spResp = await fetch(apiUrl + "/admin/subscription-prices", { headers: headers, signal: AbortSignal.timeout(15000) });
+            if (spResp.ok) adminSubPrices = await spResp.json();
+        } catch(esp) { /* silent */ }
         renderAdminDashboard();
         renderAllProviderLists();
     } catch(e) { console.log("Backend sync error:", e); }
@@ -4656,7 +4755,7 @@ function switchAdminTab(n) {
     if (n === 3) renderAdminRevenue();
     if (n === 4) renderAdminChat();
     if (n === 5) renderAdminOrders();
-    if (n === 6) renderAdminSubscriptions();
+    if (n === 6) { renderAdminSubPrices(); renderAdminSubscriptions(); }
     window.__adminTab = n;
     saveAppState();
 }
@@ -5018,6 +5117,101 @@ async function adminReassignTask(taskId) {
         } catch(e) { addInAppAlert("error", "Network error reassigning task"); return; }
     }
     addInAppAlert("error", "You must be logged in as admin");
+}
+
+var adminSubPrices = [];
+
+async function fetchAdminSubPrices() {
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var headers = { "Authorization": "Bearer " + window.__HAVENGO_JWT__ };
+    try {
+        var resp = await fetch(apiUrl + "/admin/subscription-prices", { headers: headers, signal: AbortSignal.timeout(15000) });
+        if (resp.ok) adminSubPrices = await resp.json();
+    } catch(e) { /* silent */ }
+}
+
+function renderAdminSubPriceSelect() {
+    var sel = document.getElementById("admin-sub-price-service");
+    if (!sel) return;
+    sel.innerHTML = "<option value=''>Select service...</option>";
+    for (var si = 0; si < services.length; si++) {
+        var opt = document.createElement("option");
+        opt.value = services[si].id;
+        opt.textContent = services[si].name;
+        sel.appendChild(opt);
+    }
+    // Mark existing prices
+    for (var pi = 0; pi < adminSubPrices.length; pi++) {
+        var sp = adminSubPrices[pi];
+        for (var si = 0; si < sel.options.length; si++) {
+            if (sel.options[si].value === sp.service_id) {
+                sel.options[si].textContent += " (UGX " + sp.price.toLocaleString() + ")";
+            }
+        }
+    }
+}
+
+function renderAdminSubPriceList() {
+    var list = document.getElementById("admin-sub-prices-list");
+    if (!list) return;
+    if (adminSubPrices.length === 0) {
+        list.innerHTML = "<p class=\"text-sm text-gray-400\">No subscription prices set yet. Use the form above to add prices.</p>";
+        return;
+    }
+    var html = "";
+    for (var pi = 0; pi < adminSubPrices.length; pi++) {
+        var sp = adminSubPrices[pi];
+        var sName = sp.service_id;
+        for (var si = 0; si < services.length; si++) {
+            if (services[si].id === sp.service_id) { sName = services[si].name; break; }
+        }
+        html += "<div class=\"flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2.5\"><span class=\"text-sm font-medium\">" + sName + "</span><span class=\"text-sm text-violet-600 font-bold\">UGX " + sp.price.toLocaleString() + "/mo</span><button onclick=\"deleteAdminSubPrice('" + sp.service_id + "')\" class=\"text-xs text-red-500 hover:text-red-700\"><i class=\"fa-solid fa-trash-can\"></i></button></div>";
+    }
+    list.innerHTML = html;
+}
+
+async function saveAdminSubscriptionPrice() {
+    var sel = document.getElementById("admin-sub-price-service");
+    var amount = document.getElementById("admin-sub-price-amount");
+    if (!sel || !amount) return;
+    var serviceId = sel.value;
+    var price = parseFloat(amount.value);
+    if (!serviceId) { addInAppAlert("error", "Please select a service"); return; }
+    if (!price || price <= 0) { addInAppAlert("error", "Please enter a valid price"); return; }
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var headers = { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" };
+    try {
+        var resp = await fetch(apiUrl + "/admin/subscription-prices", {
+            method: "POST", headers: headers,
+            body: JSON.stringify({ serviceId: serviceId, price: price })
+        });
+        var data = await resp.json();
+        if (data.success) {
+            addInAppAlert("success", data.message);
+            amount.value = "";
+            sel.value = "";
+            fetchAdminSubPrices().then(function() { renderAdminSubPriceSelect(); renderAdminSubPriceList(); });
+        } else {
+            addInAppAlert("error", data.error || "Failed to save");
+        }
+    } catch(e) { addInAppAlert("error", "Backend unreachable"); }
+}
+
+async function deleteAdminSubPrice(serviceId) {
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var headers = { "Authorization": "Bearer " + window.__HAVENGO_JWT__ };
+    try {
+        var resp = await fetch(apiUrl + "/admin/subscription-prices/" + serviceId, { method: "DELETE", headers: headers });
+        if (resp.ok) {
+            addInAppAlert("success", "Subscription price removed");
+            fetchAdminSubPrices().then(function() { renderAdminSubPriceSelect(); renderAdminSubPriceList(); });
+        }
+    } catch(e) { addInAppAlert("error", "Backend unreachable"); }
+}
+
+function renderAdminSubPrices() {
+    renderAdminSubPriceSelect();
+    renderAdminSubPriceList();
 }
 
 function renderAdminSubscriptions() {
@@ -7069,12 +7263,14 @@ function autoSyncData() {
     fetchVerifiedProviders();
     fetchProviderRatings();
     fetchApprovedServicePrices();
+    fetchSubscriptionPrices();
     if (currentUser && window.__HAVENGO_JWT__) {
         fetchCustomerBookings();
         fetchPendingPayments();
         fetchBackendNotifications();
         fetchCustomerBalance();
         fetchUserSubscriptions();
+        fetchSubscriptionOrders();
         fetchLoyaltyPoints();
         fetchAvailableGifts();
         fetchUserRedemptions();
