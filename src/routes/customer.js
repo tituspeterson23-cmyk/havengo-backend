@@ -71,20 +71,15 @@ router.post('/place-order', async (req, res) => {
       await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
         .run(adminEmail, '📋', 'New Order', sanitize(serviceName) + ' ordered by ' + req.user.email + ' for UGX ' + price, 'order');
     }
-    const assignedTask = await db.prepare("SELECT provider_name FROM tasks WHERE id = ?").get(newTaskId);
-    const assignedProviderName = assignedTask ? assignedTask.provider_name : '';
-    let prov = null;
-    if (assignedProviderName) {
-      prov = await db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(assignedProviderName, assignedProviderName);
-      if (prov) {
-        await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
-          .run(prov.email, '📋', 'New Order Assigned', 'New ' + sanitize(serviceName) + ' order assigned to you by ' + req.user.email + ' for UGX ' + price, 'order');
-      }
+    const taskRow = await db.prepare("SELECT provider_email, provider_id FROM tasks WHERE id = ?").get(newTaskId);
+    let provEmail = taskRow && taskRow.provider_email ? taskRow.provider_email : '';
+    if (taskRow && taskRow.provider_id && provEmail) {
+      await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+        .run(provEmail, '📋', 'New Order Assigned', 'New ' + sanitize(serviceName) + ' order assigned to you by ' + req.user.email + ' for UGX ' + price, 'order');
+      emitNotification(provEmail, '📋', 'New Order', 'New ' + sanitize(serviceName) + ' order #' + newTaskId + ' assigned to you.', 'order');
     }
-    const provEmail = assignedTask ? assignedTask.provider_name : (providerEmail || '');
     emitTaskEvent(newTaskId, 'order_placed', { customerEmail: req.user.email, providerEmail: provEmail, status: 'pending_confirmation', serviceName: sanitize(serviceName) });
     emitNotification(req.user.email, '📋', 'Order Placed', 'Your ' + sanitize(serviceName) + ' order #' + newTaskId + ' has been placed.', 'order');
-    if (prov && prov.email) emitNotification(prov.email, '📋', 'New Order', 'New ' + sanitize(serviceName) + ' order #' + newTaskId + ' assigned to you.', 'order');
   } catch(e) { console.warn('Post-order notifications failed:', e); }
 
   res.json({ success: true, message: 'Order placed! Awaiting provider confirmation.', taskId: newTaskId, providerId: providerId || null, providerEmail: providerEmail || '' });
@@ -131,10 +126,12 @@ router.post('/confirm-payment', async (req, res) => {
 
   await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '💰', 'Payment Confirmed', 'Payment of " + completed.price + " UGX completed. Provider credited " + providerAmount + " UGX." + (pointsAwarded > 0 ? " +" + pointsAwarded + " loyalty points." : "") + "', 'money')")
     .run(req.user.email);
-  const prov = await db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(completed.provider_name, completed.provider_name);
-  if (prov) {
-    await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '💰', 'Payment Received', 'Payment of " + completed.price + " UGX received from " + req.user.email + " for " + completed.service_name + ".', 'money')")
-      .run(prov.email);
+  if (completed.provider_id) {
+    const prov = await db.prepare("SELECT email FROM providers WHERE id = ?").get(completed.provider_id);
+    if (prov) {
+      await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '💰', 'Payment Received', 'Payment of " + completed.price + " UGX received from " + req.user.email + " for " + completed.service_name + ".', 'money')")
+        .run(prov.email);
+    }
   }
 
   res.json({ success: true, message: 'Payment confirmed!', providerAmount, systemAmount, pointsAwarded });
@@ -230,7 +227,7 @@ router.post('/cancel-deletion', async (req, res) => {
 
 router.get('/notifications', async (req, res) => {
   const db = getDb();
-  const notifs = await db.prepare("SELECT * FROM notifications WHERE user_email = ? AND read = 0 AND (expiry IS NULL OR expiry > NOW()) ORDER BY created_at DESC LIMIT 50").all(req.user.email);
+  const notifs = await db.prepare("SELECT * FROM notifications WHERE user_email = ? AND (expiry IS NULL OR expiry > NOW()) ORDER BY read ASC, created_at DESC LIMIT 50").all(req.user.email);
   res.json(notifs);
 });
 
@@ -264,10 +261,12 @@ router.post('/report-payment-issue', async (req, res) => {
     await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
       .run(adminEmail, '⚠️', 'Payment Dispute', 'Customer ' + req.user.email + ' reported an issue with payment UGX ' + payment.amount + '. Reason: ' + sanitize(reason), 'payment_dispute');
   }
-  const prov = await db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(payment.provider_name, payment.provider_name);
-  if (prov) {
-    await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
-      .run(prov.email, '⚠️', 'Payment Dispute', 'Customer reported an issue with payment for task #' + taskId + '. Admin will review.', 'payment_dispute');
+  if (payment.provider_id) {
+    const prov = await db.prepare("SELECT email FROM providers WHERE id = ?").get(payment.provider_id);
+    if (prov) {
+      await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
+        .run(prov.email, '⚠️', 'Payment Dispute', 'Customer reported an issue with payment for task #' + taskId + '. Admin will review.', 'payment_dispute');
+    }
   }
   res.json({ success: true, message: 'Issue reported. Auto-payment has been halted pending admin review.' });
 });

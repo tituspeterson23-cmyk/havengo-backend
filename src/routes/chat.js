@@ -73,10 +73,9 @@ router.post('/send', async (req, res) => {
     const task = await db.prepare("SELECT * FROM tasks WHERE id = ?").get(convTaskId);
     if (task) {
       if (sender === 'Customer' || s === 'Customer') {
-        const prov = await db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(task.provider_name, task.provider_name);
-        if (prov) {
+        if (task.provider_email) {
           await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
-            .run(prov.email, '💬', 'New Message from Customer', task.customer_email + ' sent a message about ' + (task.service_name || 'your order'), 'chat');
+            .run(task.provider_email, '💬', 'New Message from Customer', task.customer_email + ' sent a message about ' + (task.service_name || 'your order'), 'chat');
         }
       } else {
         await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")

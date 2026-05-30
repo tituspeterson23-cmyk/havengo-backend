@@ -197,7 +197,7 @@ router.get('/notifications', async (req, res) => {
   const db = getDb();
   const adminEmail = await db.prepare("SELECT value FROM admin_settings WHERE key = 'admin_email'").pluck().get();
   const email = adminEmail || 'admin';
-  const notifs = await db.prepare("SELECT * FROM notifications WHERE user_email = ? AND read = 0 AND (expiry IS NULL OR expiry > NOW()) ORDER BY created_at DESC LIMIT 50").all(email);
+  const notifs = await db.prepare("SELECT * FROM notifications WHERE user_email = ? AND (expiry IS NULL OR expiry > NOW()) ORDER BY read ASC, created_at DESC LIMIT 50").all(email);
   res.json(notifs);
 });
 
@@ -224,10 +224,12 @@ router.delete('/chat/:conversationId/message/:messageId', async (req, res) => {
 });
 
 router.post('/notify-provider', async (req, res) => {
-  const { providerName, icon, title, message } = req.body;
-  if (!providerName || !title) return res.status(400).json({ error: 'Missing required fields' });
+  const { providerName, providerId, icon, title, message } = req.body;
+  if ((!providerName && !providerId) || !title) return res.status(400).json({ error: 'Missing required fields: providerName or providerId' });
   const db = getDb();
-  const provider = await db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(providerName, providerName);
+  const provider = providerId
+    ? await db.prepare("SELECT email FROM providers WHERE id = ?").get(providerId)
+    : await db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(providerName, providerName);
   if (provider) {
     await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, 'price_update')")
       .run(provider.email, icon || '📋', title, message || '');
@@ -260,10 +262,12 @@ router.post('/resolve-payment-dispute/:id', async (req, res) => {
     }
     await db.prepare('UPDATE completed_tasks SET paid = 1 WHERE task_id = ?').run(payment.task_id);
     await db.prepare("UPDATE pending_payments SET status = 'paid' WHERE id = ?").run(id);
-    await db.prepare('UPDATE providers SET total_earnings = total_earnings + ? WHERE business_name = ? OR (firstname || \' \' || lastname) = ?').run(providerAmount, payment.provider_name, payment.provider_name);
+    if (payment.provider_id) {
+      await db.prepare('UPDATE providers SET total_earnings = total_earnings + ? WHERE id = ?').run(providerAmount, payment.provider_id);
+    }
     await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
       .run(payment.customer_email, '✅', 'Dispute Resolved', 'Your payment dispute has been resolved. UGX ' + payment.amount + ' has been processed.', 'payment');
-    const prov = await db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(payment.provider_name, payment.provider_name);
+    const prov = payment.provider_id ? await db.prepare("SELECT email FROM providers WHERE id = ?").get(payment.provider_id) : null;
     if (prov) {
       await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
         .run(prov.email, '✅', 'Dispute Resolved', 'Payment dispute resolved. UGX ' + providerAmount + ' credited to your account.', 'payment');
@@ -273,7 +277,7 @@ router.post('/resolve-payment-dispute/:id', async (req, res) => {
     await db.prepare("UPDATE pending_payments SET status = 'refunded' WHERE id = ?").run(id);
     await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
       .run(payment.customer_email, '💰', 'Dispute Resolved - Refunded', 'Your payment dispute has been resolved. The amount UGX ' + payment.amount + ' has been refunded.', 'payment');
-    const prov = await db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(payment.provider_name, payment.provider_name);
+    const prov = payment.provider_id ? await db.prepare("SELECT email FROM providers WHERE id = ?").get(payment.provider_id) : null;
     if (prov) {
       await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)")
         .run(prov.email, 'ℹ️', 'Dispute Resolved', 'Payment dispute for task #' + payment.task_id + ' has been resolved with refund.', 'payment');
@@ -315,7 +319,7 @@ router.post('/withdraw', async (req, res) => {
 
 router.get('/tasks', async (req, res) => {
   const db = getDb();
-  const tasks = await db.prepare("SELECT t.*, u.firstname AS customer_firstname, u.lastname AS customer_lastname, u.phone AS customer_phone, p.email AS provider_email, p.phone AS provider_phone, p.business_name AS provider_business, p.firstname AS provider_firstname, p.lastname AS provider_lastname FROM tasks t LEFT JOIN users u ON t.customer_email = u.email LEFT JOIN providers p ON (t.provider_name = p.business_name OR t.provider_name = (p.firstname || ' ' || p.lastname)) WHERE t.status IN ('pending_confirmation', 'active', 'cancelled') ORDER BY t.created_at DESC").all();
+  const tasks = await db.prepare("SELECT t.*, u.firstname AS customer_firstname, u.lastname AS customer_lastname, u.phone AS customer_phone, p.email AS provider_email, p.phone AS provider_phone, p.business_name AS provider_business, p.firstname AS provider_firstname, p.lastname AS provider_lastname FROM tasks t LEFT JOIN users u ON t.customer_email = u.email LEFT JOIN providers p ON t.provider_id = p.id WHERE t.status IN ('pending_confirmation', 'active', 'cancelled') ORDER BY t.created_at DESC").all();
   res.json(tasks);
 });
 
@@ -323,7 +327,7 @@ router.get('/task/:taskId', async (req, res) => {
   const db = getDb();
   const taskId = parseInt(req.params.taskId);
   if (isNaN(taskId)) return res.status(400).json({ error: 'Invalid task ID' });
-  const task = await db.prepare("SELECT t.id, t.customer_email, p.email AS provider_email, p.firstname AS provider_firstname, p.lastname AS provider_lastname, u.firstname AS customer_firstname, u.lastname AS customer_lastname FROM tasks t LEFT JOIN users u ON t.customer_email = u.email LEFT JOIN providers p ON (t.provider_name = p.business_name OR t.provider_name = (p.firstname || ' ' || p.lastname)) WHERE t.id = ?").get(taskId);
+  const task = await db.prepare("SELECT t.id, t.customer_email, p.email AS provider_email, p.firstname AS provider_firstname, p.lastname AS provider_lastname, u.firstname AS customer_firstname, u.lastname AS customer_lastname FROM tasks t LEFT JOIN users u ON t.customer_email = u.email LEFT JOIN providers p ON t.provider_id = p.id WHERE t.id = ?").get(taskId);
   if (!task) return res.status(404).json({ error: 'Task not found' });
   res.json(task);
 });

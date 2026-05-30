@@ -261,7 +261,7 @@ router.get('/price-requests', async (req, res) => {
 
 router.get('/notifications', async (req, res) => {
   const db = getDb();
-  const notifs = await db.prepare("SELECT * FROM notifications WHERE user_email = ? AND read = 0 AND (expiry IS NULL OR expiry > NOW()) ORDER BY created_at DESC LIMIT 50").all(req.user.email);
+  const notifs = await db.prepare("SELECT * FROM notifications WHERE user_email = ? AND (expiry IS NULL OR expiry > NOW()) ORDER BY read ASC, created_at DESC LIMIT 50").all(req.user.email);
   res.json(notifs);
 });
 

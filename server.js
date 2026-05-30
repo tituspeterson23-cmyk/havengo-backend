@@ -9,6 +9,7 @@ const path = require('path');
 const { initDatabase, getDb } = require('./src/database');
 const { sanitize } = require('./src/auth');
 const { initFirebaseAdmin } = require('./src/firebase-admin');
+const { ensureVapidKeys } = require('./src/routes/push');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -51,6 +52,7 @@ app.use('/api/reviews', require('./src/routes/reviews'));
 app.use('/api/provider-ratings', require('./src/routes/provider-ratings'));
 app.use('/api/tracking', require('./src/routes/tracking'));
 app.use('/api', require('./src/routes/security-routes'));
+app.use('/api/push', require('./src/routes/push'));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -111,7 +113,7 @@ setInterval(async () => {
     for (const p of reminders) {
       await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES ($1, '⏰', 'Payment Reminder', $2, 'payment_reminder')")
         .run(p.customer_email, 'Payment of UGX ' + p.amount + ' for your task is due. Pay within 10 hours or it will be auto-deducted.');
-      const prov = await db.prepare("SELECT email FROM providers WHERE business_name = $1 OR (firstname || ' ' || lastname) = $2").get(p.provider_name, p.provider_name);
+      const prov = p.provider_id ? await db.prepare("SELECT email FROM providers WHERE id = $1").get(p.provider_id) : null;
       if (prov) {
         await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES ($1, '⏰', 'Payment Pending', $2, 'payment_reminder')")
           .run(prov.email, 'Customer payment of UGX ' + p.amount + ' is due within 10 hours.');
@@ -148,7 +150,7 @@ setInterval(async () => {
 
       await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES ($1, '⏰', 'Auto-Payment Completed', $2, 'auto_payment')")
         .run(payment.customer_email, 'UGX ' + payment.amount + ' auto-deducted for completed task (10-hour window expired).');
-      const provNotify = await db.prepare("SELECT email FROM providers WHERE business_name = $1 OR (firstname || ' ' || lastname) = $2").get(payment.provider_name, payment.provider_name);
+      const provNotify = payment.provider_id ? await db.prepare("SELECT email FROM providers WHERE id = $1").get(payment.provider_id) : null;
       if (provNotify) {
         await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES ($1, '💰', 'Payment Released', $2, 'auto_payment')")
           .run(provNotify.email, 'UGX ' + providerAmount + ' credited to your account (auto-payment).');
@@ -211,6 +213,7 @@ if (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64) {
   try {
     await initDatabase();
     initFirebaseAdmin();
+    await ensureVapidKeys();
     app.listen(PORT, () => {
       console.log(`\nHavenGo Backend running at http://localhost:${PORT}`);
       console.log(`Admin login at http://localhost:${PORT}/`);

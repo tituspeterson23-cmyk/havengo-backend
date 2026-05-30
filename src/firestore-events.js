@@ -34,6 +34,9 @@ async function emitNotification(recipientEmail, icon, title, message, type) {
       read: false,
       timestamp: admin.firestore.FieldValue.serverTimestamp()
     });
+    // Also send push notification
+    const { sendPushNotification } = require('./routes/push');
+    sendPushNotification(recipientEmail, title, message, { type: type || 'general' });
   } catch(e) {
     console.warn('Firestore notification error:', e.message);
   }

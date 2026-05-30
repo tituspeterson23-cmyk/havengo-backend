@@ -458,6 +458,18 @@ async function initDatabase() {
   `);
   await pool.query('CREATE INDEX IF NOT EXISTS idx_escrow_order ON escrow_holds(order_id)');
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      user_email TEXT NOT NULL,
+      endpoint TEXT NOT NULL,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user_email)');
+
   // Seed admin if not exists
   const adminCheck = await pool.query("SELECT id FROM admin_settings WHERE key = 'admin_initialized'");
   if (adminCheck.rows.length === 0) {

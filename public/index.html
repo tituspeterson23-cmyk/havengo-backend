@@ -1397,7 +1397,9 @@ function buildAppState() {
         currentLoggedProvider: currentLoggedProvider,
         currentAdmin: currentAdmin,
         providerTab: window.__providerTab !== undefined ? window.__providerTab : 0,
-        adminTab: window.__adminTab !== undefined ? window.__adminTab : 0
+        adminTab: window.__adminTab !== undefined ? window.__adminTab : 0,
+        globalNotifications: globalNotifications,
+        userNotificationsMap: userNotificationsMap
     };
 }
 function saveAppState() {
@@ -1449,6 +1451,8 @@ function applyState(state) {
     if (state.currentAdmin) currentAdmin = state.currentAdmin;
     if (state.providerTab !== undefined) window.__providerTab = state.providerTab;
     if (state.adminTab !== undefined) window.__adminTab = state.adminTab;
+    if (state.globalNotifications) globalNotifications = state.globalNotifications;
+    if (state.userNotificationsMap) userNotificationsMap = state.userNotificationsMap;
 }
 
 // Reviews - starts empty; only customer-submitted reviews appear
@@ -2000,7 +2004,7 @@ async function submitTwoFactor() {
                     signal: AbortSignal.timeout(35000)
                 });
                 var provData = await provResp.json();
-                if (provData.success) { loginAsProviderComplete(provData); }
+                if (provData.success) { registerForPushNotifications(); location.reload(); }
                 else { location.reload(); }
             } else {
                 window.__HAVENGO_JWT__ = data.accessToken;
@@ -2022,6 +2026,7 @@ async function submitTwoFactor() {
                     saveAppState();
                     startAutoPaymentCheck();
                     fetchPendingPayments();
+                    registerForPushNotifications();
                 }
             }
         } else {
@@ -2069,6 +2074,7 @@ async function submitTwoFactorBackup() {
                     saveAppState();
                     startAutoPaymentCheck();
                     fetchPendingPayments();
+                    registerForPushNotifications();
                 }
             }
         } else {
@@ -2132,6 +2138,11 @@ async function performLogin() {
             window.__HAVENGO_JWT__ = data.token || data.accessToken;
             if (data.refreshToken) _hgSaveRefreshToken(data.refreshToken);
             userBalance = data.user.balance !== undefined ? data.user.balance : userBalance;
+            // Restore cached notifications for this user
+            if (userNotificationsMap[data.user.email]) {
+                globalNotifications = userNotificationsMap[data.user.email].slice();
+                delete userNotificationsMap[data.user.email];
+            }
             closeAuthModal();
             connectFirebaseChat(data.user.email, "customer", data.user.firstname);
             if (firestoreDb && data.user.email) {
@@ -2151,6 +2162,7 @@ async function performLogin() {
             saveAppState();
             startAutoPaymentCheck();
             fetchPendingPayments();
+            registerForPushNotifications();
             return;
         }
         if (data.user_not_found) {
@@ -3322,7 +3334,7 @@ var subscriptionPrices = {};
 
 function calcSubPrice(basePrice, days) {
     var subPrice = subscriptionPrices[document.getElementById("sub-confirm-btn").dataset.serviceId];
-    return subPrice ? subPrice : Math.round(basePrice * 0.9 * days / 4);
+    return subPrice ? Math.round(subPrice * days / 4) : Math.round(basePrice * 0.9 * days / 4);
 }
 
 function updateSubPriceDisplay(basePrice) {
@@ -3330,7 +3342,7 @@ function updateSubPriceDisplay(basePrice) {
     var price = calcSubPrice(basePrice, days);
     var subPrice = subscriptionPrices[document.getElementById("sub-confirm-btn").dataset.serviceId];
     document.getElementById("sub-modal-price").innerHTML = "UGX " + price.toLocaleString() + (subPrice ? "" : " <span class=\"text-xs font-normal text-gray-500\">(10% off base)</span>");
-    document.getElementById("sub-modal-price-breakdown").textContent = subPrice ? "" : days + " days at UGX " + Math.round(basePrice * 0.9 / 4).toLocaleString() + "/day — base 4 days included";
+    document.getElementById("sub-modal-price-breakdown").textContent = subPrice ? (days + " days at UGX " + Math.round(subPrice / 4).toLocaleString() + "/day — admin-set base price") : (days + " days at UGX " + Math.round(basePrice * 0.9 / 4).toLocaleString() + "/day — base 4 days included");
     document.getElementById("sub-confirm-btn").dataset.amount = price;
 }
 
@@ -4379,6 +4391,7 @@ async function loginAsProvider() {
             };
             currentLoggedProvider.total_earnings = p.total_earnings || 0;
             enterProviderDashboard(currentLoggedProvider);
+            registerForPushNotifications();
             return;
         }
         if (resp.status === 403) {
@@ -4916,6 +4929,7 @@ function adminLoginSuccess() {
             fetchBackendNotifications();
         }
     }, 30000);
+    registerForPushNotifications();
 }
 
 async function _syncAdminData() {
@@ -7368,6 +7382,41 @@ async function fetchBackendNotifications() {
             }
         }
     } catch(e) { console.warn(e); }
+}
+
+function urlB64ToUint8Array(base64String) {
+  var padding = '='.repeat((4 - base64String.length % 4) % 4);
+  var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  var rawData = atob(base64);
+  var outputArray = new Uint8Array(rawData.length);
+  for (var i = 0; i < rawData.length; ++i) { outputArray[i] = rawData.charCodeAt(i); }
+  return outputArray;
+}
+
+async function registerForPushNotifications() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  var jwt = window.__HAVENGO_JWT__;
+  if (!jwt) return;
+  try {
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    var vapidResp = await fetch(apiUrl + "/push/vapid-public-key");
+    if (!vapidResp.ok) return;
+    var vapidData = await vapidResp.json();
+    var reg = await navigator.serviceWorker.register('/service-worker.js');
+    await navigator.serviceWorker.ready;
+    if (Notification.permission === 'granted') {
+      var sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8Array(vapidData.publicKey) });
+      await fetch(apiUrl + "/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + jwt }, body: JSON.stringify({ subscription: sub.toJSON() }) });
+    } else if (Notification.permission === 'default') {
+      Notification.requestPermission().then(function(permission) {
+        if (permission === 'granted') {
+          reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlB64ToUint8Array(vapidData.publicKey) }).then(function(sub) {
+            fetch(apiUrl + "/push/subscribe", { method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + jwt }, body: JSON.stringify({ subscription: sub.toJSON() }) });
+          });
+        }
+      });
+    }
+  } catch(e) { console.warn("Push registration error:", e); }
 }
 
 // ============================================================

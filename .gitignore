@@ -5,3 +5,6 @@ data/havengo.db
 .DS_Store
 service-account.json
 test-firebase.js
+test-*.txt
+_check.js
+quicktest.bat
