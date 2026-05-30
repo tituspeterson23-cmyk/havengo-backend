@@ -2,8 +2,19 @@ const express = require('express');
 const router = express.Router();
 const { getDb } = require('../database');
 const { authenticate, providerOnly } = require('../middleware/authenticate');
-const { hashPassword, sanitize, isValidEmail, isValidPhone } = require('../auth');
+const { hashPassword, sanitize, isValidEmail, isValidPhone, comparePassword } = require('../auth');
 const { emitTaskEvent, emitNotification } = require('../firestore-events');
+const { JwtHardener, AccountLockout, SessionManager } = require('../security');
+
+const hardener = new JwtHardener();
+
+function getLockout() {
+  return new AccountLockout(getDb());
+}
+
+function getSessionManager() {
+  return new SessionManager(getDb());
+}
 
 router.post('/register', async (req, res) => {
   try {
@@ -59,46 +70,55 @@ router.post('/login', async (req, res) => {
     }
 
     const db = getDb();
+    const lockout = getLockout();
+
+    // Check if account is locked
+    const locked = await lockout.isLocked(identifier);
+    if (locked) {
+      return res.status(429).json({ error: 'Account temporarily locked due to too many failed attempts. Try again later.' });
+    }
+
     const provider = await db.prepare('SELECT * FROM providers WHERE email = ? OR phone = ?').get(identifier, identifier);
     if (!provider) {
-      if (req.body.restoring && req.body.firstname && req.body.email && req.body.phone && req.body.businessName && req.body.services) {
-        const hash = await hashPassword(password);
-        const servicesStr = Array.isArray(req.body.services) ? req.body.services.join(',') : req.body.services;
-        await db.prepare('INSERT INTO providers (firstname, lastname, email, phone, business_name, services, password_hash, bitmoji, verified, location, bio) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)')
-          .run(sanitize(req.body.firstname), sanitize(req.body.lastname || ''), sanitize(req.body.email), sanitize(req.body.phone), sanitize(req.body.businessName), servicesStr, hash, sanitize(req.body.bitmoji || '🔧'), sanitize(req.body.location || ''), sanitize(req.body.bio || ''));
-        const newProvider = await db.prepare('SELECT * FROM providers WHERE email = ?').get(sanitize(req.body.email));
-        if (newProvider) {
-          const { generateToken } = require('../auth');
-          const token = generateToken({ email: newProvider.email, role: 'provider', providerId: newProvider.id, firstname: newProvider.firstname });
-          return res.json({
-            success: true, token,
-            provider: {
-              id: newProvider.id, firstname: newProvider.firstname, lastname: newProvider.lastname,
-              email: newProvider.email, phone: newProvider.phone, business_name: newProvider.business_name,
-              services: newProvider.services, bitmoji: newProvider.bitmoji, total_earnings: newProvider.total_earnings,
-              location: newProvider.location || '', bio: newProvider.bio || '', experience: newProvider.experience || 0,
-              registration_fee_paid: newProvider.registration_fee_paid || 0
-            }
-          });
-        }
-      }
       return res.status(401).json({ user_not_found: true, error: 'Invalid credentials' });
     }
     if (!provider.verified) {
       return res.status(403).json({ error: 'Account pending admin verification' });
     }
 
-    const bcrypt = require('bcryptjs');
-    const match = await bcrypt.compare(password, provider.password_hash);
+    const match = await comparePassword(password, provider.password_hash);
     if (!match) {
+      await lockout.recordProviderFailedAttempt(provider.email);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    const { generateToken } = require('../auth');
-    const token = generateToken({ email: provider.email, role: 'provider', providerId: provider.id, firstname: provider.firstname });
+    // Successful login — reset lockout
+    await lockout.resetProviderAttempts(provider.email);
+
+    const accessToken = hardener.signAccessToken(
+      { userId: provider.id, email: provider.email, role: 'provider' },
+      null
+    );
+    const refreshToken = hardener.generateRefreshToken();
+
+    // Create session
+    const sm = getSessionManager();
+    await sm.createSession({
+      userId: provider.id,
+      email: provider.email,
+      role: 'provider',
+      tokenHash: refreshToken.tokenHash,
+      deviceInfo: req.headers['user-agent'] ? { ua: req.headers['user-agent'] } : {},
+      ip: req.ip,
+      fingerprint: '',
+      expiresAt: refreshToken.expiresAt
+    });
 
     res.json({
-      success: true, token,
+      success: true,
+      token: accessToken,
+      accessToken,
+      refreshToken: refreshToken.rawToken,
       provider: {
         id: provider.id, firstname: provider.firstname, lastname: provider.lastname,
         email: provider.email, phone: provider.phone, business_name: provider.business_name,

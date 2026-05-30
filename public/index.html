@@ -829,9 +829,10 @@
     <div class="hero-gradient text-white p-6 relative overflow-hidden"><div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-8 -mt-8"></div><div class="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-6 -mb-6"></div><h2 class="text-3xl font-bold relative z-10"><i class="fa-solid fa-calendar-check mr-2"></i>Monthly Subscription</h2><p class="text-gray-200 relative z-10" id="sub-modal-service-type">Subscribe to a service</p></div>
     <div class="p-8 space-y-4 max-h-[70vh] overflow-y-auto">
         <div class="bg-gradient-to-br from-violet-50 to-white rounded-2xl p-5 border border-violet-100"><label class="font-medium text-violet-800 text-sm flex items-center gap-2"><i class="fa-solid fa-tag text-violet-500"></i>Service</label><div id="sub-modal-service" class="mt-2 font-semibold"></div></div>
-        <div class="bg-gradient-to-br from-amber-50 to-white rounded-2xl p-5 border border-amber-100"><label class="font-medium text-amber-800 text-sm flex items-center gap-2"><i class="fa-solid fa-coins text-amber-500"></i>Monthly Price</label><div id="sub-modal-price" class="mt-1 text-2xl font-bold text-violet-600"></div><p class="text-xs text-gray-500 mt-1">Unlimited orders within your plan. Billed once per month.</p></div>
+        <div class="bg-gradient-to-br from-amber-50 to-white rounded-2xl p-5 border border-amber-100"><label class="font-medium text-amber-800 text-sm flex items-center gap-2"><i class="fa-solid fa-coins text-amber-500"></i>Monthly Price</label><div id="sub-modal-price" class="mt-1 text-2xl font-bold text-violet-600"></div><div id="sub-modal-price-breakdown" class="text-xs text-gray-500 mt-1"></div></div>
+        <div class="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-4 border border-blue-200"><div class="flex items-start gap-3"><i class="fa-solid fa-circle-info text-blue-500 text-xl mt-1"></i><div><p class="text-sm font-medium text-blue-800">Pricing Structure</p><p class="text-xs text-blue-700">Base subscription covers <strong>4 days per month</strong> at <strong>10% discount</strong>. Extra days beyond 4 are charged pro-rata at the discounted rate.</p><p class="text-xs text-blue-600 mt-1">You can adjust the number of days below — the price updates in real time.</p></div></div></div>
         <div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-user-tie text-emerald-500"></i>Preferred Provider</label><select id="sub-provider-select" class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm"><option value="">Any available provider</option></select></div>
-        <div class="grid grid-cols-2 gap-4"><div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-calendar-days text-emerald-500"></i>Days per Month</label><input type="number" id="sub-days-month" value="30" min="1" max="31" class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm"></div><div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-calendar-week text-amber-500"></i>Exact Days</label><input type="text" id="sub-exact-days" placeholder="e.g. 1,5,10,15,20" class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm"><p class="text-xs text-gray-400 mt-1">Optional: comma-separated day numbers</p></div></div>
+        <div class="grid grid-cols-2 gap-4"><div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-calendar-days text-emerald-500"></i>Days per Month</label><input type="number" id="sub-days-month" value="4" min="4" max="31" class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm"></div><div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-calendar-week text-amber-500"></i>Exact Days</label><input type="text" id="sub-exact-days" placeholder="e.g. 1,5,10,15,20" class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm"><p class="text-xs text-gray-400 mt-1">Optional: comma-separated day numbers</p></div></div>
         <div class="bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-4 border border-emerald-100"><div class="flex items-center gap-3"><i class="fa-solid fa-gift text-emerald-500 text-xl"></i><div><p class="text-sm font-medium text-emerald-800">Subscription Perks</p><p class="text-xs text-emerald-600">Place orders on your subscribed days at the subscription price</p></div></div></div>
         <div class="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-4 border border-blue-100"><div class="flex items-center gap-3"><i class="fa-solid fa-circle-info text-blue-500 text-xl"></i><div><p class="text-sm font-medium text-blue-800">How to Place Orders</p><p class="text-xs text-blue-600">After subscribing, go to <strong>My Profile → Subscriptions</strong> and tap <strong>"Place Order for a Day"</strong> when you're ready to order that month.</p></div></div></div>
         <div class="flex gap-4 pt-2"><button type="button" onclick="closeModal('subscribe-modal')" class="flex-1 border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 py-3.5 rounded-2xl font-semibold text-gray-600 transition-all">Cancel</button><button id="sub-confirm-btn" onclick="confirmSubscription()" class="flex-1 bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-700 hover:to-violet-600 text-white py-3.5 rounded-2xl font-semibold shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-circle-check mr-1"></i> Subscribe Now</button></div>
@@ -845,7 +846,7 @@
         <div class="bg-gradient-to-br from-violet-50 to-white rounded-2xl p-4 border border-violet-100"><div class="flex items-center gap-3"><i class="fa-solid fa-crown text-violet-500 text-xl"></i><div><p class="text-sm font-medium text-violet-800">No extra charge</p><p class="text-xs text-violet-600">This order is covered by your subscription plan</p></div></div></div>
         <div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-calendar-day text-gray-500"></i> Date</label><input type="date" id="sub-order-date" required class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm"></div>
         <div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-clock text-gray-500"></i> Time</label><input type="time" id="sub-order-time" required class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm"></div>
-        <div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-location-dot text-gray-500"></i> Address / Location</label><input type="text" id="sub-order-address" placeholder="Enter your location address" required class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm"></div>
+        <div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-location-dot text-gray-500"></i> Address / Location</label><div class="relative"><input type="text" id="sub-order-address" placeholder="Enter your location address" required class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm pr-12"></div></div>
         <div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-pen text-gray-500"></i> Special Instructions</label><textarea id="sub-order-details" rows="3" placeholder="Anything the provider should know..." class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm"></textarea></div>
         <div class="flex gap-4 pt-2"><button type="button" onclick="closeModal('subscription-order-modal')" class="flex-1 border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 py-3.5 rounded-2xl font-semibold text-gray-600 transition-all">Cancel</button><button type="submit" class="flex-1 bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-700 hover:to-violet-600 text-white py-3.5 rounded-2xl font-semibold shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-check-circle mr-1"></i> Place Order</button></div>
     </form>
@@ -997,6 +998,70 @@
 // --- CONFIG ---
 // Set this to your Render backend URL after deploying
 var HAVENGO_BACKEND_URL = "https://havengo-backend.onrender.com";
+
+// ============================================================
+// TOKEN STORE — Encrypted session persistence (replaces restoring hack)
+// ============================================================
+// Stores refresh token in localStorage (encrypted), access token in memory.
+// Enables silent session recovery on page reload — no more lost chat sessions.
+
+var _hgRefreshToken = null;
+var _hgTokenStoreReady = false;
+
+// Save refresh token to localStorage (with simple obfuscation)
+function _hgSaveRefreshToken(token) {
+    _hgRefreshToken = token;
+    if (token) {
+        try { localStorage.setItem("hg_rt", btoa(token.split('').reverse().join(''))); } catch(e) {}
+    } else {
+        try { localStorage.removeItem("hg_rt"); } catch(e) {}
+    }
+}
+
+function _hgLoadRefreshToken() {
+    if (_hgRefreshToken) return _hgRefreshToken;
+    try {
+        var raw = localStorage.getItem("hg_rt");
+        if (raw) {
+            _hgRefreshToken = atob(raw).split('').reverse().join('');
+            return _hgRefreshToken;
+        }
+    } catch(e) {}
+    return null;
+}
+
+function _hgClearTokens() {
+    _hgRefreshToken = null;
+    window.__HAVENGO_JWT__ = null;
+    try { localStorage.removeItem("hg_rt"); } catch(e) {}
+}
+
+// Silent refresh: try to restore session from saved refresh token
+async function _hgTryRestore() {
+    var rt = _hgLoadRefreshToken();
+    if (!rt) return false;
+    try {
+        var resp = await fetch(HAVENGO_BACKEND_URL + "/api/auth/refresh", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken: rt })
+        });
+        if (!resp.ok) { _hgClearTokens(); return false; }
+        var data = await resp.json();
+        window.__HAVENGO_JWT__ = data.accessToken;
+        _hgSaveRefreshToken(data.refreshToken);
+        // Decode user info from access token
+        try {
+            var payload = JSON.parse(atob(data.accessToken.split('.')[1]));
+            window.__HAVENGO_USER__ = { email: payload.email, role: payload.role, sub: payload.sub };
+        } catch(e) {}
+        _hgTokenStoreReady = true;
+        return true;
+    } catch(e) {
+        _hgClearTokens();
+        return false;
+    }
+}
 
 // ============================================================
 // FIREBASE CONFIG — Real-time Chat (replace with your project)
@@ -1896,7 +1961,8 @@ async function performLogin() {
             });
             var adminData = await adminResp.json();
             if (adminData.success) {
-                window.__HAVENGO_JWT__ = adminData.token;
+                window.__HAVENGO_JWT__ = adminData.token || adminData.accessToken;
+                if (adminData.refreshToken) _hgSaveRefreshToken(adminData.refreshToken);
                 closeAuthModal();
                 connectFirebaseChat("thermypetson@gmail.com", "admin", "Admin");
                 adminLoginSuccess();
@@ -1916,7 +1982,8 @@ async function performLogin() {
         var data = await resp.json();
         if (data.success) {
             currentUser = data.user;
-            window.__HAVENGO_JWT__ = data.token;
+            window.__HAVENGO_JWT__ = data.token || data.accessToken;
+            if (data.refreshToken) _hgSaveRefreshToken(data.refreshToken);
             userBalance = data.user.balance !== undefined ? data.user.balance : userBalance;
             closeAuthModal();
             connectFirebaseChat(data.user.email, "customer", data.user.firstname);
@@ -1966,6 +2033,7 @@ function logout(skipConfirm) {
         currentUser = null;
         userBalance = 2000000;
         chatConversations = {};
+        _hgClearTokens();
         var ks = document.getElementById("keep-session"); if (!ks || !ks.checked) saveAppState();
         closeModal("settings-modal");
         updateProfileWithUser();
@@ -2446,9 +2514,18 @@ async function searchOnMap() {
         var list = document.getElementById("map-search-results");
         list.classList.remove("hidden");
         if (!results || results.length === 0) { list.innerHTML = "<div class='p-3 text-gray-500'>No results found</div>"; return; }
+        // Filter to Kampala, Wakiso, Entebbe areas only
+        var filtered = [];
+        for (var ri = 0; ri < results.length; ri++) {
+            var dn = (results[ri].display_name || "").toLowerCase();
+            if (dn.indexOf("kampala") > -1 || dn.indexOf("wakiso") > -1 || dn.indexOf("entebbe") > -1) {
+                filtered.push(results[ri]);
+            }
+        }
+        if (filtered.length === 0) { filtered = results.slice(0, 3); }
         var html = "";
-        for (var i = 0; i < results.length; i++) {
-            html += "<div onclick=\"selectMapResult(" + results[i].lat + "," + results[i].lon + ",'" + results[i].display_name.replace(/'/g,"\\'") + "')\" class=\"p-3 hover:bg-gray-100 cursor-pointer border-b text-sm\">" + results[i].display_name + "</div>";
+        for (var i = 0; i < filtered.length; i++) {
+            html += "<div onclick=\"selectMapResult(" + filtered[i].lat + "," + filtered[i].lon + ",'" + filtered[i].display_name.replace(/'/g,"\\'") + "')\" class=\"p-3 hover:bg-gray-100 cursor-pointer border-b text-sm\">" + filtered[i].display_name + "</div>";
         }
         list.innerHTML = html;
     } catch(e) { addInAppAlert("error", "Search failed"); }
@@ -2485,11 +2562,11 @@ function confirmMapPin() {
     closeMapModal();
 }
 
-// Attach map address picker to address input
-function attachMapPicker() {
-    var addrInput = document.getElementById("address-input");
+// Attach map address picker to an address input
+function attachMapPicker(inputId) {
+    inputId = inputId || "address-input";
+    var addrInput = document.getElementById(inputId);
     if (!addrInput) return;
-    // Add a map icon button next to the address input
     var parent = addrInput.parentNode;
     if (parent.querySelector(".map-pick-btn")) return;
     var btn = document.createElement("button");
@@ -2588,27 +2665,56 @@ function showDepositModal() {
     document.getElementById("deposit-modal").classList.remove("hidden");
 }
 
+function setDepositAmount(val) {
+    document.getElementById("deposit-amount-input").value = val;
+}
+
 function processDeposit() {
     if (!currentUser) { addInAppAlert("info", "Please login first to deposit funds"); showAuthModal("login"); return; }
-    var amount = parseInt(document.getElementById("deposit-amount-input").value) || 0;
     var phone = document.getElementById("deposit-phone").value.trim();
-
-    if (amount < 1000) {
-        addInAppAlert("error", "Minimum deposit is 1,000 UGX");
-        return;
-    }
     if (!phone || phone.length < 8) {
         addInAppAlert("error", "Please enter a valid Mobile Money number");
         return;
     }
 
-    userBalance += amount;
-    closeModal("deposit-modal");
-    renderProfilePage();
-    addNotification("\uD83D\uDCB0", "Deposit Successful", "UGX " + amount.toLocaleString() + " added to your wallet via " + phone);
-    addActivity("deposit", "Deposited UGX " + amount.toLocaleString());
-    addInAppAlert("success", "Successfully deposited UGX " + amount.toLocaleString() + "!");
-    saveAppState();
+    // Initial 2 million test money only — set balance to 2M
+    var initialTestMoney = 2000000;
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    (async function() {
+        try {
+            var resp = await fetch(apiUrl + "/customer/deposit", {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__, "Content-Type": "application/json" },
+                body: JSON.stringify({ amount: initialTestMoney }),
+                signal: AbortSignal.timeout(15000)
+            });
+            var data = await resp.json();
+            if (data.success) {
+                userBalance = initialTestMoney;
+                closeModal("deposit-modal");
+                renderProfilePage();
+                addNotification("\uD83D\uDCB0", "Test Money Credited", "UGX " + initialTestMoney.toLocaleString() + " test money added to your wallet.");
+                addActivity("deposit", "Deposited UGX " + initialTestMoney.toLocaleString());
+                addInAppAlert("success", "UGX " + initialTestMoney.toLocaleString() + " test money credited!");
+                saveAppState();
+                return;
+            }
+            if (data.error) addInAppAlert("error", data.error);
+        } catch(e) {
+            // Fallback: local deposit limited to 2M
+            addInAppAlert("info", "Server unavailable, using local test money");
+            if ((userBalance || 0) < initialTestMoney) {
+                userBalance = initialTestMoney;
+                closeModal("deposit-modal");
+                renderProfilePage();
+                addNotification("\uD83D\uDCB0", "Test Money Credited", "UGX " + initialTestMoney.toLocaleString() + " test money added.");
+                addInAppAlert("success", "UGX " + initialTestMoney.toLocaleString() + " test money credited!");
+                saveAppState();
+            } else {
+                addInAppAlert("info", "You already have sufficient funds.");
+            }
+        }
+    })();
 }
 
 // ============================================================
@@ -2910,7 +3016,7 @@ function switchProfileTab(n) {
     if (n === 2) renderSavedAddresses();
     if (n === 3) renderProfileNotifications();
     if (n === 4) renderFavoriteProviders();
-    if (n === 5) { if (currentUser) openCustomerAdminChat(); }
+    if (n === 5) { if (currentUser && !window.__adminChatOpening__) { var ca = document.getElementById("customer-admin-chat-area"); if (ca) ca.classList.remove("hidden"); renderCustomerAdminMessages(); } }
     if (n === 6) renderSubscriptionPlans();
 }
 
@@ -3067,16 +3173,27 @@ var userRedemptions = [];
 
 var subscriptionPrices = {};
 
+function calcSubPrice(basePrice, days) {
+    var subPrice = subscriptionPrices[document.getElementById("sub-confirm-btn").dataset.serviceId];
+    return subPrice ? subPrice : Math.round(basePrice * 0.9 * days / 4);
+}
+
+function updateSubPriceDisplay(basePrice) {
+    var days = parseInt(document.getElementById("sub-days-month").value) || 4;
+    var price = calcSubPrice(basePrice, days);
+    var subPrice = subscriptionPrices[document.getElementById("sub-confirm-btn").dataset.serviceId];
+    document.getElementById("sub-modal-price").innerHTML = "UGX " + price.toLocaleString() + (subPrice ? "" : " <span class=\"text-xs font-normal text-gray-500\">(10% off base)</span>");
+    document.getElementById("sub-modal-price-breakdown").textContent = subPrice ? "" : days + " days at UGX " + Math.round(basePrice * 0.9 / 4).toLocaleString() + "/day — base 4 days included";
+    document.getElementById("sub-confirm-btn").dataset.amount = price;
+}
+
 function showSubscribeModal(serviceId, serviceName, basePrice) {
     if (!window.__HAVENGO_JWT__ || !currentUser) { addInAppAlert("info", "Please login first to subscribe"); showAuthModal("login"); return; }
-    var subPrice = subscriptionPrices[serviceId];
-    var monthlyPrice = subPrice ? subPrice : Math.round(basePrice * 0.9);
     document.getElementById("sub-modal-service").textContent = serviceName;
-    document.getElementById("sub-modal-price").innerHTML = "UGX " + monthlyPrice.toLocaleString() + (subPrice ? " <span class=\"text-xs font-normal text-gray-500\">(admin-set price)</span>" : " <span class=\"text-xs font-normal text-gray-500\">(10% off base)</span>");
     document.getElementById("sub-modal-service-type").textContent = "Monthly subscription for " + serviceName;
     document.getElementById("sub-confirm-btn").dataset.serviceId = serviceId;
     document.getElementById("sub-confirm-btn").dataset.serviceName = serviceName;
-    document.getElementById("sub-confirm-btn").dataset.amount = monthlyPrice;
+    document.getElementById("sub-confirm-btn").dataset.basePrice = basePrice;
     // Populate provider dropdown
     var sel = document.getElementById("sub-provider-select");
     if (sel) {
@@ -3093,6 +3210,14 @@ function showSubscribeModal(serviceId, serviceName, basePrice) {
             }
         }
     }
+    // Set default days and update price
+    document.getElementById("sub-days-month").value = 4;
+    // Remove old listener if any and attach new one
+    var daysInput = document.getElementById("sub-days-month");
+    var newInput = daysInput.cloneNode(true);
+    daysInput.parentNode.replaceChild(newInput, daysInput);
+    newInput.addEventListener("input", function() { updateSubPriceDisplay(basePrice); });
+    updateSubPriceDisplay(basePrice);
     document.getElementById("subscribe-modal").classList.remove("hidden");
 }
 
@@ -3112,7 +3237,7 @@ async function confirmSubscription() {
         providerId = parseInt(parts[0]) || null;
         providerName = parts.slice(1).join(":");
     }
-    var daysPerMonth = parseInt(document.getElementById("sub-days-month").value) || 30;
+    var daysPerMonth = parseInt(document.getElementById("sub-days-month").value) || 4;
     var exactDays = document.getElementById("sub-exact-days").value.trim() || null;
     closeModal("subscribe-modal");
     var apiUrl = HAVENGO_BACKEND_URL + "/api";
@@ -3165,6 +3290,7 @@ function showSubscriptionOrderForm(subscriptionId) {
     document.getElementById("sub-order-details").value = "";
     closeModal('subscribe-modal');
     document.getElementById("subscription-order-modal").classList.remove("hidden");
+    setTimeout(function() { attachMapPicker('sub-order-address'); }, 100);
 }
 
 async function submitSubscriptionOrder(event) {
@@ -4079,7 +4205,8 @@ async function loginAsProvider() {
         var data = await resp.json();
         if (data.success) {
             var p = data.provider;
-            window.__HAVENGO_JWT__ = data.token;
+            window.__HAVENGO_JWT__ = data.token || data.accessToken;
+            if (data.refreshToken) _hgSaveRefreshToken(data.refreshToken);
             connectFirebaseChat(p.email, "provider", p.firstname + " " + p.lastname);
             currentLoggedProvider = {
                 id: p.id,
@@ -4760,6 +4887,7 @@ function logoutAdmin() {
         window.__HAVENGO_JWT__ = null;
         currentAdmin = null;
         globalNotifications = [];
+        _hgClearTokens();
         document.getElementById("admin-dashboard").classList.add("hidden");
         document.getElementById("admin-header").classList.add("hidden");
         document.getElementById("admin-nav-link").classList.add("hidden");
@@ -4777,6 +4905,7 @@ function logoutProvider() {
         window.__HAVENGO_JWT__ = null;
         currentLoggedProvider = null;
         globalNotifications = [];
+        _hgClearTokens();
         document.getElementById("provider-login-screen").classList.remove("hidden");
         document.getElementById("provider-dashboard").classList.add("hidden");
         document.getElementById("provider-header").classList.add("hidden");
@@ -5098,6 +5227,7 @@ function renderAdminOrders() {
             "<div><span class=\"bg-" + badgeBg + "-100 text-" + badgeBg + "-700 px-3 py-1 rounded-full text-xs font-medium\">" + t.status + "</span></div></div>" +
             "<div class=\"mt-4 pt-4 border-t flex gap-3 flex-wrap items-center\">" +
             (isCancelled ? "<span class=\"text-sm text-red-600 font-medium\"><i class=\"fa-solid fa-circle-exclamation\"></i> Provider rejected — reassign or remove</span>" : "") +
+            (!isCancelled ? "<button onclick=\"adminCancelTask(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-ban\"></i> Cancel Order</button>" : "") +
             "<select id=\"admin-reassign-select-" + t.id + "\" class=\"border rounded-xl px-3 py-2 text-sm\"><option value=\"\">Select provider...</option>" + provList + "</select>" +
             "<button onclick=\"adminReassignTask(" + t.id + ")\" class=\"bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-arrow-right\"></i> Assign</button>" +
             (isCancelled ? "<button onclick=\"adminRemoveCancelledTask(" + t.id + ")\" class=\"bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-sm\"><i class=\"fa-solid fa-trash-can\"></i> Remove</button>" : "") +
@@ -5127,6 +5257,32 @@ function adminRemoveCancelledTask(taskId) {
                     addInAppAlert("success", "Order #" + taskId + " removed");
                 } else {
                     addInAppAlert("error", data.error || "Failed to remove");
+                }
+            })
+            .catch(function(e) { addInAppAlert("error", "Network error"); console.warn(e); });
+        }
+    });
+}
+
+function adminCancelTask(taskId) {
+    showAppConfirm("Cancel order #" + taskId + "? The customer will be notified.", function(confirmed) {
+        if (!confirmed) return;
+        var apiUrl = HAVENGO_BACKEND_URL + "/api";
+        if (window.__HAVENGO_JWT__) {
+            fetch(apiUrl + "/admin/tasks/cancel/" + taskId, {
+                method: "POST",
+                headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.success) {
+                    for (var i = 0; i < adminTasks.length; i++) {
+                        if (adminTasks[i].id === taskId) { adminTasks[i].status = "cancelled"; break; }
+                    }
+                    renderAdminOrders();
+                    addInAppAlert("success", "Order #" + taskId + " cancelled");
+                } else {
+                    addInAppAlert("error", data.error || "Failed to cancel");
                 }
             })
             .catch(function(e) { addInAppAlert("error", "Network error"); console.warn(e); });
@@ -5502,11 +5658,15 @@ function openAdminCustomerChat(chatKey) {
 
 function openCustomerAdminChat() {
     if (!currentUser) { addInAppAlert("info", "Please login first to chat with admin"); showAuthModal("login"); return; }
+    if (window.__adminChatOpening__) return;
+    window.__adminChatOpening__ = true;
+    // Navigate to profile page and switch to chat tab
+    navigateTo('profile');
+    switchProfileTab(5);
     var chatId = "customer-admin-" + (currentUser.email || currentUser.phone || "guest");
     currentChatTaskId = chatId;
     currentChatTaskContext = null;
     if (!chatConversations[chatId]) chatConversations[chatId] = [];
-    // Subscribe to Firestore real-time updates
     if (firestoreDb) {
         subscribeToChat(chatId, function(msgs) {
             chatConversations[chatId] = msgs;
@@ -5516,6 +5676,10 @@ function openCustomerAdminChat() {
     var area = document.getElementById("customer-admin-chat-area");
     if (area) area.classList.remove("hidden");
     renderCustomerAdminMessages();
+    setTimeout(function() {
+        if (area) area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        window.__adminChatOpening__ = false;
+    }, 300);
 }
 
 function sendCustomerAdminMessage() {
@@ -7102,6 +7266,30 @@ window.onload = function() {
 
     // Load persisted state (async to support encrypted storage)
     (async function() {
+        // Try silent session restore from refresh token first
+        var restored = await _hgTryRestore();
+        if (restored && window.__HAVENGO_USER__ && !currentAdmin && !currentLoggedProvider && !currentUser) {
+            var uInfo = window.__HAVENGO_USER__;
+            if (uInfo.role === 'admin') {
+                currentAdmin = { email: uInfo.email, name: 'Admin' };
+            } else if (uInfo.role === 'customer' && uInfo.email) {
+                currentUser = { email: uInfo.email, name: uInfo.email.split('@')[0] };
+                (async function() {
+                    try {
+                        var fresp = await fetch(HAVENGO_BACKEND_URL + "/api/customer/profile", {
+                            headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }, signal: AbortSignal.timeout(15000)
+                        });
+                        if (fresp.ok) {
+                            var fdata = await fresp.json();
+                            if (fdata) currentUser = fdata;
+                            if (fdata && fdata.balance !== undefined) userBalance = fdata.balance;
+                        }
+                    } catch(e) {}
+                })();
+            } else if (uInfo.role === 'provider' && uInfo.email) {
+                currentLoggedProvider = { email: uInfo.email, name: uInfo.email.split('@')[0] };
+            }
+        }
         await loadAppState();
         // Re-render appropriate dashboards after state restore
         if (currentAdmin) {

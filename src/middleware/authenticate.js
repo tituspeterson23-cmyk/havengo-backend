@@ -1,21 +1,28 @@
 const { verifyToken } = require('../auth');
+const jwt = require('jsonwebtoken');
 
-// Authenticate - verifies JWT token from Authorization header
 function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'No token provided' });
+    return res.status(401).json({ error: 'Authentication required' });
   }
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.slice(7);
   const decoded = verifyToken(token);
   if (!decoded) {
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    try {
+      jwt.verify(token, process.env.JWT_SECRET || 'havengo_ug_5^Kp#9mX$2vR!qLz@8wN&bYdEfGhIj');
+      return res.status(401).json({ error: 'Authentication required' });
+    } catch (e) {
+      if (e.name === 'TokenExpiredError') {
+        return res.status(401).json({ error: 'Token expired', code: 'TOKEN_EXPIRED' });
+      }
+      return res.status(401).json({ error: 'Authentication required' });
+    }
   }
   req.user = decoded;
   next();
 }
 
-// Admin only - must be called AFTER authenticate
 function adminOnly(req, res, next) {
   if (!req.user || req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Admin access required' });
@@ -23,7 +30,6 @@ function adminOnly(req, res, next) {
   next();
 }
 
-// Provider only - must be called AFTER authenticate
 function providerOnly(req, res, next) {
   if (!req.user || req.user.role !== 'provider') {
     return res.status(403).json({ error: 'Provider access required' });

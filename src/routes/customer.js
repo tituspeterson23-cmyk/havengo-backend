@@ -143,11 +143,25 @@ router.post('/confirm-payment', async (req, res) => {
 router.post('/deposit', async (req, res) => {
   const { amount } = req.body;
   const amt = parseFloat(amount);
-  if (isNaN(amt) || amt <= 0) return res.status(400).json({ error: 'Invalid amount' });
 
   const db = getDb();
-  await db.prepare('UPDATE users SET balance = balance + ? WHERE email = ?').run(amt, req.user.email);
-  res.json({ success: true, message: amt + ' UGX deposited' });
+
+  // Only allow setting balance to the initial test money (2M)
+  // This is a test/demo environment — no real deposits
+  const initialTestMoney = 2000000;
+  if (isNaN(amt) || amt !== initialTestMoney || amt <= 0) {
+    return res.status(400).json({ error: 'Only initial ' + initialTestMoney.toLocaleString() + ' UGX test money is available.' });
+  }
+
+  const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(req.user.email);
+  if (!user) return res.status(401).json({ session_expired: true, error: 'Session expired' });
+
+  if (user.balance >= initialTestMoney) {
+    return res.status(400).json({ error: 'You already have sufficient test funds.' });
+  }
+
+  await db.prepare('UPDATE users SET balance = ? WHERE email = ?').run(initialTestMoney, req.user.email);
+  res.json({ success: true, message: initialTestMoney.toLocaleString() + ' UGX test money deposited' });
 });
 
 router.post('/withdraw', async (req, res) => {

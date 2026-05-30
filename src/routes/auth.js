@@ -5,8 +5,19 @@ const { getDb } = require('../database');
 const { hashPassword, comparePassword, generateToken, sanitize, isValidEmail, isValidPhone } = require('../auth');
 const { sendVerificationEmail } = require('../mail');
 const { getFirebaseAuth, initFirebaseAdmin } = require('../firebase-admin');
+const { JwtHardener, AccountLockout, SessionManager } = require('../security');
 
-// GET /api/auth/check-phone — check if a phone/email is already registered
+const hardener = new JwtHardener();
+
+function getLockout() {
+  return new AccountLockout(getDb());
+}
+
+function getSessionManager() {
+  return new SessionManager(getDb());
+}
+
+// POST /api/auth/check-phone
 router.get('/check-phone', async (req, res) => {
   try {
     const identifier = req.query.identifier;
@@ -123,37 +134,56 @@ router.post('/login', async (req, res) => {
     }
 
     const db = getDb();
+    const lockout = getLockout();
+
+    // Check if account is locked
+    const locked = await lockout.isLocked(id);
+    if (locked) {
+      return res.status(429).json({ error: 'Account temporarily locked due to too many failed attempts. Try again later.' });
+    }
+
     const user = await db.prepare('SELECT * FROM users WHERE email = $1 OR phone = $2').get(id, id);
     if (!user) {
-      if (req.body.restoring && req.body.firstname && req.body.lastname && req.body.phone) {
-        const hash = await hashPassword(pw);
-        await db.prepare('DELETE FROM users WHERE email = $1').run(id);
-        await db.prepare('INSERT INTO users (firstname, lastname, email, phone, password_hash, bitmoji) VALUES ($1, $2, $3, $4, $5, $6)')
-          .run(sanitize(req.body.firstname), sanitize(req.body.lastname), id, sanitize(req.body.phone), hash, sanitize(req.body.bitmoji || '😊'));
-        const newUser = await db.prepare('SELECT * FROM users WHERE email = $1').get(id);
-        if (newUser) {
-          const token = generateToken({ email: newUser.email, role: 'customer', firstname: newUser.firstname });
-          return res.json({
-            success: true, token,
-            user: { firstname: newUser.firstname, lastname: newUser.lastname, email: newUser.email, phone: newUser.phone, bitmoji: newUser.bitmoji, balance: newUser.balance }
-          });
-        }
-      }
       return res.status(401).json({ user_not_found: true, error: 'Invalid credentials' });
     }
 
     if (!(await comparePassword(pw, user.password_hash))) {
+      await lockout.recordFailedAttempt(user.email);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    // Successful login — reset lockout and create session
+    await lockout.resetAttempts(user.email);
 
     const delReq = await db.prepare("SELECT id FROM deletion_requests WHERE identifier = $1 AND type = 'customer'").get(id);
     if (delReq) {
       await db.prepare('DELETE FROM deletion_requests WHERE id = $1').run(delReq.id);
     }
 
-    const token = generateToken({ email: user.email, role: 'customer', firstname: user.firstname });
+    const accessToken = hardener.signAccessToken(
+      { userId: user.id, email: user.email, role: 'customer' },
+      null
+    );
+    const refreshToken = hardener.generateRefreshToken();
+
+    // Create session in DB
+    const sm = getSessionManager();
+    await sm.createSession({
+      userId: user.id,
+      email: user.email,
+      role: 'customer',
+      tokenHash: refreshToken.tokenHash,
+      deviceInfo: req.headers['user-agent'] ? { ua: req.headers['user-agent'] } : {},
+      ip: req.ip,
+      fingerprint: '',
+      expiresAt: refreshToken.expiresAt
+    });
+
     res.json({
-      success: true, token,
+      success: true,
+      token: accessToken,
+      accessToken,
+      refreshToken: refreshToken.rawToken,
       user: { firstname: user.firstname, lastname: user.lastname, email: user.email, phone: user.phone, bitmoji: user.bitmoji, balance: user.balance }
     });
   } catch (e) {
@@ -187,15 +217,39 @@ router.post('/admin/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid admin credentials' });
     }
 
-    const token = generateToken({ email: adminEmail, role: 'admin' });
-    res.json({ success: true, token, admin: { name: 'Admin', email: adminEmail } });
+    const accessToken = hardener.signAccessToken(
+      { userId: 0, email: adminEmail, role: 'admin' },
+      null
+    );
+    const refreshToken = hardener.generateRefreshToken();
+
+    // Create admin session
+    const sm = getSessionManager();
+    await sm.createSession({
+      userId: 0,
+      email: adminEmail,
+      role: 'admin',
+      tokenHash: refreshToken.tokenHash,
+      deviceInfo: {},
+      ip: req.ip,
+      fingerprint: '',
+      expiresAt: refreshToken.expiresAt
+    });
+
+    res.json({
+      success: true,
+      token: accessToken,
+      accessToken,
+      refreshToken: refreshToken.rawToken,
+      admin: { name: 'Admin', email: adminEmail }
+    });
   } catch (e) {
     console.error('Admin login error:', e);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// POST /api/auth/firebase-login — sign in to Firebase with email/password (for real-time chat)
+// POST /api/auth/firebase-login
 router.post('/firebase-login', async (req, res) => {
   try {
     const fbAuth = getFirebaseAuth();
@@ -207,10 +261,8 @@ router.post('/firebase-login', async (req, res) => {
       return res.status(400).json({ error: 'email required' });
     }
 
-    // Generate a random password for this session
     const password = Math.random().toString(36).slice(2, 14) + 'A1!';
 
-    // Check if Firebase Auth user exists, create if not, update password
     try {
       const userRecord = await fbAuth.getUserByEmail(email);
       await fbAuth.updateUser(userRecord.uid, { password });

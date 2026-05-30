@@ -379,6 +379,34 @@ async function initDatabase() {
   // Add is_subscription_order flag for priority handling
   await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS is_subscription_order BOOLEAN DEFAULT false").catch(function(e) { /* column may already exist */ });
 
+  // Session persistence table for refresh tokens
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sessions (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      email TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'customer',
+      token_hash TEXT NOT NULL,
+      device_info TEXT,
+      ip TEXT,
+      fingerprint TEXT DEFAULT '',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      last_activity TIMESTAMPTZ DEFAULT NOW(),
+      expires_at TIMESTAMPTZ NOT NULL,
+      revoked INTEGER DEFAULT 0,
+      revoked_at TIMESTAMPTZ
+    )
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token_hash)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at)');
+
+  // Account lockout columns
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_attempts INTEGER DEFAULT 0").catch(function(e) {});
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ").catch(function(e) {});
+  await pool.query("ALTER TABLE providers ADD COLUMN IF NOT EXISTS failed_attempts INTEGER DEFAULT 0").catch(function(e) {});
+  await pool.query("ALTER TABLE providers ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ").catch(function(e) {});
+
   // Seed admin if not exists
   const adminCheck = await pool.query("SELECT id FROM admin_settings WHERE key = 'admin_initialized'");
   if (adminCheck.rows.length === 0) {

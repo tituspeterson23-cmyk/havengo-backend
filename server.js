@@ -42,6 +42,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/auth', require('./src/routes/auth'));
+app.use('/api/auth', require('./src/routes/auth-refresh')());
 app.use('/api/admin', require('./src/routes/admin'));
 app.use('/api/provider', require('./src/routes/provider'));
 app.use('/api/customer', require('./src/routes/customer'));
