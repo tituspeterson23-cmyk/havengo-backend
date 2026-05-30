@@ -6354,6 +6354,7 @@ function checkAutoPayment() {
 // ============================================================
 
 var _notifHash = "";
+var _notifInitialFetch = false;
 async function fetchBackendNotifications() {
     var jwt = window.__HAVENGO_JWT__;
     if (!jwt) return;
@@ -6373,12 +6374,19 @@ async function fetchBackendNotifications() {
             var notifs = await resp.json();
             var newHash = JSON.stringify(notifs);
             if (newHash === _notifHash) return;
+            var showPopups = _notifInitialFetch;
             _notifHash = newHash;
+            _notifInitialFetch = true;
             for (var ni = 0; ni < notifs.length; ni++) {
                 var n = notifs[ni];
                 var exists = globalNotifications.some(function(gn) { return gn.notifId === n.id; });
                 if (!exists) {
                     addNotification(n.icon || "\uD83D\uDCE2", n.title || "Notification", n.message || "", n.id);
+                    if (showPopups) {
+                        var alertMsg = (n.icon || "") + " " + (n.title || "Notification");
+                        if (n.message) alertMsg += ": " + n.message;
+                        addInAppAlert("info", alertMsg);
+                    }
                 }
             }
         }
