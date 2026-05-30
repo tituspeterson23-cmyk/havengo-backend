@@ -1,0 +1,37 @@
+Security Fixes Applied to HavenGo Backend
+========================================
+
+Date: $(Get-Date -Format yyyy-MM-dd)
+
+Vulnerabilities Addressed:
+- High Severity: Nodemailer (email library)
+  * Fixed by upgrading from ^6.10.1 to ^8.0.9
+  * Addressed: Email to unintended domain, DoS via recursive calls, SMTP command injection
+
+Remaining Vulnerabilities (8 moderate):
+- All related to uuid library in transitive dependencies of:
+  * @google-cloud/storage
+  * gaxios
+  * google-gax
+  * teeny-request
+  * retry-request
+  * firebase-admin (indirectly)
+
+These remain because fixing them would require upgrading firebase-admin to 10.3.0, which is a breaking change and may affect the application's functionality with Firebase services.
+
+Current Package Versions:
+- bcryptjs: ^2.4.3
+- cors: ^2.8.5
+- dotenv: ^16.4.5
+- express: ^4.21.0
+- express-async-errors: ^3.1.1
+- express-rate-limit: ^7.4.0
+- firebase-admin: ^13.10.0 (kept at current version to avoid breaking changes)
+- helmet: ^7.1.0
+- jsonwebtoken: ^9.0.2
+- nodemailer: ^8.0.9 (upgraded from ^6.10.1)
+- pg: ^8.21.0
+- sql.js: ^1.14.1
+- uuid: ^14.0.0 (upgraded from ^10.0.0)
+
+Application functionality should be preserved with these updates.
