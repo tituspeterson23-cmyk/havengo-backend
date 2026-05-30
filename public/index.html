@@ -586,10 +586,11 @@
     <button onclick="switchProfileTab(6)" class="profile-tab px-4 py-3 text-gray-500 text-xs flex items-center gap-1.5 shrink-0"><i class="fa-solid fa-crown"></i>Subscription</button>
 </div>
 <div id="profile-tab-0" class="profile-tab-content mt-8">
-<div class="grid md:grid-cols-3 gap-5">
+<div class="grid md:grid-cols-4 gap-5">
 <div class="bg-gradient-to-br from-blue-50 to-white rounded-2xl p-6 border border-blue-100 hover:shadow-md transition-shadow"><div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center"><i class="fa-solid fa-receipt text-blue-600"></i></div><p class="text-gray-500 text-sm">Orders</p></div><h3 class="text-3xl font-bold" id="profile-order-count">0</h3></div>
 <div class="bg-gradient-to-br from-pink-50 to-white rounded-2xl p-6 border border-pink-100 hover:shadow-md transition-shadow"><div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 bg-pink-100 rounded-xl flex items-center justify-center"><i class="fa-solid fa-heart text-pink-600"></i></div><p class="text-gray-500 text-sm">Favorites</p></div><h3 class="text-3xl font-bold" id="profile-favorite-providers-count">0</h3></div>
 <div class="bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-6 border border-emerald-100 hover:shadow-md transition-shadow"><div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center"><i class="fa-solid fa-coins text-emerald-600"></i></div><p class="text-gray-500 text-sm">Balance</p></div><h3 class="text-3xl font-bold text-emerald-600" id="profile-balance-display">2,000,000 UGX</h3></div>
+<div class="bg-gradient-to-br from-yellow-50 to-white rounded-2xl p-6 border border-yellow-100 hover:shadow-md transition-shadow"><div class="flex items-center gap-3 mb-3"><div class="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center"><i class="fa-solid fa-star text-yellow-600"></i></div><p class="text-gray-500 text-sm">Points</p></div><h3 class="text-3xl font-bold text-yellow-600" id="profile-points-count">0</h3></div>
 </div>
 <div class="mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 text-sm text-blue-700 flex items-center gap-3"><i class="fa-solid fa-circle-info text-blue-500 text-lg"></i> Money deposited can be withdrawn at any time unless there's a pending order.</div>
 <div class="mt-8 bg-white rounded-3xl p-6 shadow-sm border border-gray-100"><h3 class="font-semibold mb-4 flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-emerald-500"></i> Recent Activity</h3><div id="recent-activity-list" class="space-y-4 text-sm"></div></div>
@@ -634,10 +635,10 @@
 </div>
 <div id="profile-tab-6" class="profile-tab-content hidden mt-8">
     <div id="subscription-container">
-        <div class="bg-gradient-to-br from-amber-50 to-white rounded-3xl p-6 shadow-sm border border-amber-100">
-            <div class="flex items-center gap-3 mb-4"><div class="w-12 h-12 bg-amber-100 rounded-2xl flex items-center justify-center text-2xl"><i class="fa-solid fa-crown text-amber-600"></i></div><div><h3 class="font-semibold text-lg">HavenGo Subscription</h3><p class="text-sm text-gray-500">Enjoy exclusive perks and discounts every month.</p></div></div>
+        <div class="bg-gradient-to-br from-violet-50 to-white rounded-3xl p-6 shadow-sm border border-violet-100">
+            <div class="flex items-center gap-3 mb-4"><div class="w-12 h-12 bg-violet-100 rounded-2xl flex items-center justify-center text-2xl"><i class="fa-solid fa-crown text-violet-600"></i></div><div><h3 class="font-semibold text-lg">Subscriptions & Rewards</h3><p class="text-sm text-gray-500">Manage your monthly subscriptions and redeem loyalty points for gifts.</p></div></div>
             <div id="subscription-status" class="mb-6"></div>
-            <div id="subscription-plans" class="grid md:grid-cols-3 gap-4"></div>
+            <div id="subscription-plans"></div>
         </div>
     </div>
 </div>
@@ -683,12 +684,13 @@
         </div>
     </div>
     <div id="admin-dashboard" class="hidden">
-        <div class="grid md:grid-cols-5 gap-4 mb-8">
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
             <div class="bg-white rounded-2xl p-5 shadow"><p class="text-gray-500 text-sm">Total Providers</p><p id="admin-providers-count" class="text-3xl font-bold mt-1">0</p></div>
+            <div class="bg-white rounded-2xl p-5 shadow"><p class="text-gray-500 text-sm">Total Customers</p><p id="admin-customers-count" class="text-3xl font-bold mt-1 text-blue-600">0</p></div>
             <div class="bg-white rounded-2xl p-5 shadow"><p class="text-gray-500 text-sm">Pending Verification</p><p id="admin-pending-count" class="text-3xl font-bold mt-1 text-amber-600">0</p></div>
+            <div class="bg-white rounded-2xl p-5 shadow"><p class="text-gray-500 text-sm">Active Subscriptions</p><p id="admin-subs-count" class="text-3xl font-bold mt-1 text-violet-600">0</p></div>
             <div class="bg-white rounded-2xl p-5 shadow"><p class="text-gray-500 text-sm">System Revenue (15%)</p><p id="admin-revenue" class="text-3xl font-bold mt-1 text-emerald-600">0 UGX</p></div>
-            <div class="bg-white rounded-2xl p-5 shadow"><p class="text-gray-500 text-sm">Price Change Requests</p><p id="admin-price-requests" class="text-3xl font-bold mt-1 text-blue-600">0</p></div>
-            <div class="bg-white rounded-2xl p-5 shadow"><p class="text-gray-500 text-sm">Available Balance</p><p id="admin-available-balance" class="text-3xl font-bold mt-1 text-amber-600">0 UGX</p><button onclick="showAdminWithdraw()" id="admin-withdraw-btn" class="mt-2 text-sm bg-amber-600 text-white px-3 py-1 rounded-full hover:bg-amber-700"><i class="fa-solid fa-hand-holding-dollar"></i> Withdraw</button></div>
+            <div class="bg-white rounded-2xl p-5 shadow"><p class="text-gray-500 text-sm">Price Requests</p><p id="admin-price-requests" class="text-3xl font-bold mt-1 text-blue-600">0</p></div>
         </div>
         <div class="flex gap-4 mb-6 border-b flex-wrap">
             <button onclick="switchAdminTab(0)" id="admin-tab-0" class="admin-tab px-6 py-3 border-b-2 border-amber-600 font-medium">Providers</button>
@@ -697,6 +699,7 @@
             <button onclick="switchAdminTab(3)" id="admin-tab-3" class="admin-tab px-6 py-3 text-gray-500">Revenue</button>
             <button onclick="switchAdminTab(4)" id="admin-tab-4" class="admin-tab px-6 py-3 text-gray-500">Chat</button>
             <button onclick="switchAdminTab(5)" id="admin-tab-5" class="admin-tab px-6 py-3 text-gray-500">Orders</button>
+            <button onclick="switchAdminTab(6)" id="admin-tab-6" class="admin-tab px-6 py-3 text-gray-500">Subscriptions</button>
         </div>
         <div id="admin-content-0" class="admin-content"><div id="admin-providers-list" class="space-y-4"></div></div>
         <div id="admin-content-1" class="admin-content hidden"><div id="admin-verification-list" class="space-y-4"></div></div>
@@ -706,6 +709,7 @@
             <div class="bg-white rounded-3xl p-6"><h3 class="font-semibold mb-4">Chat with Providers</h3><div id="admin-chat-list" class="space-y-3"></div></div>
         </div>
         <div id="admin-content-5" class="admin-content hidden"><div id="admin-orders-list" class="space-y-4"></div></div>
+        <div id="admin-content-6" class="admin-content hidden"><div id="admin-subscriptions-list" class="space-y-4"></div></div>
     </div>
 </div></div>
 
@@ -774,6 +778,17 @@
 <div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-pencil text-emerald-500"></i>Special Instructions</label><textarea id="special-instructions" rows="3" placeholder="Anything the provider should know..." class="w-full mt-2 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100 transition-all"></textarea></div>
 <div class="flex gap-4 pt-2"><button type="button" onclick="closeModal('checkout-modal')" class="flex-1 border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 py-3.5 rounded-2xl font-semibold text-gray-600 transition-all">Cancel</button><button type="submit" class="flex-1 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white py-3.5 rounded-2xl font-semibold shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-circle-check mr-1"></i> Order Now</button></div>
 </form></div></div>
+
+<div id="subscribe-modal" class="hidden fixed inset-0 z-[65] flex items-center justify-center bg-black/60 backdrop-blur-sm modal p-5">
+<div class="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl">
+    <div class="hero-gradient text-white p-6 relative overflow-hidden"><div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-8 -mt-8"></div><div class="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-6 -mb-6"></div><h2 class="text-3xl font-bold relative z-10"><i class="fa-solid fa-calendar-check mr-2"></i>Monthly Subscription</h2><p class="text-gray-200 relative z-10" id="sub-modal-service-type">Subscribe to a service</p></div>
+    <div class="p-8 space-y-5">
+        <div class="bg-gradient-to-br from-violet-50 to-white rounded-2xl p-5 border border-violet-100"><label class="font-medium text-violet-800 text-sm flex items-center gap-2"><i class="fa-solid fa-tag text-violet-500"></i>Service</label><div id="sub-modal-service" class="mt-2 font-semibold"></div></div>
+        <div class="bg-gradient-to-br from-amber-50 to-white rounded-2xl p-5 border border-amber-100"><label class="font-medium text-amber-800 text-sm flex items-center gap-2"><i class="fa-solid fa-coins text-amber-500"></i>Monthly Price</label><div id="sub-modal-price" class="mt-1 text-2xl font-bold text-violet-600"></div><p class="text-xs text-gray-500 mt-1">Billed once per month. Cancel anytime.</p></div>
+        <div class="bg-gradient-to-br from-emerald-50 to-white rounded-2xl p-4 border border-emerald-100"><div class="flex items-center gap-3"><i class="fa-solid fa-gift text-emerald-500 text-xl"></i><div><p class="text-sm font-medium text-emerald-800">Subscription Perks</p><p class="text-xs text-emerald-600">10% discount on every booking of this service</p></div></div></div>
+        <div class="flex gap-4 pt-2"><button type="button" onclick="closeModal('subscribe-modal')" class="flex-1 border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 py-3.5 rounded-2xl font-semibold text-gray-600 transition-all">Cancel</button><button id="sub-confirm-btn" onclick="confirmSubscription()" class="flex-1 bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-700 hover:to-violet-600 text-white py-3.5 rounded-2xl font-semibold shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-circle-check mr-1"></i> Subscribe Now</button></div>
+    </div>
+</div></div>
 
 <div id="chat-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
     <div class="bg-white w-full chat-modal rounded-3xl overflow-hidden shadow-2xl flex flex-col" style="height:85vh;max-height:620px;">
@@ -1162,6 +1177,7 @@ let deletionRequests = [];
 let adminTasks = [];
 let currentAdmin = null;
 let adminRevenueData = null;
+let adminSubscriptions = [];
 
 // Customer ratings for providers
 let userRatings = [];
@@ -2743,6 +2759,8 @@ function renderProfilePage() {
     if (balanceDisplay) balanceDisplay.textContent = userBalance.toLocaleString() + " UGX";
     if (accountBalance) accountBalance.textContent = userBalance.toLocaleString() + " UGX";
     if (providersCount) providersCount.textContent = favoriteProviders.length;
+    var pointsCount = document.getElementById("profile-points-count");
+    if (pointsCount) pointsCount.textContent = userLoyaltyPoints;
 
     renderRecentActivity();
     renderPaymentMethods();
@@ -2976,38 +2994,131 @@ function removeAddress(id) {
 // SUBSCRIPTION PLANS
 // ============================================================
 
-var subscriptionPlans = [
-    { id: "basic", name: "Basic", price: 0, icon: "fa-solid fa-leaf", color: "emerald", perks: ["Standard service access", "Email support", "Pay-per-use pricing"] },
-    { id: "premium", name: "Premium", price: 50000, icon: "fa-solid fa-crown", color: "amber", perks: ["10% discount on all services", "Priority support (chat)", "Free pickup & delivery", "Monthly free cleaning sesh (1hr)"] },
-    { id: "pro", name: "Pro", price: 120000, icon: "fa-solid fa-gem", color: "violet", perks: ["20% discount on all services", "24/7 priority support", "Free pickup & delivery", "2 free monthly services", "Dedicated account manager", "Early access to new services"] }
-];
+// ============================================================
+// SUBSCRIPTION STATE (with backend fallback)
+// ============================================================
 
-var userSubscription = localStorage.getItem("havengo_subscription") || "basic";
+var userSubscriptions = []; // from backend
+var userLoyaltyPoints = 0;
+var availableGifts = [];
+var userRedemptions = [];
 
-function selectSubscription(planId) {
-    if (!currentUser) { addInAppAlert("info", "Please login first to select a subscription"); showAuthModal("login"); return; }
-    var plan = null;
-    for (var i = 0; i < subscriptionPlans.length; i++) {
-        if (subscriptionPlans[i].id === planId) { plan = subscriptionPlans[i]; break; }
+function showSubscribeModal(serviceId, serviceName, basePrice) {
+    if (!window.__HAVENGO_JWT__ || !currentUser) { addInAppAlert("info", "Please login first to subscribe"); showAuthModal("login"); return; }
+    var monthlyPrice = Math.round(basePrice * 0.9); // 10% discount for subscribing
+    document.getElementById("sub-modal-service").textContent = serviceName;
+    document.getElementById("sub-modal-price").innerHTML = "UGX " + monthlyPrice.toLocaleString() + " <span class=\"text-xs font-normal text-gray-500\">(10% off)</span>";
+    document.getElementById("sub-modal-service-type").textContent = "Monthly subscription for " + serviceName;
+    document.getElementById("sub-confirm-btn").dataset.serviceId = serviceId;
+    document.getElementById("sub-confirm-btn").dataset.serviceName = serviceName;
+    document.getElementById("sub-confirm-btn").dataset.amount = monthlyPrice;
+    document.getElementById("subscribe-modal").classList.remove("hidden");
+}
+
+async function confirmSubscription() {
+    var btn = document.getElementById("sub-confirm-btn");
+    var serviceId = btn.dataset.serviceId;
+    var serviceName = btn.dataset.serviceName;
+    var amount = parseFloat(btn.dataset.amount);
+    if (!serviceId || !serviceName || !amount) return;
+    closeModal("subscribe-modal");
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    if (window.__HAVENGO_BACKEND__ && window.__HAVENGO_JWT__) {
+        try {
+            var resp = await fetch(apiUrl + "/customer/subscriptions/create", {
+                method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + window.__HAVENGO_JWT__ },
+                body: JSON.stringify({ serviceId: serviceId, serviceName: serviceName, amount: amount, discountPercent: 10 })
+            });
+            var data = await resp.json();
+            if (data.success) {
+                addInAppAlert("success", data.message);
+                userBalance -= amount;
+                updateProfileWithUser();
+                fetchUserSubscriptions();
+            } else {
+                addInAppAlert("error", data.error || "Subscription failed");
+            }
+        } catch(e) {
+            addInAppAlert("error", "Backend unreachable. Please try again.");
+        }
+    } else {
+        addInAppAlert("info", "Please login to subscribe");
+        showAuthModal("login");
     }
-    if (!plan) return;
-    if (planId === "basic") {
-        userSubscription = "basic";
-        localStorage.setItem("havengo_subscription", "basic");
-        addInAppAlert("success", "Downgraded to Basic plan");
-        renderSubscriptionPlans();
-        return;
+}
+
+async function cancelSubscription(subId) {
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    if (window.__HAVENGO_BACKEND__ && window.__HAVENGO_JWT__) {
+        try {
+            var resp = await fetch(apiUrl + "/customer/subscriptions/cancel", {
+                method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + window.__HAVENGO_JWT__ },
+                body: JSON.stringify({ id: subId })
+            });
+            var data = await resp.json();
+            if (data.success) { addInAppAlert("success", data.message); fetchUserSubscriptions(); }
+            else addInAppAlert("error", data.error);
+        } catch(e) { addInAppAlert("error", "Backend unreachable"); }
     }
-    // For paid plans, simulate payment
-    if (userBalance < plan.price) {
-        addInAppAlert("error", "Insufficient balance. Please deposit at least UGX " + plan.price.toLocaleString());
-        return;
-    }
-    userSubscription = planId;
-    localStorage.setItem("havengo_subscription", planId);
-    addInAppAlert("success", "Upgraded to " + plan.name + " plan! Enjoy your perks.");
-    updateProfileWithUser();
-    renderSubscriptionPlans();
+}
+
+async function fetchUserSubscriptions() {
+    if (!window.__HAVENGO_JWT__ || !currentUser) return;
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    if (!window.__HAVENGO_BACKEND__) return;
+    try {
+        var resp = await fetch(apiUrl + "/customer/subscriptions", {
+            headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }
+        });
+        if (resp.ok) userSubscriptions = await resp.json();
+    } catch(e) { /* silent fallback */ }
+}
+
+async function fetchLoyaltyPoints() {
+    if (!window.__HAVENGO_JWT__ || !currentUser) return;
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    if (!window.__HAVENGO_BACKEND__) return;
+    try {
+        var resp = await fetch(apiUrl + "/customer/loyalty-points", {
+            headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }
+        });
+        if (resp.ok) { var d = await resp.json(); userLoyaltyPoints = d.points || 0; }
+    } catch(e) { /* silent */ }
+}
+
+async function fetchAvailableGifts() {
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    if (!window.__HAVENGO_BACKEND__) return;
+    try {
+        var resp = await fetch(apiUrl + "/customer/gifts");
+        if (resp.ok) availableGifts = await resp.json();
+    } catch(e) { /* silent */ }
+}
+
+async function fetchUserRedemptions() {
+    if (!window.__HAVENGO_JWT__ || !currentUser) return;
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    if (!window.__HAVENGO_BACKEND__) return;
+    try {
+        var resp = await fetch(apiUrl + "/customer/redemptions", {
+            headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }
+        });
+        if (resp.ok) userRedemptions = await resp.json();
+    } catch(e) { /* silent */ }
+}
+
+async function redeemGift(giftId) {
+    if (!window.__HAVENGO_JWT__ || !currentUser) { addInAppAlert("info", "Please login"); return; }
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    try {
+        var resp = await fetch(apiUrl + "/customer/redeem-gift", {
+            method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + window.__HAVENGO_JWT__ },
+            body: JSON.stringify({ giftId: giftId })
+        });
+        var data = await resp.json();
+        if (data.success) { addInAppAlert("success", data.message); fetchLoyaltyPoints(); fetchAvailableGifts(); fetchUserRedemptions(); renderSubscriptionPlans(); }
+        else addInAppAlert("error", data.error);
+    } catch(e) { addInAppAlert("error", "Backend unreachable"); }
 }
 
 function renderSubscriptionPlans() {
@@ -3015,36 +3126,62 @@ function renderSubscriptionPlans() {
     var statusEl = document.getElementById("subscription-status");
     if (!container) return;
     var html = "";
-    for (var i = 0; i < subscriptionPlans.length; i++) {
-        var p = subscriptionPlans[i];
-        var isActive = userSubscription === p.id;
-        var borderColor = isActive ? "border-" + p.color + "-500 ring-2 ring-" + p.color + "-200" : "border-gray-200";
-        var bgColor = isActive ? "bg-" + p.color + "-50" : "bg-white";
-        var buttonText = isActive ? "Current Plan" : (p.price === 0 ? "Free" : "UGX " + p.price.toLocaleString() + "/mo");
-        var buttonClass = isActive ? "bg-gray-200 text-gray-600 cursor-default" : "bg-gradient-to-r from-" + p.color + "-600 to-" + p.color + "-500 hover:from-" + p.color + "-700 hover:to-" + p.color + "-600 text-white";
-        var perksHtml = "";
-        for (var j = 0; j < p.perks.length; j++) {
-            perksHtml += "<li class=\"flex items-start gap-2 text-sm text-gray-600\"><i class=\"fa-solid fa-check text-" + p.color + "-500 mt-0.5\"></i>" + p.perks[j] + "</li>";
+
+    // Section 1: Active Subscriptions
+    html += "<div class=\"mb-8\"><h4 class=\"font-semibold text-lg flex items-center gap-2 mb-4\"><i class=\"fa-solid fa-calendar-check text-violet-500\"></i>Your Active Subscriptions</h4>";
+    if (userSubscriptions.length === 0) {
+        html += "<div class=\"text-center text-gray-400 py-6 bg-white rounded-2xl border border-dashed border-gray-200\"><i class=\"fa-solid fa-calendar-plus text-3xl mb-2\"></i><p class=\"text-sm\">No active subscriptions. Tap 'Subscribe' on any service card to start.</p></div>";
+    } else {
+        for (var si = 0; si < userSubscriptions.length; si++) {
+            var sub = userSubscriptions[si];
+            var subEmoji = serviceEmojis[sub.service_id] || "\uD83D\uDCCB";
+            html += "<div class=\"flex items-center justify-between bg-white rounded-2xl p-4 border border-gray-100 hover:shadow-md transition-all\"><div class=\"flex items-center gap-3\"><span class=\"text-2xl\">" + subEmoji + "</span><div><p class=\"font-medium text-sm\">" + sub.service_name + "</p><p class=\"text-xs text-gray-500\">UGX " + sub.amount.toLocaleString() + "/mo</p></div></div><button onclick=\"cancelSubscription(" + sub.id + ")\" class=\"text-xs text-red-500 hover:text-red-700 font-medium\">Cancel</button></div>";
         }
-        html += "<div class=\"" + bgColor + " rounded-2xl p-5 border " + borderColor + " transition-all hover:shadow-md " + (isActive ? "" : "hover:border-" + p.color + "-300") + "\">" +
-            "<div class=\"flex items-center gap-3 mb-3\"><div class=\"w-10 h-10 rounded-xl bg-" + p.color + "-100 flex items-center justify-center text-lg\"><i class=\"" + p.icon + " text-" + p.color + "-600\"></i></div>" +
-            "<div><h4 class=\"font-bold\">" + p.name + "</h4><p class=\"text-xs text-gray-500\">" + (p.price === 0 ? "Free" : "UGX " + p.price.toLocaleString() + "/month") + "</p></div></div>" +
-            "<ul class=\"space-y-1.5 mb-4\">" + perksHtml + "</ul>" +
-            "<button onclick=\"selectSubscription('" + p.id + "')\" class=\"w-full py-2.5 rounded-xl text-sm font-medium transition-all " + buttonClass + "\">" + buttonText + "</button></div>";
     }
+    html += "</div>";
+
+    // Section 2: Loyalty Points
+    html += "<div class=\"mb-8\"><h4 class=\"font-semibold text-lg flex items-center gap-2 mb-4\"><i class=\"fa-solid fa-star text-yellow-500\"></i>Loyalty Rewards</h4>";
+    html += "<div class=\"bg-gradient-to-br from-yellow-50 to-white rounded-2xl p-6 border border-yellow-100 text-center\">" +
+        "<div class=\"text-4xl mb-2\">\uD83C\uDFC6</div>" +
+        "<p class=\"text-3xl font-bold text-yellow-600\">" + userLoyaltyPoints + "</p>" +
+        "<p class=\"text-sm text-gray-500\">Loyalty Points</p>" +
+        "<p class=\"text-xs text-gray-400 mt-2\">Earn 10 points for every 100,000 UGX spent</p></div>";
+    html += "</div>";
+
+    // Section 3: Available Gifts
+    html += "<div class=\"mb-8\"><h4 class=\"font-semibold text-lg flex items-center gap-2 mb-4\"><i class=\"fa-solid fa-gift text-pink-500\"></i>Redeem Gifts</h4>";
+    if (availableGifts.length === 0) {
+        html += "<div class=\"text-center text-gray-400 py-6\"><p class=\"text-sm\">No gifts available yet.</p></div>";
+    } else {
+        html += "<div class=\"grid md:grid-cols-2 gap-4\">";
+        for (var gi = 0; gi < availableGifts.length; gi++) {
+            var g = availableGifts[gi];
+            var canAfford = userLoyaltyPoints >= g.points_required;
+            var btnClass = canAfford ? "bg-gradient-to-r from-pink-600 to-pink-500 hover:from-pink-700 hover:to-pink-600 text-white" : "bg-gray-200 text-gray-400 cursor-not-allowed";
+            var pointsClass = canAfford ? "text-emerald-600" : "text-red-400";
+            html += "<div class=\"bg-white rounded-2xl p-4 border border-gray-100 hover:shadow-md transition-all\">" +
+                "<div class=\"flex items-center gap-3 mb-3\"><div class=\"w-12 h-12 bg-pink-100 rounded-2xl flex items-center justify-center text-2xl\">\uD83C\uDF81</div><div><p class=\"font-semibold text-sm\">" + g.name + "</p><p class=\"text-xs text-gray-500\">" + g.description + "</p></div></div>" +
+                "<div class=\"flex items-center justify-between\"><span class=\"text-xs font-medium " + pointsClass + "\">" + g.points_required + " points</span>" +
+                "<button onclick=\"redeemGift(" + g.id + ")\" class=\"text-xs px-4 py-2 rounded-xl font-medium transition-all " + btnClass + "\">" + (canAfford ? "Redeem" : "Not enough") + "</button></div></div>";
+        }
+        html += "</div>";
+    }
+    html += "</div>";
+
+    // Section 4: Redemption History
+    if (userRedemptions.length > 0) {
+        html += "<div class=\"mb-8\"><h4 class=\"font-semibold text-lg flex items-center gap-2 mb-4\"><i class=\"fa-solid fa-clock-rotate-left text-gray-500\"></i>Redemption History</h4>";
+        for (var ri = 0; ri < userRedemptions.length; ri++) {
+            var rd = userRedemptions[ri];
+            html += "<div class=\"flex items-center justify-between bg-white rounded-2xl p-4 border border-gray-100\"><div><p class=\"font-medium text-sm\">" + rd.gift_name + "</p><p class=\"text-xs text-gray-500\">" + new Date(rd.redeemed_at).toLocaleDateString() + "</p></div><span class=\"text-xs font-medium text-violet-600\">-" + rd.points_spent + " pts</span></div>";
+        }
+        html += "</div>";
+    }
+
     container.innerHTML = html;
     if (statusEl) {
-        var activePlan = null;
-        for (var i = 0; i < subscriptionPlans.length; i++) {
-            if (subscriptionPlans[i].id === userSubscription) { activePlan = subscriptionPlans[i]; break; }
-        }
-        if (activePlan) {
-            var discountNote = "";
-            if (activePlan.id === "premium") discountNote = "You save 10% on every booking!";
-            else if (activePlan.id === "pro") discountNote = "You save 20% on every booking!";
-            else discountNote = "Upgrade to save on every booking.";
-            statusEl.innerHTML = "<div class=\"flex items-center justify-between bg-white rounded-2xl p-4 border border-gray-100\"><div><p class=\"font-medium\">Current Plan: <span class=\"text-" + activePlan.color + "-600\">" + activePlan.name + "</span></p><p class=\"text-sm text-gray-500\">" + discountNote + "</p></div><div class=\"text-2xl\"><i class=\"fa-solid fa-" + (activePlan.id === "basic" ? "leaf" : activePlan.id === "premium" ? "crown" : "gem") + " text-" + activePlan.color + "-500\"></i></div></div>";
-        }
+        statusEl.innerHTML = "<div class=\"flex items-center gap-3 text-sm text-gray-600\"><i class=\"fa-solid fa-circle-info text-violet-500\"></i>Subscribe to any service monthly and earn loyalty points with every payment.</div>";
     }
 }
 
@@ -3066,7 +3203,7 @@ var serviceMeta = {
     event: { image: "https://images.unsplash.com/photo-1511795409834-ef04bbd61622?w=1200", desc: "Tents, plastic & executive chairs, sound systems, PA setups for your events.", badge: "Events", badgeColor: "bg-indigo-100 text-indigo-700" },
     auto: { image: "https://images.unsplash.com/photo-1581235720704-06d3acfcb36f?w=1200", desc: "Professional car washing and detailing at your home or office.", badge: "Vehicle", badgeColor: "bg-cyan-100 text-cyan-700" },
     laundry: { image: "https://images.unsplash.com/photo-1610557892470-55d9e80c0bce?w=1200", desc: "Professional laundry, dry cleaning and ironing services with free pickup & delivery within Kampala.", badge: "Fresh", badgeColor: "bg-sky-100 text-sky-700" },
-    water: { image: "https://images.unsplash.com/photo-1564936281297-1f5c0e23f044?w=1200", desc: "Safe, clean drinking water delivered to your doorstep. 20L jerrycans, express options available.", badge: "Essential", badgeColor: "bg-blue-100 text-blue-700" }
+    water: { image: "https://images.unsplash.com/photo-1544396821-4dd40b938ad3?w=1200", desc: "Safe, clean drinking water delivered to your doorstep. 20L jerrycans, express options available.", badge: "Essential", badgeColor: "bg-blue-100 text-blue-700" }
 };
 
 function renderServices() {
@@ -3092,21 +3229,30 @@ function renderServices() {
             for (var si = fullStars; si < 5; si++) starsStr += "\u2606";
             stars = starsStr;
         }
-        html += "<div class=\"service-card bg-white rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 animate-fadeIn\">" +
-            "<img src=\"" + meta.image + "\" class=\"h-52 w-full object-cover\" alt=\"" + s.name + "\" loading=\"lazy\">" +
+        var subBtnText = "Subscribe";
+        var subBtnClass = "bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-700 hover:to-violet-600";
+        var catEmoji = serviceEmojis[s.category] || "\uD83D\uDCCB";
+        html += "<div class=\"service-card group bg-white/80 backdrop-blur-sm rounded-3xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-2 hover:scale-[1.02] animate-fadeIn border border-gray-100/50 hover:border-emerald-200/50\">" +
+            "<div class=\"relative overflow-hidden\">" +
+            "<img src=\"" + meta.image + "\" class=\"h-52 w-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:brightness-110\" alt=\"" + s.name + "\" loading=\"lazy\">" +
+            "<div class=\"absolute top-3 left-3 flex gap-2\">" +
+            "<span class=\"bg-white/90 backdrop-blur-sm text-gray-800 px-3 py-1.5 rounded-full text-xs font-medium shadow-lg flex items-center gap-1.5\"><span class=\"text-lg\">" + catEmoji + "</span>" + s.category.charAt(0).toUpperCase() + s.category.slice(1) + "</span>" +
+            "</div>" +
+            "<div class=\"absolute top-3 right-3\"><span class=\"" + meta.badgeColor + "/90 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-medium shadow-lg\">" + meta.badge + "</span></div>" +
+            "<div class=\"absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500\"></div>" +
+            "</div>" +
             "<div class=\"p-6\">" +
-            "<div class=\"flex justify-between items-start mb-3\">" +
-            "<h3 class=\"font-bold text-lg leading-tight\">" + s.name + "</h3>" +
-            "<span class=\"" + meta.badgeColor + " px-3 py-1 rounded-full text-xs font-medium whitespace-nowrap ml-2\">" + meta.badge + "</span></div>" +
-            "<p class=\"text-gray-600 text-sm mb-4 line-clamp-2\">" + meta.desc + "</p>" +
-            "<div class=\"flex items-center justify-between mb-5\">" +
-            "<div><p class=\"text-xs text-gray-500\">Starting from</p>" +
-            "<p class=\"text-3xl font-bold text-emerald-600\"><span id=\"card-price-" + s.id + "\">" + priceK + "</span></p></div>" +
-            "<div class=\"text-right\"><div id=\"stars-" + s.id + "\" class=\"text-yellow-500\">" + stars + "</div>" +
-            "<p id=\"rating-" + s.id + "\" class=\"text-sm text-gray-500\">" + avgRating.toFixed(1) + " Rating</p></div></div>" +
-            "<div class=\"mt-4 border-t pt-4\"><div class=\"flex gap-2\">" +
-            "<button onclick=\"selectService('" + s.id + "')\" class=\"flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-2xl font-medium text-sm transition-all active:scale-95\"><i class=\"fa-solid fa-bookmark mr-1\"></i> Book Now</button>" +
-            "<button onclick=\"toggleProviders('" + s.id + "-providers')\" class=\"flex-1 flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 py-3 rounded-2xl font-medium text-sm transition-all\"><i class=\"fa-solid fa-eye\"></i> Providers <i class=\"fa-solid fa-chevron-down text-xs ml-1 provider-chevron\" id=\"chevron-" + s.id + "-providers\"></i></button></div>" +
+            "<h3 class=\"font-bold text-lg leading-tight mb-2 group-hover:text-emerald-700 transition-colors\">" + s.name + "</h3>" +
+            "<p class=\"text-gray-600 text-sm mb-4 line-clamp-2 leading-relaxed\">" + meta.desc + "</p>" +
+            "<div class=\"flex items-center justify-between mb-4\">" +
+            "<div class=\"bg-gradient-to-br from-emerald-50 to-white rounded-2xl px-4 py-2.5 border border-emerald-100\"><p class=\"text-xs text-gray-500 font-medium\">Starting from</p>" +
+            "<p class=\"text-2xl font-bold text-emerald-600\"><span id=\"card-price-" + s.id + "\">" + priceK + "</span> <span class=\"text-xs font-normal text-emerald-400\">UGX</span></p></div>" +
+            "<div class=\"text-right bg-gradient-to-br from-amber-50 to-white rounded-2xl px-4 py-2.5 border border-amber-100\"><div id=\"stars-" + s.id + "\" class=\"text-yellow-500 text-sm\">" + stars + "</div>" +
+            "<p id=\"rating-" + s.id + "\" class=\"text-xs text-gray-500 font-medium\">" + avgRating.toFixed(1) + " Rating</p></div></div>" +
+            "<div class=\"mt-4 pt-4 border-t border-gray-100\"><div class=\"flex gap-2\">" +
+            "<button onclick=\"selectService('" + s.id + "')\" class=\"flex-1 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-700 hover:to-emerald-600 text-white py-3 rounded-2xl font-medium text-sm transition-all active:scale-95 shadow-md hover:shadow-lg\"><i class=\"fa-solid fa-bolt mr-1\"></i> Book Now</button>" +
+            "<button onclick=\"showSubscribeModal('" + s.id + "','" + s.name.replace(/'/g,"\\'") + "'," + s.basePrice + ")\" class=\"flex-1 " + subBtnClass + " text-white py-3 rounded-2xl font-medium text-sm transition-all active:scale-95 shadow-md hover:shadow-lg\"><i class=\"fa-solid fa-calendar-check mr-1\"></i> " + subBtnText + "</button></div>" +
+            "<button onclick=\"toggleProviders('" + s.id + "-providers')\" class=\"mt-2 w-full flex items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 text-gray-600 hover:text-gray-800 py-2.5 rounded-2xl text-xs font-medium transition-all group\"><i class=\"fa-solid fa-users\"></i> View Providers <i class=\"fa-solid fa-chevron-down text-xs ml-1 provider-chevron transition-transform duration-300\" id=\"chevron-" + s.id + "-providers\"></i></button>" +
             "<div id=\"" + s.id + "-providers\" class=\"space-y-4 mt-4 hidden\"></div></div></div></div>";
     }
     if (!html) html = "<div class=\"col-span-full text-center py-16 text-gray-400\"><i class=\"fa-solid fa-search text-5xl mb-4\"></i><p class=\"text-lg\">No services found</p></div>";
@@ -3157,6 +3303,10 @@ function navigateTo(page) {
     // Render profile page when navigating to it
     if (page === "profile" && currentUser) {
         renderProfilePage();
+        fetchUserSubscriptions();
+        fetchLoyaltyPoints();
+        fetchAvailableGifts();
+        fetchUserRedemptions();
     }
     if (page === "services") {
         renderServices();
@@ -4406,6 +4556,11 @@ async function _syncAdminData() {
                 });
             }
         } catch(et) { console.warn(et); }
+        // Fetch subscriptions
+        try {
+            var subsResp = await fetch(apiUrl + "/admin/subscriptions", { headers: headers, signal: AbortSignal.timeout(35000) });
+            if (subsResp.ok) adminSubscriptions = await subsResp.json();
+        } catch(es) { console.warn(es); }
         renderAdminDashboard();
         renderAllProviderLists();
     } catch(e) { console.log("Backend sync error:", e); }
@@ -4463,6 +4618,7 @@ function switchAdminTab(n) {
     if (n === 3) renderAdminRevenue();
     if (n === 4) renderAdminChat();
     if (n === 5) renderAdminOrders();
+    if (n === 6) renderAdminSubscriptions();
     window.__adminTab = n;
     saveAppState();
 }
@@ -4474,6 +4630,9 @@ function renderAdminDashboard() {
     document.getElementById("admin-price-requests").textContent = priceChangeRequests.length;
     var totalRev = (adminRevenueData && adminRevenueData.revenue) ? adminRevenueData.revenue : 0;
     document.getElementById("admin-revenue").textContent = totalRev.toLocaleString() + " UGX";
+    document.getElementById("admin-customers-count").textContent = allUsers.length;
+    var activeSubs = adminSubscriptions.filter(function(s) { return s.status === "active"; }).length;
+    document.getElementById("admin-subs-count").textContent = activeSubs;
     fetchAdminBalance();
     renderAdminProviders();
     renderAdminVerification();
@@ -4821,6 +4980,30 @@ async function adminReassignTask(taskId) {
         } catch(e) { addInAppAlert("error", "Network error reassigning task"); return; }
     }
     addInAppAlert("error", "You must be logged in as admin");
+}
+
+function renderAdminSubscriptions() {
+    var list = document.getElementById("admin-subscriptions-list");
+    if (!list) return;
+    if (adminSubscriptions.length === 0) {
+        list.innerHTML = "<div class=\"text-center text-gray-500 py-8\"><i class=\"fa-solid fa-repeat text-4xl mb-3\"></i><p>No subscriptions yet.</p></div>";
+        return;
+    }
+    var html = "";
+    for (var si = 0; si < adminSubscriptions.length; si++) {
+        var s = adminSubscriptions[si];
+        var isActive = s.status === "active";
+        var statusBadge = isActive ? "<span class=\"bg-green-100 text-green-700 px-2 py-1 rounded-full text-xs font-medium\">Active</span>" : "<span class=\"bg-red-100 text-red-700 px-2 py-1 rounded-full text-xs font-medium\">Cancelled</span>";
+        html += "<div class=\"bg-white rounded-2xl p-5 shadow border-l-4 " + (isActive ? "border-green-500" : "border-red-400") + "\">" +
+            "<div class=\"flex justify-between items-start\"><div><p class=\"font-semibold\">" + (s.service_name || "Unknown Service") + "</p>" +
+            "<p class=\"text-sm text-gray-500\">Customer: " + (s.user_email || "N/A") + "</p>" +
+            "<p class=\"text-sm\"><strong>Plan:</strong> " + (s.plan || "monthly") + " \u2022 <strong>Amount:</strong> UGX " + (s.amount || 0).toLocaleString() +
+            (s.discount_percent ? " \u2022 <strong>Discount:</strong> " + s.discount_percent + "%" : "") + "</p>" +
+            "<p class=\"text-xs text-gray-400 mt-1\">Next billing: " + (s.next_billing_at || "N/A") +
+            (s.cancelled_at ? " \u2022 Cancelled: " + s.cancelled_at : "") + "</p></div>" +
+            "<div>" + statusBadge + "</div></div></div>";
+    }
+    list.innerHTML = html;
 }
 
 function openAdminTaskChat(taskId, customerName) {
@@ -6853,6 +7036,10 @@ function autoSyncData() {
         fetchPendingPayments();
         fetchBackendNotifications();
         fetchCustomerBalance();
+        fetchUserSubscriptions();
+        fetchLoyaltyPoints();
+        fetchAvailableGifts();
+        fetchUserRedemptions();
     }
     if (currentLoggedProvider && window.__HAVENGO_JWT__) {
         fetchBackendNotifications();

@@ -268,6 +268,56 @@ async function initDatabase() {
     )
   `);
 
+  // Add loyalty_points column to users
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS loyalty_points INTEGER DEFAULT 0").catch(function(e) {});
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS subscriptions (
+      id SERIAL PRIMARY KEY,
+      user_email TEXT NOT NULL,
+      service_id TEXT NOT NULL,
+      service_name TEXT NOT NULL,
+      plan TEXT NOT NULL DEFAULT 'monthly',
+      amount REAL NOT NULL DEFAULT 0,
+      discount_percent INTEGER DEFAULT 0,
+      status TEXT DEFAULT 'active',
+      next_billing_at TIMESTAMPTZ NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      cancelled_at TIMESTAMPTZ
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS redeemable_gifts (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL,
+      points_required INTEGER NOT NULL,
+      image TEXT,
+      stock INTEGER DEFAULT 999
+    )
+  `);
+
+  // Seed redeemable gifts if empty
+  const giftCount = await pool.query("SELECT COUNT(*) as c FROM redeemable_gifts");
+  if (parseInt(giftCount.rows[0].c) === 0) {
+    await pool.query("INSERT INTO redeemable_gifts (name, description, points_required, stock) VALUES ($1, $2, $3, $4)", ['HavenGo Branded Mug', 'Stylish ceramic mug with the HavenGo logo', 50, 100]);
+    await pool.query("INSERT INTO redeemable_gifts (name, description, points_required, stock) VALUES ($1, $2, $3, $4)", ['HavenGo Jumper', 'Premium quality hoodie with HavenGo branding', 200, 50]);
+    await pool.query("INSERT INTO redeemable_gifts (name, description, points_required, stock) VALUES ($1, $2, $3, $4)", ['Free Service Voucher', 'Redeem any single service up to 50,000 UGX for free', 150, 30]);
+    await pool.query("INSERT INTO redeemable_gifts (name, description, points_required, stock) VALUES ($1, $2, $3, $4)", ['10% Lifetime Discount Badge', 'Permanent 10% off on all future bookings', 500, 20]);
+  }
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS loyalty_redemptions (
+      id SERIAL PRIMARY KEY,
+      user_email TEXT NOT NULL,
+      gift_id INTEGER NOT NULL,
+      gift_name TEXT NOT NULL,
+      points_spent INTEGER NOT NULL,
+      redeemed_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS tracking (
       id SERIAL PRIMARY KEY,

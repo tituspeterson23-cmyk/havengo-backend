@@ -9,7 +9,7 @@ router.use(authenticate);
 
 router.get('/profile', async (req, res) => {
   const db = getDb();
-  const user = await db.prepare('SELECT id, firstname, lastname, email, phone, bitmoji, balance, created_at FROM users WHERE email = ?').get(req.user.email);
+  const user = await db.prepare('SELECT id, firstname, lastname, email, phone, bitmoji, balance, loyalty_points, created_at FROM users WHERE email = ?').get(req.user.email);
   if (!user) return res.status(401).json({ session_expired: true, error: 'Your session has expired. Please login again.' });
   res.json(user);
 });
@@ -122,7 +122,13 @@ router.post('/confirm-payment', async (req, res) => {
   const newBalance = (parseFloat(currentBalance) || 0) + systemAmount;
   await db.prepare("INSERT INTO admin_settings (key, value) VALUES ('system_balance', ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value").run(newBalance.toString());
 
-  await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '💰', 'Payment Confirmed', 'Payment of " + completed.price + " UGX completed. Provider credited " + providerAmount + " UGX.', 'money')")
+  // Award loyalty points (10 points per 100k = 1 point per 10k UGX)
+  const pointsAwarded = Math.floor(completed.price / 10000);
+  if (pointsAwarded > 0) {
+    await db.prepare('UPDATE users SET loyalty_points = loyalty_points + ? WHERE email = ?').run(pointsAwarded, req.user.email);
+  }
+
+  await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '💰', 'Payment Confirmed', 'Payment of " + completed.price + " UGX completed. Provider credited " + providerAmount + " UGX." + (pointsAwarded > 0 ? " +" + pointsAwarded + " loyalty points." : "") + "', 'money')")
     .run(req.user.email);
   const prov = await db.prepare("SELECT email FROM providers WHERE business_name = ? OR (firstname || ' ' || lastname) = ?").get(completed.provider_name, completed.provider_name);
   if (prov) {
@@ -130,7 +136,7 @@ router.post('/confirm-payment', async (req, res) => {
       .run(prov.email);
   }
 
-  res.json({ success: true, message: 'Payment confirmed!', providerAmount, systemAmount });
+  res.json({ success: true, message: 'Payment confirmed!', providerAmount, systemAmount, pointsAwarded });
 });
 
 router.post('/deposit', async (req, res) => {
@@ -273,5 +279,93 @@ router.post('/delete-notification/:id', async (req, res) => {
   await db.prepare('DELETE FROM notifications WHERE id = ? AND user_email = ?').run(parseInt(req.params.id), req.user.email);
   res.json({ success: true });
 });
+
+// ============================================================
+// SUBSCRIPTION ROUTES
+// ============================================================
+
+router.get('/subscriptions', async (req, res) => {
+  const db = getDb();
+  const subs = await db.prepare("SELECT * FROM subscriptions WHERE user_email = ? AND status = 'active'").all(req.user.email);
+  res.json(subs);
+});
+
+router.post('/subscriptions/create', async (req, res) => {
+  const { serviceId, serviceName, amount, discountPercent } = req.body;
+  if (!serviceId || !serviceName) return res.status(400).json({ error: 'Missing required fields' });
+  const db = getDb();
+  const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(req.user.email);
+  if (!user) return res.status(401).json({ session_expired: true, error: 'Session expired' });
+  if (user.balance < amount) return res.status(400).json({ error: 'Insufficient balance for subscription' });
+  // Deduct first month
+  await db.prepare('UPDATE users SET balance = balance - ? WHERE email = ?').run(amount, req.user.email);
+  const nextBilling = new Date();
+  nextBilling.setMonth(nextBilling.getMonth() + 1);
+  await db.prepare("INSERT INTO subscriptions (user_email, service_id, service_name, plan, amount, discount_percent, status, next_billing_at) VALUES (?, ?, ?, 'monthly', ?, ?, 'active', ?)")
+    .run(req.user.email, serviceId, sanitize(serviceName), amount, discountPercent || 0, nextBilling.toISOString());
+  res.json({ success: true, message: 'Subscribed to ' + serviceName + ' monthly for UGX ' + amount });
+});
+
+router.post('/subscriptions/cancel', async (req, res) => {
+  const { id } = req.body;
+  if (!id) return res.status(400).json({ error: 'Missing subscription ID' });
+  const db = getDb();
+  await db.prepare("UPDATE subscriptions SET status = 'cancelled', cancelled_at = NOW() WHERE id = ? AND user_email = ?").run(parseInt(id), req.user.email);
+  res.json({ success: true, message: 'Subscription cancelled' });
+});
+
+// ============================================================
+// LOYALTY POINTS ROUTES
+// ============================================================
+
+router.get('/loyalty-points', async (req, res) => {
+  const db = getDb();
+  const user = await db.prepare('SELECT loyalty_points FROM users WHERE email = ?').get(req.user.email);
+  res.json({ points: user ? user.loyalty_points : 0 });
+});
+
+router.get('/gifts', async (req, res) => {
+  const db = getDb();
+  const gifts = await db.prepare("SELECT * FROM redeemable_gifts WHERE stock > 0").all();
+  res.json(gifts);
+});
+
+router.get('/redemptions', async (req, res) => {
+  const db = getDb();
+  const redemptions = await db.prepare("SELECT * FROM loyalty_redemptions WHERE user_email = ? ORDER BY redeemed_at DESC").all(req.user.email);
+  res.json(redemptions);
+});
+
+router.post('/redeem-gift', async (req, res) => {
+  const { giftId } = req.body;
+  if (!giftId) return res.status(400).json({ error: 'Missing gift ID' });
+  const db = getDb();
+  const gift = await db.prepare('SELECT * FROM redeemable_gifts WHERE id = ? AND stock > 0').get(parseInt(giftId));
+  if (!gift) return res.status(404).json({ error: 'Gift not found or out of stock' });
+  const user = await db.prepare('SELECT * FROM users WHERE email = ?').get(req.user.email);
+  if (!user) return res.status(401).json({ session_expired: true, error: 'Session expired' });
+  if ((user.loyalty_points || 0) < gift.points_required) return res.status(400).json({ error: 'Insufficient points' });
+  await db.prepare('UPDATE users SET loyalty_points = loyalty_points - ? WHERE email = ?').run(gift.points_required, req.user.email);
+  await db.prepare('UPDATE redeemable_gifts SET stock = stock - 1 WHERE id = ?').run(parseInt(giftId));
+  await db.prepare("INSERT INTO loyalty_redemptions (user_email, gift_id, gift_name, points_spent) VALUES (?, ?, ?, ?)")
+    .run(req.user.email, parseInt(giftId), gift.name, gift.points_required);
+  await db.prepare("INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, '🎁', 'Gift Redeemed', 'You redeemed: " + gift.name + " for " + gift.points_required + " points.', 'loyalty')")
+    .run(req.user.email);
+  res.json({ success: true, message: 'Gift redeemed: ' + gift.name, giftName: gift.name });
+});
+
+// Add points on confirmed payment
+async function awardPoints(email, paidAmount, db) {
+  const points = Math.floor(paidAmount / 10000); // 10 points per 100k = 1 point per 10k
+  if (points > 0) {
+    await db.prepare('UPDATE users SET loyalty_points = loyalty_points + ? WHERE email = ?').run(points, email);
+  }
+}
+
+// Hook into confirm-payment to award points
+const originalConfirmPayment = router.post.bind(router, '/confirm-payment');
+// We patch the existing confirm-payment endpoint by using middleware approach
+// Actually, let's modify the existing handler directly - the function is defined above.
+// We'll need to modify the handler in-place.
 
 module.exports = router;

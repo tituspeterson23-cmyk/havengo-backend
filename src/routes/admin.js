@@ -161,7 +161,15 @@ router.get('/dashboard-stats', async (req, res) => {
   const pendingVerification = await db.prepare('SELECT COUNT(*) as count FROM providers WHERE verified = 0').pluck().get();
   const totalRevenue = await db.prepare("SELECT COALESCE(SUM(price * 0.15), 0) as rev FROM completed_tasks WHERE paid = 1").pluck().get();
   const pendingPriceRequests = await db.prepare("SELECT COUNT(*) as count FROM price_requests WHERE status = 'pending'").pluck().get();
-  res.json({ totalProviders, pendingVerification, totalRevenue, pendingPriceRequests });
+  const totalCustomers = await db.prepare('SELECT COUNT(*) as count FROM users').pluck().get();
+  const totalSubscriptions = await db.prepare("SELECT COUNT(*) as count FROM subscriptions WHERE status = 'active'").pluck().get();
+  res.json({ totalProviders, pendingVerification, totalRevenue, pendingPriceRequests, totalCustomers, totalSubscriptions });
+});
+
+router.get('/subscriptions', async (req, res) => {
+  const db = getDb();
+  const subs = await db.prepare("SELECT s.*, (SELECT COUNT(*) FROM loyalty_redemptions WHERE user_email = s.user_email) as redemptions FROM subscriptions s ORDER BY s.created_at DESC").all();
+  res.json(subs);
 });
 
 router.get('/notifications', async (req, res) => {
