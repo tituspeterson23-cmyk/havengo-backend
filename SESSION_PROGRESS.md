@@ -37,17 +37,38 @@
 - **Hover effects**: Cards lift (-translate-y-1) with stronger shadow on hover
 - Same card appearance preserved (images, descriptions, badges, prices, ratings)
 
-### 6. Monthly Subscription Feature
+### 6. Monthly Subscription Feature (Online/Backend-Driven)
+- Rewrote subscription system from localStorage → backend API calls with localStorage fallback
 - New **Subscription** profile tab (index 6, crown icon)
-- 3 plans: **Basic** (Free), **Premium** (50k/mo - 10% discount, priority chat, free pickup, free 1hr cleaning), **Pro** (120k/mo - 20% discount, 24/7 support, 2 free services, account manager)
-- Plan selection with balance check for paid plans
-- Persists in localStorage via `havengo_subscription` key
-- Visual plan cards with active state highlighting
+- Per-service monthly recurring subscription with 10% discount
+- API: `POST /customer/subscriptions/create`, `POST /customer/subscriptions/cancel`, `GET /customer/subscriptions`
+- Backend `subscriptions` table: user_email, service_id, service_name, plan, amount, discount_percent, status, next_billing_at, cancelled_at
 
-### 7. Committed & Pushed
-- Backend: `8910230` → pushed to GitHub
-- Frontend: `1d909b5` → pushed to GitHub (index.html MD5 verified in sync)
-- Both pushed successfully to `main` branch
+### 7. Loyalty Points System
+- Added `loyalty_points` column to `users` table
+- Points awarded on payment confirm: `Math.floor(completed.price / 10000)` points
+- `redeemable_gifts` table with 4 gifts: Mug (50pts), Jumper (200pts), Service Voucher (150pts), Lifetime Discount Badge (500pts)
+- `loyalty_redemptions` table tracking user redemptions
+- API: `GET /customer/loyalty-points`, `GET /customer/gifts`, `GET /customer/redemptions`, `POST /customer/redeem-gift`
+- Frontend: loyalty points stat card in profile overview, gift grid with affordability check, redemption history in subscription tab
+
+### 8. Admin Portal — Subscriptions & Customer Count
+- Admin dashboard: **Total Customers** stat card (allUsers.length), **Active Subscriptions** stat card
+- New **Subscriptions** admin tab (index 6) with `renderAdminSubscriptions()`
+- Lists all subscriptions with status badge (Active/Cancelled), plan, amount, discount, next billing date
+- Admin route `GET /admin/subscriptions` returns all subscriptions
+- `GET /admin/dashboard-stats` now includes `totalCustomers` and `totalSubscriptions`
+
+### 9. Water Image & Other Fixes
+- Water delivery image changed to show actual water jerrycan delivery
+- `switchAdminTab()` extended to handle tab 6 → `renderAdminSubscriptions()`
+- `_syncAdminData()` fetches subscriptions from backend
+- `adminSubscriptions` state variable added
+
+### 10. Committed & Pushed
+- **Backend**: `cca8422` → pushed to GitHub (`main`)
+- **Frontend**: `e4ae526` → pushed to GitHub (`main`)
+- index.html synced (backend → frontend) via Copy-Item
 
 ### What Still Needs User Action
 1. Check Render Dashboard for deploy logs / trigger manual deploy
