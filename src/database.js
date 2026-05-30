@@ -376,6 +376,8 @@ async function initDatabase() {
   // Add latitude/longitude for map location
   await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS latitude REAL").catch(function(e) { /* column may already exist */ });
   await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS longitude REAL").catch(function(e) { /* column may already exist */ });
+  // Add is_subscription_order flag for priority handling
+  await pool.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS is_subscription_order BOOLEAN DEFAULT false").catch(function(e) { /* column may already exist */ });
 
   // Seed admin if not exists
   const adminCheck = await pool.query("SELECT id FROM admin_settings WHERE key = 'admin_initialized'");

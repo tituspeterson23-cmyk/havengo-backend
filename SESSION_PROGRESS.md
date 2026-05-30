@@ -112,11 +112,23 @@
 - **All JS syntax**: ✓ Valid
 
 ### 15. Session (May 30, Late) — Subscription Note, Deploy, Chat Encryption
+
+### 16. Session (May 30, Evening) — Subscription Order Flow, Priority, Points, Contact Support
 - **Subscription note added**: In the subscribe modal, added a blue info box: "After subscribing, go to **My Profile → Subscriptions** and tap **'Place Order for a Day'** when you're ready to order that month."
 - **Pushed to GitHub**: Both backend (`ddd730b`) and frontend (`14bd3c0`) committed and pushed
 - **Backend health check**: ✅ `https://havengo-backend.onrender.com/api/health` returns 200
 - **Security file**: Added **Section 11 — Chat Encryption** (ECDH key exchange + AES-256-GCM message encryption + HKDF key derivation + session management + key rotation)
 - **All syntax checks**: ✓ Valid
+
+### 16. Session (May 30, Evening) — Subscription Order Flow, Priority, Points, Contact Support
+- **Contact Support → Admin Chat**: "Contact Support" button on Pending bookings now calls `openCustomerAdminChat()` directly (instead of `cancelViaAdminChat` which auto-sent cancel request)
+- **Subscription order form**: Replaced simple date prompt with a full order modal (`#subscription-order-modal`) asking for date, time, address, and special instructions. Submits via `submitSubscriptionOrder()` → POST with full details
+- **Backend subscription order**: Now accepts `address`, `details`, `latitude`, `longitude` fields, creates task with all details, and sets `is_subscription_order = true` flag
+- **Priority badge in provider dashboard**: Tasks from subscription orders show "⭐ Priority" badge next to service name in Active Tasks
+- **20 loyalty points on subscribe**: Backend awards 20 points on subscription create; frontend refreshes points and shows `+20` in success message
+- **Provider notification with priority**: Provider gets notification with "⭐ PRIORITY —" prefix and the order address
+- **New column**: `is_subscription_order BOOLEAN DEFAULT false` added to `tasks` table
+- **All syntax checks**: ✓ Valid for all JS files
 
 ### What Still Needs User Action
 1. Set `FIREBASE_SERVICE_ACCOUNT_BASE64` env var in Render Dashboard

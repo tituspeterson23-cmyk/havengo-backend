@@ -838,6 +838,19 @@
     </div>
 </div></div>
 
+<div id="subscription-order-modal" class="hidden fixed inset-0 z-[65] flex items-center justify-center bg-black/60 backdrop-blur-sm modal p-5">
+<div class="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl">
+    <div class="hero-gradient text-white p-6 relative overflow-hidden"><div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -mr-8 -mt-8"></div><div class="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full -ml-6 -mb-6"></div><h2 class="text-3xl font-bold relative z-10"><i class="fa-solid fa-calendar-check mr-2"></i>Subscription Order</h2><p class="text-gray-200 relative z-10" id="sub-order-service-name">Place an order under your subscription</p></div>
+    <form onsubmit="submitSubscriptionOrder(event)" class="p-8 space-y-5">
+        <div class="bg-gradient-to-br from-violet-50 to-white rounded-2xl p-4 border border-violet-100"><div class="flex items-center gap-3"><i class="fa-solid fa-crown text-violet-500 text-xl"></i><div><p class="text-sm font-medium text-violet-800">No extra charge</p><p class="text-xs text-violet-600">This order is covered by your subscription plan</p></div></div></div>
+        <div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-calendar-day text-gray-500"></i> Date</label><input type="date" id="sub-order-date" required class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm"></div>
+        <div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-clock text-gray-500"></i> Time</label><input type="time" id="sub-order-time" required class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm"></div>
+        <div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-location-dot text-gray-500"></i> Address / Location</label><input type="text" id="sub-order-address" placeholder="Enter your location address" required class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm"></div>
+        <div><label class="font-medium text-sm flex items-center gap-2"><i class="fa-solid fa-pen text-gray-500"></i> Special Instructions</label><textarea id="sub-order-details" rows="3" placeholder="Anything the provider should know..." class="w-full mt-1 border border-gray-200 rounded-2xl px-4 py-3.5 outline-none focus:border-violet-500 text-sm"></textarea></div>
+        <div class="flex gap-4 pt-2"><button type="button" onclick="closeModal('subscription-order-modal')" class="flex-1 border-2 border-gray-200 hover:border-gray-300 hover:bg-gray-50 py-3.5 rounded-2xl font-semibold text-gray-600 transition-all">Cancel</button><button type="submit" class="flex-1 bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-700 hover:to-violet-600 text-white py-3.5 rounded-2xl font-semibold shadow-md hover:shadow-lg transition-all"><i class="fa-solid fa-check-circle mr-1"></i> Place Order</button></div>
+    </form>
+</div></div>
+
 <div id="chat-modal" class="hidden fixed inset-0 z-[60] flex items-center justify-center bg-black/70 p-4">
     <div class="bg-white w-full chat-modal rounded-3xl overflow-hidden shadow-2xl flex flex-col" style="height:85vh;max-height:620px;">
         <div class="hero-gradient p-5 flex items-center justify-between text-white">
@@ -3113,8 +3126,10 @@ async function confirmSubscription() {
             if (data.success) {
                 addInAppAlert("success", data.message);
                 userBalance -= amount;
+                userLoyaltyPoints += (data.pointsAwarded || 0);
                 updateProfileWithUser();
                 fetchUserSubscriptions();
+                fetchLoyaltyPoints();
             } else {
                 addInAppAlert("error", data.error || "Subscription failed");
             }
@@ -3127,27 +3142,59 @@ async function confirmSubscription() {
     }
 }
 
-async function placeSubscriptionOrder(subscriptionId) {
+var currentSubOrderId = null;
+
+function showSubscriptionOrderForm(subscriptionId) {
     if (!window.__HAVENGO_JWT__ || !currentUser) { addInAppAlert("info", "Please login"); return; }
-    showAppPrompt("Enter the date for this subscription order (YYYY-MM-DD):", "", async function(orderDate) {
-        if (!orderDate || !orderDate.match(/^\d{4}-\d{2}-\d{2}$/)) { addInAppAlert("error", "Please enter a valid date (YYYY-MM-DD)"); return; }
-        var apiUrl = HAVENGO_BACKEND_URL + "/api";
-        try {
-            var resp = await fetch(apiUrl + "/customer/subscriptions/place-order", {
-                method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + window.__HAVENGO_JWT__ },
-                body: JSON.stringify({ subscriptionId: subscriptionId, orderDate: orderDate })
-            });
-            var data = await resp.json();
-            if (data.success) {
-                addInAppAlert("success", "Subscription order placed for " + orderDate);
-                fetchUserSubscriptions();
-            } else {
-                addInAppAlert("error", data.error || "Failed to place subscription order");
-            }
-        } catch(e) {
-            addInAppAlert("error", "Backend unreachable");
+    currentSubOrderId = subscriptionId;
+    // Find the subscription to display service name
+    var sub = null;
+    if (userSubscriptions && userSubscriptions.length) {
+        for (var si = 0; si < userSubscriptions.length; si++) {
+            if (userSubscriptions[si].id === subscriptionId) { sub = userSubscriptions[si]; break; }
         }
-    });
+    }
+    var serviceLabel = sub ? (sub.service_name || 'Subscription') : 'Subscription';
+    document.getElementById("sub-order-service-name").textContent = "Order for " + serviceLabel;
+    // Set default date to tomorrow
+    var tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    document.getElementById("sub-order-date").value = tomorrow.toISOString().split("T")[0];
+    document.getElementById("sub-order-time").value = "10:00";
+    document.getElementById("sub-order-address").value = "";
+    document.getElementById("sub-order-details").value = "";
+    closeModal('subscribe-modal');
+    document.getElementById("subscription-order-modal").classList.remove("hidden");
+}
+
+async function submitSubscriptionOrder(event) {
+    event.preventDefault();
+    if (!window.__HAVENGO_JWT__ || !currentUser || !currentSubOrderId) { addInAppAlert("info", "Please login"); return; }
+    var orderDate = document.getElementById("sub-order-date").value;
+    var orderTime = document.getElementById("sub-order-time").value;
+    var address = document.getElementById("sub-order-address").value.trim();
+    var details = document.getElementById("sub-order-details").value.trim();
+    if (!orderDate || !address) { addInAppAlert("error", "Please fill in date and address"); return; }
+    var fullDetails = (orderTime ? "Time: " + orderTime : "") + (details ? " | " + details : "");
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    closeModal("subscription-order-modal");
+    try {
+        var resp = await fetch(apiUrl + "/customer/subscriptions/place-order", {
+            method: "POST", headers: { "Content-Type": "application/json", "Authorization": "Bearer " + window.__HAVENGO_JWT__ },
+            body: JSON.stringify({ subscriptionId: currentSubOrderId, orderDate: orderDate, address: address, details: fullDetails })
+        });
+        var data = await resp.json();
+        if (data.success) {
+            addInAppAlert("success", "Subscription order placed for " + orderDate + " — check your bookings for updates");
+            fetchUserSubscriptions();
+            fetchCustomerBookings();
+        } else {
+            addInAppAlert("error", data.error || "Failed to place subscription order");
+        }
+    } catch(e) {
+        addInAppAlert("error", "Backend unreachable");
+    }
+    currentSubOrderId = null;
 }
 
 async function cancelSubscription(subId) {
@@ -3243,7 +3290,7 @@ function renderSubscriptionPlans() {
             var subEmoji = serviceEmojis[sub.service_id] || "\uD83D\uDCCB";
             html += "<div class=\"bg-white rounded-2xl p-4 border border-gray-100 hover:shadow-md transition-all\">" +
                 "<div class=\"flex items-center justify-between mb-3\"><div class=\"flex items-center gap-3\"><span class=\"text-2xl\">" + subEmoji + "</span><div><p class=\"font-medium text-sm\">" + sub.service_name + "</p><p class=\"text-xs text-gray-500\">UGX " + sub.amount.toLocaleString() + "/mo" + (sub.provider_name ? " — " + sub.provider_name : "") + (sub.days_per_month ? " — " + sub.days_per_month + " days/mo" : "") + "</p></div></div><button onclick=\"cancelSubscription(" + sub.id + ")\" class=\"text-xs text-red-500 hover:text-red-700 font-medium\">Cancel</button></div>" +
-                "<button onclick=\"placeSubscriptionOrder(" + sub.id + ")\" class=\"w-full bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-700 hover:to-violet-600 text-white py-2.5 rounded-2xl text-sm font-medium transition-all\"><i class=\"fa-solid fa-calendar-plus mr-1\"></i> Place Order for a Day</button>" +
+                "<button onclick=\"showSubscriptionOrderForm(" + sub.id + ")\" class=\"w-full bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-700 hover:to-violet-600 text-white py-2.5 rounded-2xl text-sm font-medium transition-all\"><i class=\"fa-solid fa-calendar-plus mr-1\"></i> Place Order for a Day</button>" +
                 "</div>";
         }
         html += "</div>";
@@ -3978,7 +4025,7 @@ function renderBookings() {
             "<div class=\"flex gap-3 mt-4 pt-4 border-t\">" +
             (b.status !== "Pending" && b.providerName ? "<a href=\"tel:" + (function(){ for(var pi=0;pi<registeredProviders.length;pi++){var rp=registeredProviders[pi];if(rp.name===b.providerName||rp.business_name===b.providerName||rp.businessName===b.providerName){return (rp.phone||'').replace(/[^0-9+]/g,'');}}return '';})() + "\" class=\"inline-block text-sm bg-emerald-600 text-white px-4 py-2 rounded-2xl no-underline\"><i class=\"fa-solid fa-phone\"></i> Call</a>" : "") +
             "<button onclick=\"startTracking(" + b.id + ")\" class=\"text-sm bg-emerald-600 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-location-dot\"></i> Track</button>" +
-            (b.status === "Pending" ? "<button onclick=\"cancelViaAdminChat(" + b.id + ")\" class=\"text-sm bg-blue-500 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-headset\"></i> Contact Support</button>" : "<button onclick=\"openChatWithProvider(" + b.id + ")\" class=\"text-sm border px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-comment\"></i> Chat</button>") +
+            (b.status === "Pending" ? "<button onclick=\"openCustomerAdminChat()\" class=\"text-sm bg-blue-500 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-headset\"></i> Contact Support</button>" : "<button onclick=\"openChatWithProvider(" + b.id + ")\" class=\"text-sm border px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-comment\"></i> Chat</button>") +
             (b.status === "Completed" ? "<button onclick=\"rateBooking(" + b.id + ")\" class=\"text-sm bg-yellow-500 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-star\"></i> Rate</button>" : "") +
             (b.status === "Completed" ? "<button onclick=\"showPaymentsPending()\" class=\"text-sm bg-emerald-600 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-credit-card\"></i> Pay Now</button>" : "") +
             (b.status === "Pending" || b.status === "In Progress" ? "<button onclick=\"cancelViaAdminChat(" + b.id + ")\" class=\"text-sm bg-red-500 text-white px-4 py-2 rounded-2xl\"><i class=\"fa-solid fa-headset\"></i> Request Cancel via Support</button>" : "") + "</div></div>";
@@ -4103,6 +4150,7 @@ async function enterProviderDashboard(provider) {
                         providerEmail: bt.provider_email || "",
                         latitude: bt.latitude,
                         longitude: bt.longitude,
+                        isSubscriptionOrder: bt.is_subscription_order || false,
                         status: bt.status
                     });
                 }
@@ -4170,7 +4218,7 @@ async function enterProviderDashboard(provider) {
                         customerEmail: bt.customer_email || "", customerPhone: bt.customer_phone || "", address: bt.address || "",
                         date: "", time: "", price: bt.price, instructions: bt.details || "",
                         providerName: bt.provider_name || "", providerId: bt.provider_id || null, providerEmail: bt.provider_email || "",
-                        latitude: bt.latitude, longitude: bt.longitude, status: bt.status
+                        latitude: bt.latitude, longitude: bt.longitude, isSubscriptionOrder: bt.is_subscription_order || false, status: bt.status
                     });
                 }
                 if (providerTasks.length > prevCount) {
@@ -4264,7 +4312,7 @@ function renderProviderDashboard() {
                 var t = activeTasks[i];
                 html += "<div class=\"bg-white rounded-3xl p-6 shadow\">" +
                     "<div class=\"flex justify-between items-start\">" +
-                    "<div><h3 class=\"font-bold text-xl\">" + t.serviceName + "</h3>" +
+                    "<div><h3 class=\"font-bold text-xl\">" + t.serviceName + (t.isSubscriptionOrder ? " <span class=\"inline-block bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-0.5 rounded-full ml-1 align-middle\">⭐ Priority</span>" : "") + "</h3>" +
                     "<p class=\"text-sm text-gray-600\"><strong>Customer:</strong> " + t.customerName + "</p>" +
                     (t.status === "active" ? "<p class=\"text-sm text-gray-600\"><strong>Email:</strong> " + (t.customerEmail ? "<a href=\"mailto:" + t.customerEmail + "\" class=\"text-blue-600 hover:underline\">" + t.customerEmail + "</a>" : "N/A") + "</p>" : "") +
                     (t.status === "active" ? "<p class=\"text-sm text-gray-600\"><strong>Phone:</strong> " + (t.customerPhone ? "<a href=\"tel:" + t.customerPhone.replace(/[^0-9+]/g,'') + "\" class=\"text-blue-600 hover:underline\">" + t.customerPhone + "</a>" : "N/A") + "</p>" : "") +
@@ -7128,7 +7176,7 @@ window.onload = function() {
                                 customerEmail: bt.customer_email || "", customerPhone: bt.customer_phone || "", address: bt.address || "",
                                 date: "", time: "", price: bt.price, instructions: bt.details || "",
                                 providerName: bt.provider_name || "", providerId: bt.provider_id || null, providerEmail: bt.provider_email || "",
-                                latitude: bt.latitude, longitude: bt.longitude, status: bt.status
+                                latitude: bt.latitude, longitude: bt.longitude, isSubscriptionOrder: bt.is_subscription_order || false, status: bt.status
                             });
                         }
                     }
@@ -7182,7 +7230,7 @@ window.onload = function() {
                                 customerEmail: bt.customer_email || "", customerPhone: bt.customer_phone || "", address: bt.address || "",
                                 date: "", time: "", price: bt.price, instructions: bt.details || "",
                                 providerName: bt.provider_name || "", providerId: bt.provider_id || null, providerEmail: bt.provider_email || "",
-                                latitude: bt.latitude, longitude: bt.longitude, status: bt.status
+                                latitude: bt.latitude, longitude: bt.longitude, isSubscriptionOrder: bt.is_subscription_order || false, status: bt.status
                             });
                         }
                         var compResp = await fetch(apiUrl + "/provider/completed-tasks", { headers: { "Authorization": "Bearer " + window.__HAVENGO_JWT__ }, signal: AbortSignal.timeout(35000) });
