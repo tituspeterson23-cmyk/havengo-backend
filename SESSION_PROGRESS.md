@@ -70,6 +70,31 @@
 - **Frontend**: `e4ae526` → pushed to GitHub (`main`)
 - index.html synced (backend → frontend) via Copy-Item
 
+### 11. Fixes Round: Auto Service, Water Image, Dark Mode (Commit b337426)
+- **Auto Service Restored**: Added `{ id: "auto", name: "Car Wash & Maintenance", basePrice: 75000 }` back to `services[]`
+- **Water Image Fixed**: Changed from 404'ing URL (`photo-1564419320508`) to working water bottles image (`photo-1548839140`)
+- **Dark Mode**: Added 40+ CSS rules for service cards (glassmorphism bg/borders), subscription tab (gift cards, loyalty points, admin subs), profile stat cards, badge colors (sky/cyan)
+
+### 12. Security File — Payment Security Section Added
+- Created `C:\Users\Peterson\Desktop\havengo-security.js` with Payment Security module:
+  - **Transaction payload signing/verification** (HMAC-SHA384, 5min expiry)
+  - **Server-side price calculator** (all 14 categories, mirrors front-end logic)
+  - **Idempotency key system** (prevents double-spending, 24h expiry)
+  - **Optimistic locking pattern** (atomic balance deduction via SQL)
+  - **Mobile Money validation** (UG formats: 077/075/070/074, network detection for MTN/Airtel/Africell)
+  - **Digital receipts** (HMAC-SHA512 signed)
+  - **Escrow payment flow** (hold → release/refund with 15% platform fee)
+  - **Audit trail** (immutable transaction log)
+- **Bug found & fixed**: Mobile Money network detection — international format `+25677...` prefix `"77"` needed 2-char extraction, not 3
+
+### 13. Test Results
+- **App JS syntax**: ✓ Valid (no parse errors)
+- **Security module**: ✓ All 14 classes export correctly
+- **JWT Hardener**: Signs + verifies with fingerprint binding ✓
+- **Payment Security**: Payload signing/verify ✓, price calc all 14 cats ✓, idempotency ✓, receipts ✓, MM validation ✓
+- **Mobile Money**: 077→MTN ✓, +25670→Airtel ✓, 075→Airtel ✓, invalid→rejected ✓
+- **Server prices**: cleaning (2 rooms, 1 bath) = 80,000; water (10 express) = 540,000; laundry standard = 50,000 ✓
+
 ### What Still Needs User Action
 1. Check Render Dashboard for deploy logs / trigger manual deploy
 2. Set `FIREBASE_SERVICE_ACCOUNT_BASE64` env var in Render Dashboard
