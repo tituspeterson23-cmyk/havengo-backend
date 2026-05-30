@@ -78,9 +78,15 @@ function isValidPhone(phone) {
   return /^0\d{9}$/.test(phone);
 }
 
+// Short-lived token for 2FA validation step (5 min)
+function signToken(payload) {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '5m' });
+}
+
 module.exports = {
   generateToken,
   verifyToken,
+  signToken,
   hashPassword,
   comparePassword,
   encrypt,

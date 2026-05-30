@@ -98,8 +98,12 @@ router.post('/register', async (req, res) => {
     if (!isValidPhone(ph)) {
       return res.status(400).json({ error: 'Phone must be 10 digits starting with 0' });
     }
-    if (pw.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    // Password policy check
+    const { PasswordPolicy } = require('../security');
+    const policy = new PasswordPolicy();
+    const pwCheck = policy.validate(pw);
+    if (!pwCheck.valid) {
+      return res.status(400).json({ error: pwCheck.errors.join('; ') });
     }
 
     const db = getDb();
@@ -152,8 +156,14 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Successful login — reset lockout and create session
+    // Successful password — reset lockout
     await lockout.resetAttempts(user.email);
+
+    // Check for 2FA — if enabled, issue temp token instead of real JWT
+    if (user.totp_enabled) {
+      const tempToken = require('../auth').signToken({ userId: user.id, email: user.email, role: 'customer' });
+      return res.json({ requiresTwoFactor: true, tempToken, user: { email: user.email } });
+    }
 
     const delReq = await db.prepare("SELECT id FROM deletion_requests WHERE identifier = $1 AND type = 'customer'").get(id);
     if (delReq) {

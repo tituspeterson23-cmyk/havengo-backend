@@ -407,6 +407,57 @@ async function initDatabase() {
   await pool.query("ALTER TABLE providers ADD COLUMN IF NOT EXISTS failed_attempts INTEGER DEFAULT 0").catch(function(e) {});
   await pool.query("ALTER TABLE providers ADD COLUMN IF NOT EXISTS locked_until TIMESTAMPTZ").catch(function(e) {});
 
+  // 2FA columns for users
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret TEXT").catch(function(e) {});
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT false").catch(function(e) {});
+  await pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS backup_codes TEXT DEFAULT '[]'").catch(function(e) {});
+  await pool.query("ALTER TABLE providers ADD COLUMN IF NOT EXISTS totp_secret TEXT").catch(function(e) {});
+  await pool.query("ALTER TABLE providers ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN DEFAULT false").catch(function(e) {});
+  await pool.query("ALTER TABLE providers ADD COLUMN IF NOT EXISTS backup_codes TEXT DEFAULT '[]'").catch(function(e) {});
+
+  // Password history table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS password_history (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER NOT NULL,
+      password_hash TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_password_history_user ON password_history(user_id)');
+
+  // Audit log for payment security
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS audit_log (
+      id SERIAL PRIMARY KEY,
+      user_id INTEGER,
+      action TEXT NOT NULL,
+      amount INTEGER DEFAULT 0,
+      reference TEXT DEFAULT '',
+      description TEXT DEFAULT '',
+      ip_address TEXT DEFAULT '',
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_audit_log_user ON audit_log(user_id)');
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_audit_log_action ON audit_log(action)');
+
+  // Escrow holds table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS escrow_holds (
+      id SERIAL PRIMARY KEY,
+      order_id INTEGER NOT NULL,
+      user_id INTEGER NOT NULL,
+      amount INTEGER NOT NULL,
+      hold_reference TEXT NOT NULL,
+      status TEXT DEFAULT 'held',
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      released_at TIMESTAMPTZ,
+      returned_at TIMESTAMPTZ
+    )
+  `);
+  await pool.query('CREATE INDEX IF NOT EXISTS idx_escrow_order ON escrow_holds(order_id)');
+
   // Seed admin if not exists
   const adminCheck = await pool.query("SELECT id FROM admin_settings WHERE key = 'admin_initialized'");
   if (adminCheck.rows.length === 0) {

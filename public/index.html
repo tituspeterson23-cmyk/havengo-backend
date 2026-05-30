@@ -966,6 +966,26 @@
 </div>
 </div></div>
 
+<div id="two-factor-modal" class="hidden fixed inset-0 z-[70] flex items-center justify-center bg-black/70 modal p-5">
+<div class="bg-white w-full max-w-sm rounded-3xl p-8 text-center" style="max-width:380px;">
+    <div class="w-16 h-16 bg-violet-100 rounded-full flex items-center justify-center text-3xl mx-auto mb-4"><i class="fa-solid fa-shield-halved text-violet-600"></i></div>
+    <h3 class="text-xl font-bold mb-2">Two-Factor Authentication</h3>
+    <p class="text-sm text-gray-500 mb-6">Enter the 6-digit code from your authenticator app.</p>
+    <div class="mb-4">
+        <input id="two-factor-input" type="text" maxlength="6" placeholder="000000" class="w-full text-center text-2xl font-mono tracking-widest border border-gray-200 rounded-2xl px-4 py-4 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100 transition-all">
+    </div>
+    <button onclick="submitTwoFactor()" class="w-full bg-gradient-to-r from-violet-600 to-violet-500 hover:from-violet-700 hover:to-violet-600 text-white py-3.5 rounded-2xl font-semibold shadow-md hover:shadow-lg transition-all mb-3"><i class="fa-solid fa-check-circle mr-1"></i> Verify</button>
+    <p class="text-xs text-gray-400">Lost access? <span onclick="showTwoFactorBackup()" class="text-violet-600 cursor-pointer hover:underline">Use a backup code</span></p>
+    <input id="two-factor-temp-token" type="hidden">
+    <input id="two-factor-role" type="hidden">
+    <div id="two-factor-backup-area" class="hidden mt-4 pt-4 border-t">
+        <p class="text-sm text-gray-500 mb-3">Enter one of your backup codes:</p>
+        <input id="two-factor-backup-input" type="text" placeholder="e.g. A7F3C2B1" class="w-full text-center font-mono border border-gray-200 rounded-2xl px-4 py-3 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100 transition-all mb-3">
+        <button onclick="submitTwoFactorBackup()" class="w-full bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-2xl font-semibold transition-all"><i class="fa-solid fa-key mr-1"></i> Use Backup Code</button>
+    </div>
+    <button onclick="closeModal('two-factor-modal')" class="mt-3 text-sm text-gray-500 hover:underline">Cancel</button>
+</div></div>
+
 <div id="add-review-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/70 modal p-5">
 <div class="bg-white w-full max-w-md rounded-3xl p-8">
     <h3 class="text-2xl font-bold mb-6">Write a Review</h3>
@@ -1765,10 +1785,11 @@ async function performSignup() {
         addInAppAlert("error", "Passwords do not match");
         return;
     }
-    if (password.length < 6) {
-        addInAppAlert("error", "Password must be at least 6 characters");
-        return;
-    }
+    if (password.length < 8) { addInAppAlert("error", "Password must be at least 8 characters"); return; }
+    if (!/[A-Z]/.test(password)) { addInAppAlert("error", "Password must contain an uppercase letter"); return; }
+    if (!/[a-z]/.test(password)) { addInAppAlert("error", "Password must contain a lowercase letter"); return; }
+    if (!/[0-9]/.test(password)) { addInAppAlert("error", "Password must contain a digit"); return; }
+    if (!/[^A-Za-z0-9]/.test(password)) { addInAppAlert("error", "Password must contain a special character"); return; }
     var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
     if (!emailRegex.test(email)) {
         addInAppAlert("error", "Please enter a valid email address");
@@ -1937,6 +1958,127 @@ async function resendSignupCode() {
     document.getElementById("resend-code-btn").innerHTML = "Resend";
 }
 
+// Two-Factor Authentication functions
+function showTwoFactorModal(tempToken, role) {
+    document.getElementById("two-factor-temp-token").value = tempToken;
+    document.getElementById("two-factor-role").value = role;
+    document.getElementById("two-factor-input").value = "";
+    document.getElementById("two-factor-backup-input").value = "";
+    document.getElementById("two-factor-backup-area").classList.add("hidden");
+    document.getElementById("two-factor-modal").classList.remove("hidden");
+    setTimeout(function() { document.getElementById("two-factor-input").focus(); }, 300);
+}
+
+function showTwoFactorBackup() {
+    document.getElementById("two-factor-backup-area").classList.remove("hidden");
+    document.getElementById("two-factor-input").value = "";
+}
+
+async function submitTwoFactor() {
+    var token = document.getElementById("two-factor-input").value.trim();
+    if (!token || token.length < 6) { addInAppAlert("error", "Please enter a valid 6-digit code"); return; }
+    var tempToken = document.getElementById("two-factor-temp-token").value;
+    var role = document.getElementById("two-factor-role").value;
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    try {
+        var resp = await fetch(apiUrl + "/auth/2fa/validate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tempToken: tempToken, token: token }),
+            signal: AbortSignal.timeout(35000)
+        });
+        var data = await resp.json();
+        if (data.success) {
+            closeModal("two-factor-modal");
+            if (role === "provider") {
+                window.__HAVENGO_JWT__ = data.accessToken;
+                // Re-login provider by calling enterProviderDashboard with data.user
+                var provResp = await fetch(apiUrl + "/provider/login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + data.accessToken },
+                    body: JSON.stringify({ identifier: data.user.email, password: "__2fa_verified__" }),
+                    signal: AbortSignal.timeout(35000)
+                });
+                var provData = await provResp.json();
+                if (provData.success) { loginAsProviderComplete(provData); }
+                else { location.reload(); }
+            } else {
+                window.__HAVENGO_JWT__ = data.accessToken;
+                // Fetch fresh profile
+                var profResp = await fetch(apiUrl + "/customer/profile", {
+                    headers: { "Authorization": "Bearer " + data.accessToken }
+                });
+                var profData = await profResp.json();
+                if (profData.success) {
+                    currentUser = profData.user;
+                    userBalance = profData.user.balance;
+                    closeAuthModal();
+                    connectFirebaseChat(data.user.email, "customer", data.user.name || "Customer");
+                    updateProfileWithUser();
+                    renderProfilePage();
+                    updateProfilePicCursor();
+                    addNotification("\uD83D\uDD13", "Logged In", "Welcome back!");
+                    fetchBackendNotifications();
+                    saveAppState();
+                    startAutoPaymentCheck();
+                    fetchPendingPayments();
+                }
+            }
+        } else {
+            addInAppAlert("error", data.error || "Invalid verification code");
+        }
+    } catch(e) {
+        addInAppAlert("error", "Verification failed. Please try again.");
+    }
+}
+
+async function submitTwoFactorBackup() {
+    var code = document.getElementById("two-factor-backup-input").value.trim().toUpperCase();
+    if (!code) { addInAppAlert("error", "Please enter a backup code"); return; }
+    var tempToken = document.getElementById("two-factor-temp-token").value;
+    var role = document.getElementById("two-factor-role").value;
+    var apiUrl = HAVENGO_BACKEND_URL + "/api";
+    try {
+        var resp = await fetch(apiUrl + "/auth/2fa/validate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ tempToken: tempToken, backupCode: code }),
+            signal: AbortSignal.timeout(35000)
+        });
+        var data = await resp.json();
+        if (data.success) {
+            closeModal("two-factor-modal");
+            if (role === "provider") {
+                window.__HAVENGO_JWT__ = data.accessToken;
+                location.reload();
+            } else {
+                window.__HAVENGO_JWT__ = data.accessToken;
+                var profResp = await fetch(apiUrl + "/customer/profile", {
+                    headers: { "Authorization": "Bearer " + data.accessToken }
+                });
+                var profData = await profResp.json();
+                if (profData.success) {
+                    currentUser = profData.user;
+                    userBalance = profData.user.balance;
+                    closeAuthModal();
+                    connectFirebaseChat(data.user.email, "customer", data.user.name || "Customer");
+                    updateProfileWithUser();
+                    renderProfilePage();
+                    addNotification("\uD83D\uDD13", "Logged In", "Welcome back!");
+                    fetchBackendNotifications();
+                    saveAppState();
+                    startAutoPaymentCheck();
+                    fetchPendingPayments();
+                }
+            }
+        } else {
+            addInAppAlert("error", data.error || "Invalid backup code");
+        }
+    } catch(e) {
+        addInAppAlert("error", "Verification failed. Please try again.");
+    }
+}
+
 async function performLogin() {
     var identifier = sanitizeInput(document.getElementById("login-identifier").value.trim());
     var password = document.getElementById("login-password").value;
@@ -1980,6 +2122,11 @@ async function performLogin() {
             signal: AbortSignal.timeout(35000)
         });
         var data = await resp.json();
+        if (data.requiresTwoFactor) {
+            closeAuthModal();
+            showTwoFactorModal(data.tempToken, "customer");
+            return;
+        }
         if (data.success) {
             currentUser = data.user;
             window.__HAVENGO_JWT__ = data.token || data.accessToken;
@@ -4203,6 +4350,11 @@ async function loginAsProvider() {
             signal: AbortSignal.timeout(35000)
         });
         var data = await resp.json();
+        if (data.requiresTwoFactor) {
+            closeModal('provider-login-screen');
+            showTwoFactorModal(data.tempToken, "provider");
+            return;
+        }
         if (data.success) {
             var p = data.provider;
             window.__HAVENGO_JWT__ = data.token || data.accessToken;

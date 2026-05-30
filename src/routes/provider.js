@@ -33,6 +33,14 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Phone must be 10 digits starting with 0' });
     }
 
+    // Password policy check
+    const { PasswordPolicy } = require('../security');
+    const policy = new PasswordPolicy();
+    const pwCheck = policy.validate(password);
+    if (!pwCheck.valid) {
+      return res.status(400).json({ error: pwCheck.errors.join('; ') });
+    }
+
     const db = getDb();
     const existing = await db.prepare('SELECT id FROM providers WHERE email = ? OR phone = ?').get(email, phone);
     if (existing) {
@@ -94,6 +102,12 @@ router.post('/login', async (req, res) => {
 
     // Successful login — reset lockout
     await lockout.resetProviderAttempts(provider.email);
+
+    // Check for 2FA
+    if (provider.totp_enabled) {
+      const tempToken = require('../auth').signToken({ userId: provider.id, email: provider.email, role: 'provider' });
+      return res.json({ requiresTwoFactor: true, tempToken, user: { email: provider.email } });
+    }
 
     const accessToken = hardener.signAccessToken(
       { userId: provider.id, email: provider.email, role: 'provider' },

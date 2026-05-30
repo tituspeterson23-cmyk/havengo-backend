@@ -50,6 +50,7 @@ app.use('/api/chat', require('./src/routes/chat'));
 app.use('/api/reviews', require('./src/routes/reviews'));
 app.use('/api/provider-ratings', require('./src/routes/provider-ratings'));
 app.use('/api/tracking', require('./src/routes/tracking'));
+app.use('/api', require('./src/routes/security-routes'));
 
 // Health check
 app.get('/api/health', (req, res) => {
