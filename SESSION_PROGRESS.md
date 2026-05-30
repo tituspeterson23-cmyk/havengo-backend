@@ -111,9 +111,14 @@
 - **Order button error fix**: Wrapped post-order notification code in try-catch in backend; frontend now shows "Check your bookings before re-ordering" on error to prevent duplicate orders
 - **All JS syntax**: ✓ Valid
 
+### 15. Session (May 30, Late) — Subscription Note, Deploy, Chat Encryption
+- **Subscription note added**: In the subscribe modal, added a blue info box: "After subscribing, go to **My Profile → Subscriptions** and tap **'Place Order for a Day'** when you're ready to order that month."
+- **Pushed to GitHub**: Both backend (`ddd730b`) and frontend (`14bd3c0`) committed and pushed
+- **Backend health check**: ✅ `https://havengo-backend.onrender.com/api/health` returns 200
+- **Security file**: Added **Section 11 — Chat Encryption** (ECDH key exchange + AES-256-GCM message encryption + HKDF key derivation + session management + key rotation)
+- **All syntax checks**: ✓ Valid
+
 ### What Still Needs User Action
-1. Check Render Dashboard for deploy logs / trigger manual deploy
-2. Set `FIREBASE_SERVICE_ACCOUNT_BASE64` env var in Render Dashboard
-3. Enable Email/Password in Firebase Console Authentication
-4. Paste Firestore rules in Firebase Console
-5. Push both repos to GitHub to deploy changes
+1. Set `FIREBASE_SERVICE_ACCOUNT_BASE64` env var in Render Dashboard
+2. Enable Email/Password in Firebase Console Authentication
+3. Paste Firestore rules in Firebase Console
