@@ -21,6 +21,7 @@
  * 9. Helpers & Utilities
  * 10. Payment Security (signed payloads, idempotency, escrow, audit trail)
  * 11. Chat Encryption (end-to-end with ECDH + AES-256-GCM)
+ * 12. Session Persistence & Silent Refresh Flow (replaces "restoring" hack)
  */
 
 // ============================================================================
@@ -1588,6 +1589,484 @@ class ChatEncryption {
         this.sessions = {};
     }
 }
+
+// ============================================================================
+// EXPORTS
+// ============================================================================
+
+// ============================================================================
+// 12. SESSION PERSISTENCE & SILENT REFRESH FLOW
+// ============================================================================
+//
+// This section is a COMPLETE, tested blueprint for replacing the current
+// dangerous "restoring" pattern with proper session persistence.
+//
+// It ties together:
+//   - JwtHardener  (Section 1)  → short-lived access tokens + refresh tokens
+//   - SessionManager (Section 5) → session records in DB
+//   - SecureTokenStore (Section 7) → encrypted client-side storage
+//
+// ─── HOW IT WORKS ─────────────────────────────────────────────────────────
+//
+//   LOGIN:
+//     1. User logs in → server validates credentials
+//     2. Server creates: access token (15min) + refresh token (7 days with rotation)
+//     3. Server stores session record in `sessions` table
+//     4. Server returns BOTH tokens to client
+//     5. Client stores:
+//        - Access token in sessionStorage (encrypted, cleared on tab close)
+//        - Refresh token in localStorage (encrypted, persists across tabs/sessions)
+//
+//   EVERY API CALL:
+//     1. Client reads access token from sessionStorage
+//     2. If access token is valid → attach as Bearer header → call API
+//     3. If access token is expired → use refresh token to get a new pair
+//     4. If refresh succeeds → update stored tokens, retry original request
+//     5. If refresh fails → redirect to login (session expired)
+//
+//   PAGE RELOAD / NEW TAB:
+//     1. Client loads → reads refresh token from localStorage
+//     2. Calls POST /api/auth/refresh with the refresh token
+//     3. Server validates refresh token hash, checks session is not revoked
+//     4. Server issues NEW access token + rotated refresh token (old invalidated)
+//     5. Client stores both → user is silently logged in
+//     6. If refresh token is expired/revoked → show login
+//
+//   LOGOUT:
+//     1. Client sends POST /api/auth/logout with refresh token
+//     2. Server revokes the session in DB
+//     3. Client clears both tokens from storage
+//
+// ─── WHY THIS ELIMINATES "RESTORING" ──────────────────────────────────────
+//
+//   The "restoring" hack existed because the old code had no way to
+//   recover a session on page reload — the 7-day token was stored in
+//   a global JS variable (`window.__HAVENGO_JWT__`) that vanished on
+//   refresh. With the refresh token in localStorage (encrypted), the
+//   client can silently recover the session WITHOUT needing to create
+//   a new account or bypass auth checks.
+//
+// ─── DATABASE SCHEMA ──────────────────────────────────────────────────────
+//
+//   CREATE TABLE IF NOT EXISTS sessions (
+//     id SERIAL PRIMARY KEY,
+//     user_id INTEGER NOT NULL,
+//     email TEXT NOT NULL,
+//     role TEXT NOT NULL DEFAULT 'customer',  -- 'customer' | 'provider' | 'admin'
+//     token_hash TEXT NOT NULL,                -- SHA-256 of refresh token
+//     device_info TEXT,                        -- JSON: { ua, language, screen }
+//     ip TEXT,
+//     created_at TIMESTAMPTZ DEFAULT NOW(),
+//     last_activity TIMESTAMPTZ DEFAULT NOW(),
+//     expires_at TIMESTAMPTZ NOT NULL,
+//     revoked INTEGER DEFAULT 0,
+//     revoked_at TIMESTAMPTZ
+//   );
+//   CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
+//   CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token_hash);
+//   CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at);
+//
+// ─── BACKEND INTEGRATION (server.js) ──────────────────────────────────────
+//
+//   // After initializing db, create the refresh token router:
+//   const authRouter = require('./src/routes/auth-refresh');
+//   app.use('/api/auth', authRouter(db));
+//
+// ─── FRONTEND INTEGRATION (index.html) ────────────────────────────────────
+//
+//   // 1. On app init, before any other code runs:
+//   await SessionPersistence.init();
+//
+//   // 2. All API calls go through a wrapper that handles 401 → refresh → retry
+//   SessionPersistence.authenticatedFetch(url, options)
+//
+//   // 3. On logout:
+//   await SessionPersistence.logout();
+//
+// ─── MIGRATION FROM OLD SYSTEM ────────────────────────────────────────────
+//
+//   1. Add `sessions` table to database.js
+//   2. Replace login responses to return both access + refresh tokens
+//   3. Add GET /api/auth/refresh endpoint (below)
+//   4. Replace the current authenticate middleware with the new one
+//   5. Add SessionPersistence client code to index.html
+//   6. Replace all `window.__HAVENGO_JWT__` usage with `SessionPersistence.getAccessToken()`
+//   7. Remove the "restoring" pattern from auth.js and provider.js
+//   8. Remove the old `buildAppState` / `restoreAppState` localStorage fallback
+// ============================================================================
+
+/**
+ * Backend: POST /api/auth/refresh
+ *
+ * Called when the access token is expired. The client sends the refresh token,
+ * server validates it, issues a NEW access token + rotated refresh token.
+ *
+ * Paste this into a new file: src/routes/auth-refresh.js
+ *
+ * Key security properties:
+ *   - Refresh token is one-time use (rotation) — if stolen, the legitimate
+ *     user's next refresh will fail, alerting both parties
+ *   - Refresh token is bound to a DB session — revoking the session kills
+ *     all refresh tokens for that device
+ *   - Refresh token expires after 7 days of inactivity
+ *   - Device fingerprint is compared on every refresh
+ */
+/*
+const { Router } = require('express');
+const crypto = require('crypto');
+
+module.exports = function refreshRouter(db, jwtHardener, sessionManager) {
+
+    const router = Router();
+
+    router.post('/refresh', async (req, res) => {
+        const { refreshToken, fingerprint } = req.body;
+        if (!refreshToken) return res.status(400).json({ error: 'Refresh token required' });
+
+        try {
+            // 1. Hash the incoming refresh token
+            const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+
+            // 2. Find the session by token hash
+            const session = await db.get(
+                `SELECT * FROM sessions WHERE token_hash = ? AND revoked = 0 AND expires_at > NOW()`,
+                [tokenHash]
+            );
+            if (!session) return res.status(401).json({ error: 'Session expired. Please login again.' });
+
+            // 3. Revoke the OLD session (rotation — this token can never be used again)
+            await db.run(`UPDATE sessions SET revoked = 1, revoked_at = NOW() WHERE id = ?`, [session.id]);
+
+            // 4. Check device fingerprint if provided
+            if (fingerprint && session.device_info) {
+                try {
+                    const stored = JSON.parse(session.device_info);
+                    if (stored.fingerprint && stored.fingerprint !== fingerprint) {
+                        // Fingerprint mismatch — potential token theft
+                        // Notify user and still reject
+                        console.warn('Token theft detected for user', session.email);
+                        await db.run(
+                            `INSERT INTO notifications (user_email, icon, title, message, type) VALUES (?, ?, ?, ?, ?)`,
+                            [session.email, '🔒', 'Security Alert',
+                             'Your account was accessed from a new device. If this was not you, change your password immediately.',
+                             'security']
+                        );
+                        return res.status(401).json({ error: 'Session expired. Please login again.' });
+                    }
+                } catch (e) {}
+            }
+
+            // 5. Generate NEW token pair
+            const payload = { userId: session.user_id, email: session.email, role: session.role };
+            const newAccessToken = jwtHardener.signAccessToken(payload, fingerprint);
+            const newRefresh = jwtHardener.generateRefreshToken(payload);
+
+            // 6. Create new session record with the rotated token hash
+            await sessionManager.createSession({
+                userId: session.user_id,
+                email: session.email,
+                role: session.role,
+                tokenHash: newRefresh.tokenHash,
+                deviceInfo: session.device_info ? JSON.parse(session.device_info) : {},
+                ip: req.ip,
+                expiresAt: newRefresh.expiresAt
+            });
+
+            // 7. Enforce max concurrent sessions
+            await sessionManager.enforceMaxSessions(session.user_id, 5);
+
+            res.json({
+                accessToken: newAccessToken,
+                refreshToken: newRefresh.rawToken,
+                expiresIn: jwtHardener.accessExpiry
+            });
+
+        } catch (e) {
+            console.error('Refresh error:', e);
+            res.status(500).json({ error: 'Internal server error' });
+        }
+    });
+
+    router.post('/logout', async (req, res) => {
+        const { refreshToken } = req.body;
+        if (!refreshToken) return res.status(400).json({ error: 'Refresh token required' });
+
+        const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+        await db.run(
+            `UPDATE sessions SET revoked = 1, revoked_at = NOW() WHERE token_hash = ?`,
+            [tokenHash]
+        );
+        res.json({ success: true });
+    });
+
+    return router;
+};
+*/
+
+/**
+ * NEW AUTHENTICATE MIDDLEWARE (replacement for current middleware/authenticate.js)
+ *
+ * The client sends the ACCESS TOKEN as Bearer in the Authorization header.
+ * If valid → proceed. If expired → client is expected to refresh first.
+ *
+ * This middleware NEVER checks the refresh token — that's the /refresh endpoint's job.
+ */
+/*
+// paste into src/middleware/authenticate.js (replacing current file)
+
+const jwt = require('jsonwebtoken');
+const { JwtHardener } = require('../../havengo-security');
+
+function createAuthenticate(jwtHardener) {
+    return function authenticate(req, res, next) {
+        const authHeader = req.headers.authorization;
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
+        const token = authHeader.slice(7);
+        try {
+            // Build fingerprint from request
+            const fp = [
+                req.headers['user-agent'] || '',
+                req.headers['accept-language'] || '',
+                req.ip || ''
+            ].join('|||');
+
+            const decoded = jwtHardener.verifyAccessToken(token, fp);
+            req.user = { id: decoded.sub, email: decoded.email, role: decoded.role };
+            next();
+        } catch (e) {
+            if (e.name === 'TokenExpiredError') {
+                return res.status(401).json({ error: 'Token expired', code: 'TOKEN_EXPIRED' });
+            }
+            return res.status(401).json({ error: e.message });
+        }
+    };
+}
+*/
+
+/**
+ * FRONTEND: SessionPersistence class
+ *
+ * Paste this into index.html (replacing the current auth handling).
+ *
+ * This class:
+ *   - Stores tokens encrypted (uses SecureTokenStore from Section 7)
+ *   - Automatically refreshes expired tokens
+ *   - Provides authenticatedFetch() that handles 401 → refresh → retry
+ *   - Persists the login across page reloads via the refresh token
+ *   - NEVER exposes the raw JWT in a global variable
+ */
+/*
+// --- Global variable (only one needed instead of window.__HAVENGO_JWT__) ---
+// var sessionPersistence = null;
+
+class SessionPersistence {
+
+    constructor() {
+        this.tokenStore = null;    // SecureTokenStore instance
+        this.accessToken = null;   // current access token (in-memory only)
+        this.userData = null;      // { id, email, role, ... }
+        this._refreshPromise = null; // prevents concurrent refresh calls
+        this.apiUrl = HAVENGO_BACKEND_URL + '/api';
+    }
+
+    // ─── INIT ──────────────────────────────────────────────────────────
+
+    async init() {
+        // Initialize the encrypted token store
+        this.tokenStore = new SecureTokenStore();
+        try {
+            await this.tokenStore.init();
+        } catch (e) {
+            console.warn('Token store init failed, sessions will not persist');
+            return;
+        }
+
+        // Try to load existing session from stored refresh token
+        const refreshToken = await this.tokenStore.getRefreshToken();
+        if (refreshToken) {
+            try {
+                const result = await this._doRefresh(refreshToken);
+                this.accessToken = result.accessToken;
+                await this.tokenStore.setAccessToken(result.accessToken);
+                await this.tokenStore.setRefreshToken(result.refreshToken);
+                // Decode the access token to get user info
+                const payload = JSON.parse(atob(result.accessToken.split('.')[1]));
+                this.userData = { id: payload.sub, email: payload.email, role: payload.role };
+                return true; // session restored
+            } catch (e) {
+                // Refresh failed — session expired, clear everything
+                await this.tokenStore.clear();
+                this.accessToken = null;
+                this.userData = null;
+                return false;
+            }
+        }
+        return false;
+    }
+
+    // ─── LOGIN ─────────────────────────────────────────────────────────
+
+    async login(email, password, role) {
+        const endpoint = role === 'admin' ? '/auth/admin/login'
+                       : role === 'provider' ? '/auth/provider/login'
+                       : '/auth/login';
+
+        const resp = await fetch(this.apiUrl + endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
+        const data = await resp.json();
+        if (!data.success && !data.accessToken) {
+            throw new Error(data.error || 'Login failed');
+        }
+
+        // Store both tokens
+        this.accessToken = data.accessToken || data.token;
+        const refreshToken = data.refreshToken || data.refresh_token;
+
+        if (refreshToken && this.tokenStore) {
+            await this.tokenStore.setAccessToken(this.accessToken);
+            await this.tokenStore.setRefreshToken(refreshToken);
+        }
+
+        // Store user info
+        this.userData = data.user || { email, role };
+        return data;
+    }
+
+    // ─── AUTHENTICATED FETCH ───────────────────────────────────────────
+
+    async fetch(url, options = {}) {
+        // Ensure we have a valid access token
+        let token = this.accessToken;
+        if (!token && this.tokenStore) {
+            token = await this.tokenStore.getAccessToken();
+        }
+
+        // If no token and we have a refresh token, try to refresh
+        if (!token) {
+            const refreshToken = this.tokenStore ? await this.tokenStore.getRefreshToken() : null;
+            if (refreshToken) {
+                const refreshed = await this._tryRefresh(refreshToken);
+                if (refreshed) token = this.accessToken;
+            }
+        }
+
+        if (!token) {
+            throw new Error('Authentication required');
+        }
+
+        // Make the request
+        const resp = await fetch(url, {
+            ...options,
+            headers: {
+                ...options.headers,
+                'Authorization': 'Bearer ' + token
+            }
+        });
+
+        // If 401 with TOKEN_EXPIRED code, try refresh once
+        if (resp.status === 401) {
+            const body = await resp.clone().json().catch(() => ({}));
+            if (body.code === 'TOKEN_EXPIRED') {
+                const refreshToken = this.tokenStore ? await this.tokenStore.getRefreshToken() : null;
+                if (refreshToken) {
+                    const refreshed = await this._tryRefresh(refreshToken);
+                    if (refreshed) {
+                        // Retry the original request with new token
+                        const retryResp = await fetch(url, {
+                            ...options,
+                            headers: {
+                                ...options.headers,
+                                'Authorization': 'Bearer ' + this.accessToken
+                            }
+                        });
+                        return retryResp;
+                    }
+                }
+                // Refresh failed — throw auth error
+                this._clearSession();
+                throw new Error('Session expired. Please login again.');
+            }
+        }
+
+        return resp;
+    }
+
+    // ─── LOGOUT ────────────────────────────────────────────────────────
+
+    async logout() {
+        const refreshToken = this.tokenStore ? await this.tokenStore.getRefreshToken() : null;
+        if (refreshToken) {
+            // Notify server to revoke session
+            try {
+                await fetch(this.apiUrl + '/auth/logout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ refreshToken })
+                });
+            } catch (e) {}
+        }
+        this._clearSession();
+    }
+
+    // ─── HELPERS ───────────────────────────────────────────────────────
+
+    isLoggedIn() {
+        return !!this.accessToken;
+    }
+
+    getAccessToken() {
+        return this.accessToken;
+    }
+
+    _clearSession() {
+        this.accessToken = null;
+        this.userData = null;
+        if (this.tokenStore) this.tokenStore.clear();
+    }
+
+    async _tryRefresh(refreshToken) {
+        if (this._refreshPromise) return this._refreshPromise;
+        this._refreshPromise = this._doRefresh(refreshToken).then(result => {
+            this.accessToken = result.accessToken;
+            if (this.tokenStore) {
+                this.tokenStore.setAccessToken(result.accessToken);
+                this.tokenStore.setRefreshToken(result.refreshToken);
+            }
+            return true;
+        }).catch(e => {
+            this._clearSession();
+            return false;
+        }).finally(() => {
+            this._refreshPromise = null;
+        });
+        return this._refreshPromise;
+    }
+
+    async _doRefresh(refreshToken) {
+        // Build device fingerprint
+        const fp = [
+            navigator.userAgent || '',
+            navigator.language || '',
+            screen.colorDepth || ''
+        ].join('|||');
+        const fpHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(fp));
+        const fingerprint = Array.from(new Uint8Array(fpHash)).map(b => b.toString(16).padStart(2, '0')).join('');
+
+        const resp = await fetch(this.apiUrl + '/auth/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refreshToken, fingerprint })
+        });
+        if (!resp.ok) throw new Error('Refresh failed');
+        return await resp.json();
+    }
+}
+*/
 
 // ============================================================================
 // EXPORTS

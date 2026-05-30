@@ -130,6 +130,17 @@
 - **New column**: `is_subscription_order BOOLEAN DEFAULT false` added to `tasks` table
 - **All syntax checks**: ✓ Valid for all JS files
 
+### 17. Session (May 30, Night) — Session Persistence Blueprint in Security File
+- **Replaced "restoring" hack with Session Persistence section** in `havengo-security.js` (Section 12)
+  - Complete backend refresh token rotation endpoint (`POST /api/auth/refresh`)
+  - New authenticate middleware using short-lived access tokens (15min) + device fingerprint binding
+  - Frontend `SessionPersistence` class with `authenticatedFetch()` for silent 401→refresh→retry
+  - `SecureTokenStore` integration for encrypted client-side token storage
+  - Database schema for `sessions` table
+  - Migration guide from old system
+- **Not yet integrated** — staged in security file for testing before adding to real code
+- **All syntax checks**: ✓ Valid
+
 ### What Still Needs User Action
 1. Set `FIREBASE_SERVICE_ACCOUNT_BASE64` env var in Render Dashboard
 2. Enable Email/Password in Firebase Console Authentication
