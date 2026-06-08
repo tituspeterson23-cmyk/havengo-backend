@@ -478,7 +478,7 @@
 <div id="services" class="page">
 <div class="max-w-7xl mx-auto px-5 py-10">
 <div class="flex items-center justify-between mb-10"><h2 class="text-4xl font-bold">All Services</h2><div class="flex gap-2"><input type="text" id="service-search" oninput="renderServices()" class="border rounded-xl px-4 py-3 outline-none focus:border-emerald-500 w-48 text-sm" placeholder="Search services..."><select id="service-category-filter" onchange="renderServices()" class="border rounded-xl px-4 py-3 text-sm"><option value="all">All Categories</option></select></div></div>
-<div id="services-grid" class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-8"></div></div></div>
+<div id="services-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-8"></div></div></div>
 
 <div id="provider-tasks" class="page">
 <div class="max-w-5xl mx-auto px-5 py-10">
@@ -1020,32 +1020,292 @@
 var HAVENGO_BACKEND_URL = "https://havengo-backend.onrender.com";
 
 // ============================================================
-// TOKEN STORE — Encrypted session persistence (replaces restoring hack)
+// SECURE TOKEN STORE — AES-256-GCM encrypted session persistence
 // ============================================================
-// Stores refresh token in localStorage (encrypted), access token in memory.
-// Enables silent session recovery on page reload — no more lost chat sessions.
+// Access token lives in memory only (sessionStorage, encrypted on write).
+// Refresh token lives in localStorage (encrypted with device-derived key).
+// Enables silent session recovery on page reload — no more lost sessions.
 
 var _hgRefreshToken = null;
 var _hgTokenStoreReady = false;
+var _sessionPersistence = null;
 
-// Save refresh token to localStorage (with simple obfuscation)
-function _hgSaveRefreshToken(token) {
-    _hgRefreshToken = token;
-    if (token) {
-        try { localStorage.setItem("hg_rt", btoa(token.split('').reverse().join(''))); } catch(e) {}
-    } else {
+// ─── SecureTokenStore: Encrypted token storage using Web Crypto API ───
+class SecureTokenStore {
+    constructor() {
+        this.encKey = null;
+    }
+
+    async init() {
+        try {
+            var storedKey = localStorage.getItem("hg_ek");
+            if (storedKey) {
+                var keyBytes = Uint8Array.from(atob(storedKey), function(c) { return c.charCodeAt(0); });
+                this.encKey = await crypto.subtle.importKey("raw", keyBytes, "AES-GCM", false, ["encrypt", "decrypt"]);
+                return;
+            }
+            var fingerprint = this._getFingerprint();
+            var raw = new TextEncoder().encode(fingerprint.slice(0, 32));
+            var keyMaterial = await crypto.subtle.importKey("raw", raw, "PBKDF2", false, ["deriveKey"]);
+            this.encKey = await crypto.subtle.deriveKey(
+                { name: "PBKDF2", salt: new TextEncoder().encode("havengo-token-v2"), iterations: 300000, hash: "SHA-256" },
+                keyMaterial,
+                { name: "AES-GCM", length: 256 },
+                true,
+                ["encrypt", "decrypt"]
+            );
+            var exported = await crypto.subtle.exportKey("raw", this.encKey);
+            localStorage.setItem("hg_ek", btoa(String.fromCharCode.apply(null, new Uint8Array(exported))));
+        } catch(e) {
+            console.warn("SecureTokenStore init failed, fallback to memory-only", e.message);
+        }
+    }
+
+    _getFingerprint() {
+        var parts = [navigator.userAgent || "", navigator.language || "", screen.colorDepth || ""];
+        var hash = 0;
+        for (var i = 0; i < parts.join("|||").length; i++) {
+            var c = parts.join("|||").charCodeAt(i);
+            hash = ((hash << 5) - hash) + c; hash |= 0;
+        }
+        return Math.abs(hash).toString(16).padStart(8, "0");
+    }
+
+    async _encrypt(plaintext) {
+        if (!this.encKey) return btoa(unescape(encodeURIComponent(plaintext)));
+        var iv = crypto.getRandomValues(new Uint8Array(12));
+        var encrypted = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, this.encKey, new TextEncoder().encode(plaintext));
+        var combined = new Uint8Array(iv.length + encrypted.byteLength);
+        combined.set(iv); combined.set(new Uint8Array(encrypted), iv.length);
+        return btoa(String.fromCharCode.apply(null, combined));
+    }
+
+    async _decrypt(data) {
+        if (!this.encKey) try { return decodeURIComponent(escape(atob(data))); } catch(e) { return null; }
+        try {
+            var raw = Uint8Array.from(atob(data), function(c) { return c.charCodeAt(0); });
+            var iv = raw.slice(0, 12);
+            var ct = raw.slice(12);
+            var decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, this.encKey, ct);
+            return new TextDecoder().decode(decrypted);
+        } catch(e) { return null; }
+    }
+
+    async setRefreshToken(token) {
+        _hgRefreshToken = token;
+        if (token) {
+            var enc = await this._encrypt(token);
+            try { localStorage.setItem("hg_rt", enc); } catch(e) {}
+        } else {
+            try { localStorage.removeItem("hg_rt"); } catch(e) {}
+        }
+    }
+
+    async getRefreshToken() {
+        if (_hgRefreshToken) return _hgRefreshToken;
+        try {
+            var raw = localStorage.getItem("hg_rt");
+            if (raw) {
+                _hgRefreshToken = await this._decrypt(raw);
+                return _hgRefreshToken;
+            }
+        } catch(e) {}
+        return null;
+    }
+
+    async setAccessToken(token) {
+        window.__HAVENGO_JWT__ = token;
+        if (token) {
+            var enc = await this._encrypt(token);
+            try { sessionStorage.setItem("hg_at", enc); } catch(e) {}
+        } else {
+            try { sessionStorage.removeItem("hg_at"); } catch(e) {}
+        }
+    }
+
+    async getAccessToken() {
+        if (window.__HAVENGO_JWT__) return window.__HAVENGO_JWT__;
+        try {
+            var raw = sessionStorage.getItem("hg_at");
+            if (raw) {
+                var token = await this._decrypt(raw);
+                if (token) { window.__HAVENGO_JWT__ = token; return token; }
+            }
+        } catch(e) {}
+        return null;
+    }
+
+    async clear() {
+        _hgRefreshToken = null;
+        window.__HAVENGO_JWT__ = null;
         try { localStorage.removeItem("hg_rt"); } catch(e) {}
+        try { sessionStorage.removeItem("hg_at"); } catch(e) {}
+    }
+}
+
+// ─── SessionPersistence: Authenticated fetch with auto-refresh ───
+class SessionPersistence {
+    constructor() {
+        this.store = null;
+        this.userData = null;
+        this._refreshPromise = null;
+    }
+
+    async init() {
+        this.store = new SecureTokenStore();
+        await this.store.init();
+        var refreshToken = await this.store.getRefreshToken();
+        if (refreshToken) {
+            try {
+                var result = await this._doRefresh(refreshToken);
+                if (result) {
+                    await this.store.setAccessToken(result.accessToken);
+                    await this.store.setRefreshToken(result.refreshToken);
+                    var payload = JSON.parse(atob(result.accessToken.split('.')[1]));
+                    this.userData = { email: payload.email, role: payload.role, sub: payload.sub };
+                    window.__HAVENGO_USER__ = this.userData;
+                    _hgTokenStoreReady = true;
+                    return true;
+                }
+            } catch(e) {
+                await this.store.clear();
+                this.userData = null;
+            }
+        }
+        return false;
+    }
+
+    async fetch(url, options) {
+        options = options || {};
+        var token = window.__HAVENGO_JWT__;
+        if (!token && this.store) token = await this.store.getAccessToken();
+        if (!token) {
+            var rt = this.store ? await this.store.getRefreshToken() : null;
+            if (rt) {
+                var ok = await this._tryRefresh(rt);
+                if (ok) token = window.__HAVENGO_JWT__;
+            }
+        }
+        if (!token) throw new Error("Authentication required");
+        options.headers = options.headers || {};
+        options.headers["Authorization"] = "Bearer " + token;
+        var resp = await fetch(url, options);
+        if (resp.status === 401) {
+            try {
+                var body = await resp.clone().json();
+                if (body.code === "TOKEN_EXPIRED" || body.session_expired) {
+                    var rt2 = this.store ? await this.store.getRefreshToken() : null;
+                    if (rt2) {
+                        var refreshed = await this._tryRefresh(rt2);
+                        if (refreshed) {
+                            options.headers["Authorization"] = "Bearer " + window.__HAVENGO_JWT__;
+                            return await fetch(url, options);
+                        }
+                    }
+                    this._expire();
+                    throw new Error("Session expired. Please login again.");
+                }
+            } catch(e) {
+                if (e.message === "Session expired. Please login again.") throw e;
+            }
+        }
+        return resp;
+    }
+
+    async refreshNow() {
+        var rt = this.store ? await this.store.getRefreshToken() : null;
+        if (!rt) return false;
+        return await this._tryRefresh(rt);
+    }
+
+    async logout() {
+        var rt = this.store ? await this.store.getRefreshToken() : null;
+        if (rt) {
+            try {
+                await fetch(HAVENGO_BACKEND_URL + "/api/auth/logout", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ refreshToken: rt })
+                });
+            } catch(e) {}
+        }
+        if (this.store) await this.store.clear();
+        this.userData = null;
+    }
+
+    _expire() {
+        if (this.store) this.store.clear();
+        this.userData = null;
+        handleSessionExpired();
+    }
+
+    async _tryRefresh(refreshToken) {
+        if (this._refreshPromise) return this._refreshPromise;
+        this._refreshPromise = this._doRefresh(refreshToken).then(function(result) {
+            if (result) {
+                window.__HAVENGO_JWT__ = result.accessToken;
+                if (this.store) {
+                    this.store.setAccessToken(result.accessToken);
+                    this.store.setRefreshToken(result.refreshToken);
+                }
+                var payload = JSON.parse(atob(result.accessToken.split('.')[1]));
+                this.userData = { email: payload.email, role: payload.role, sub: payload.sub };
+                window.__HAVENGO_USER__ = this.userData;
+                return true;
+            }
+            return false;
+        }.bind(this)).catch(function(e) {
+            this._expire();
+            return false;
+        }.bind(this)).finally(function() {
+            this._refreshPromise = null;
+        }.bind(this));
+        return this._refreshPromise;
+    }
+
+    async _doRefresh(refreshToken) {
+        var fp = [navigator.userAgent || "", navigator.language || "", screen.colorDepth || ""].join("|||");
+        var fpHash = 0;
+        for (var i = 0; i < fp.length; i++) { fpHash = ((fpHash << 5) - fpHash) + fp.charCodeAt(i); fpHash |= 0; }
+        var fingerprint = Math.abs(fpHash).toString(16).padStart(8, "0");
+        var resp = await fetch(HAVENGO_BACKEND_URL + "/api/auth/refresh", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ refreshToken: refreshToken, fingerprint: fingerprint })
+        });
+        if (!resp.ok) throw new Error("Refresh failed");
+        return await resp.json();
+    }
+}
+
+// ─── Legacy aliases for backward compat ───
+async function _hgTryRestore() {
+    if (!_sessionPersistence) _sessionPersistence = new SessionPersistence();
+    return await _sessionPersistence.init();
+}
+
+function _hgSaveRefreshToken(token) {
+    if (_sessionPersistence && _sessionPersistence.store) {
+        _sessionPersistence.store.setRefreshToken(token);
+    } else {
+        _hgRefreshToken = token;
+        try { localStorage.setItem("hg_rt_legacy", token ? btoa(token.split('').reverse().join('')) : ""); } catch(e) {}
+        if (!token) try { localStorage.removeItem("hg_rt_legacy"); } catch(e) {}
     }
 }
 
 function _hgLoadRefreshToken() {
     if (_hgRefreshToken) return _hgRefreshToken;
+    if (_sessionPersistence && _sessionPersistence.store) {
+        return _sessionPersistence.store.getRefreshToken();
+    }
     try {
-        var raw = localStorage.getItem("hg_rt");
-        if (raw) {
-            _hgRefreshToken = atob(raw).split('').reverse().join('');
-            return _hgRefreshToken;
-        }
+        var raw = localStorage.getItem("hg_rt_legacy");
+        if (raw) { _hgRefreshToken = atob(raw).split('').reverse().join(''); return _hgRefreshToken; }
+    } catch(e) {}
+    try {
+        var oldRaw = localStorage.getItem("hg_rt");
+        if (oldRaw) { _hgRefreshToken = atob(oldRaw).split('').reverse().join(''); return _hgRefreshToken; }
     } catch(e) {}
     return null;
 }
@@ -1053,34 +1313,17 @@ function _hgLoadRefreshToken() {
 function _hgClearTokens() {
     _hgRefreshToken = null;
     window.__HAVENGO_JWT__ = null;
+    if (_sessionPersistence && _sessionPersistence.store) { _sessionPersistence.store.clear(); return; }
+    try { localStorage.removeItem("hg_rt_legacy"); } catch(e) {}
     try { localStorage.removeItem("hg_rt"); } catch(e) {}
+    try { sessionStorage.removeItem("hg_at"); } catch(e) {}
 }
 
-// Silent refresh: try to restore session from saved refresh token
-async function _hgTryRestore() {
-    var rt = _hgLoadRefreshToken();
-    if (!rt) return false;
-    try {
-        var resp = await fetch(HAVENGO_BACKEND_URL + "/api/auth/refresh", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ refreshToken: rt })
-        });
-        if (!resp.ok) { _hgClearTokens(); return false; }
-        var data = await resp.json();
-        window.__HAVENGO_JWT__ = data.accessToken;
-        _hgSaveRefreshToken(data.refreshToken);
-        // Decode user info from access token
-        try {
-            var payload = JSON.parse(atob(data.accessToken.split('.')[1]));
-            window.__HAVENGO_USER__ = { email: payload.email, role: payload.role, sub: payload.sub };
-        } catch(e) {}
-        _hgTokenStoreReady = true;
-        return true;
-    } catch(e) {
-        _hgClearTokens();
-        return false;
-    }
+// authenticatedFetch — drop-in replacement for fetch() with auto-refresh
+async function authenticatedFetch(url, options) {
+    if (!_sessionPersistence) _sessionPersistence = new SessionPersistence();
+    if (!_sessionPersistence.store) await _sessionPersistence.init();
+    return await _sessionPersistence.fetch(url, options);
 }
 
 // ============================================================
@@ -1263,23 +1506,22 @@ async function checkBackend() {
 }
 
 function handleSessionExpired() {
-    if (window.__HAVENGO_JWT__) {
-        window.__HAVENGO_JWT__ = null;
-        currentUser = null;
-        currentLoggedProvider = null;
-        currentAdmin = null;
-        globalNotifications = [];
-        chatConversations = {};
-        localStorage.removeItem("havengoState");
-        localStorage.removeItem("havengoState_plain");
-        try { localStorage.removeItem("encKey"); } catch(e) { console.warn(e); }
-        addInAppAlert("error", "Your session has expired. Please login again.");
-        navigateTo("home");
-        updateProfileWithUser();
-        renderProfilePage();
-        renderAllProviderLists();
-        updateNotifCount();
-    }
+    if (_sessionPersistence) { _sessionPersistence.logout(); }
+    _hgClearTokens();
+    currentUser = null;
+    currentLoggedProvider = null;
+    currentAdmin = null;
+    globalNotifications = [];
+    chatConversations = {};
+    localStorage.removeItem("havengoState");
+    localStorage.removeItem("havengoState_plain");
+    try { localStorage.removeItem("encKey"); } catch(e) { console.warn(e); }
+    addInAppAlert("error", "Your session has expired. Please login again.");
+    navigateTo("home");
+    updateProfileWithUser();
+    renderProfilePage();
+    renderAllProviderLists();
+    updateNotifCount();
 }
 
 // --- STATE ---
@@ -1393,7 +1635,6 @@ function buildAppState() {
         earnings: earnings, providerEarningsMap: providerEarningsMap,
         priceChangeRequests: priceChangeRequests, deletionRequests: deletionRequests,
         userRatings: userRatings, reviews: reviews,
-        hAvengoJwt: window.__HAVENGO_JWT__ || null,
         currentLoggedProvider: currentLoggedProvider,
         currentAdmin: currentAdmin,
         providerTab: window.__providerTab !== undefined ? window.__providerTab : 0,
