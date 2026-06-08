@@ -18,7 +18,12 @@ class StatementWrapper {
   async run(...params) {
     const sql = this._convert(params);
     const result = await this.pool.query(sql, params);
-    return { changes: result.rowCount };
+    const ret = { changes: result.rowCount };
+    if (result.rows && result.rows.length > 0) {
+      ret.id = result.rows[0].id;
+      ret.rows = result.rows;
+    }
+    return ret;
   }
 
   async get(...params) {

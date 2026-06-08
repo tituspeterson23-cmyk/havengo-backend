@@ -115,11 +115,22 @@ router.post('/register', async (req, res) => {
     const hash = await hashPassword(pw);
     const bm = bitmoji || '😊';
     const signupBonus = 2000000;
-    await db.prepare('INSERT INTO users (firstname, lastname, email, phone, password_hash, bitmoji, balance) VALUES ($1, $2, $3, $4, $5, $6, $7)')
+    const result = await db.prepare('INSERT INTO users (firstname, lastname, email, phone, password_hash, bitmoji, balance) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id')
       .run(fname, lname, em, ph, hash, bm, signupBonus);
+    const userId = result.id;
 
-    const token = generateToken({ email: em, role: 'customer', firstname: fname });
-    res.json({ success: true, token, user: { firstname: fname, lastname: lname, email: em, phone: ph, bitmoji: bm, balance: signupBonus } });
+    const accessToken = hardener.signAccessToken({ userId, email: em, role: 'customer' }, null);
+    const refreshToken = hardener.generateRefreshToken();
+    const sm = getSessionManager();
+    await sm.createSession({
+      userId, email: em, role: 'customer',
+      tokenHash: refreshToken.tokenHash,
+      deviceInfo: req.headers['user-agent'] ? { ua: req.headers['user-agent'] } : {},
+      ip: req.ip, fingerprint: '',
+      expiresAt: refreshToken.expiresAt
+    });
+
+    res.json({ success: true, token: accessToken, accessToken, refreshToken: refreshToken.rawToken, user: { firstname: fname, lastname: lname, email: em, phone: ph, bitmoji: bm, balance: signupBonus } });
   } catch (e) {
     console.error('Register error:', e);
     res.status(500).json({ error: 'Server error' });

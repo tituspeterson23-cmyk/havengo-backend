@@ -1687,7 +1687,6 @@ function applyState(state) {
     if (state.deletionRequests) deletionRequests = state.deletionRequests;
     if (state.userRatings) userRatings = state.userRatings;
     if (state.reviews) reviews = state.reviews;
-    if (state.hAvengoJwt) window.__HAVENGO_JWT__ = state.hAvengoJwt;
     if (state.currentLoggedProvider) currentLoggedProvider = state.currentLoggedProvider;
     if (state.currentAdmin) currentAdmin = state.currentAdmin;
     if (state.providerTab !== undefined) window.__providerTab = state.providerTab;
@@ -1973,6 +1972,7 @@ async function gcCompleteRegistration() {
         var regData = await regResp.json();
         if (regData.success) {
             window.__HAVENGO_JWT__ = regData.token;
+            if (regData.refreshToken) _hgSaveRefreshToken(regData.refreshToken);
             currentUser = regData.user;
             userBalance = regData.user.balance !== undefined ? regData.user.balance : 2000000;
             closeGuestCheckout();
@@ -2136,6 +2136,7 @@ async function verifySignupCode() {
             window.__HAVENGO_VERIFYING__ = false;
             currentUser = regData.user;
             window.__HAVENGO_JWT__ = regData.token;
+            if (regData.refreshToken) _hgSaveRefreshToken(regData.refreshToken);
             userBalance = regData.user.balance !== undefined ? regData.user.balance : 2000000;
             closeAuthModal();
             connectFirebaseChat(regData.user.email, "customer", regData.user.firstname);
@@ -2235,6 +2236,7 @@ async function submitTwoFactor() {
         var data = await resp.json();
         if (data.success) {
             closeModal("two-factor-modal");
+            if (data.refreshToken) _hgSaveRefreshToken(data.refreshToken);
             if (role === "provider") {
                 window.__HAVENGO_JWT__ = data.accessToken;
                 // Re-login provider by calling enterProviderDashboard with data.user
@@ -2294,6 +2296,7 @@ async function submitTwoFactorBackup() {
         var data = await resp.json();
         if (data.success) {
             closeModal("two-factor-modal");
+            if (data.refreshToken) _hgSaveRefreshToken(data.refreshToken);
             if (role === "provider") {
                 window.__HAVENGO_JWT__ = data.accessToken;
                 location.reload();

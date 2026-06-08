@@ -82,10 +82,20 @@ router.post('/auth/2fa/validate', async (req, res) => {
       if (!token) return res.status(400).json({ error: 'TOTP token required' });
       if (!MfaManager.verifyToken(token, user.totp_secret)) return res.status(401).json({ error: 'Invalid TOTP token' });
     }
-    // Issue real JWT
-    const jwtSign = require('../auth');
-    const accessToken = jwtSign.signToken({ userId: payload.userId, email: user.email, role: payload.role });
-    res.json({ success: true, accessToken, user: { id: user.id, name: user.firstname || user.name, email: user.email, role: payload.role } });
+    // Issue real JWT with session
+    const { JwtHardener, SessionManager } = require('../security');
+    const hardener2 = new JwtHardener();
+    const sm2 = new SessionManager(db);
+    const accessToken = hardener2.signAccessToken({ userId: payload.userId, email: user.email, role: payload.role }, null);
+    const refreshToken = hardener2.generateRefreshToken();
+    await sm2.createSession({
+      userId: payload.userId, email: user.email, role: payload.role,
+      tokenHash: refreshToken.tokenHash,
+      deviceInfo: {},
+      ip: req.ip, fingerprint: '',
+      expiresAt: refreshToken.expiresAt
+    });
+    res.json({ success: true, accessToken, refreshToken: refreshToken.rawToken, user: { id: user.id, name: user.firstname || user.name, email: user.email, role: payload.role } });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }

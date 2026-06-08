@@ -337,6 +337,31 @@ Migrate from SQLite (sql.js) to PostgreSQL (Neon) for persistent data storage, f
 - Backend: GitHub → Render
 - Frontend: GitHub → Netlify + Firebase Hosting (`havengo-chat.web.app`)
 
+## Session 9 (Jun 09, 2026) — Session Persistence Full Integration
+
+### Changes
+1. **`SecureTokenStore` class** — AES-256-GCM encrypted token storage using Web Crypto API (PBKDF2 with 300k iterations, device fingerprint binding). Access token in sessionStorage, refresh token in localStorage.
+2. **`SessionPersistence` class** — `authenticatedFetch()` wraps every API call with automatic 401→refresh→retry logic. `init()` silently restores session from refresh token on page load.
+3. **Replaced `_hgTryRestore()`** — Now delegates to `SessionPersistence.init()` which uses proper encrypted storage and device fingerprinting.
+4. **Replaced weak obfuscation** — `hg_rt` is now stored encrypted via AES-256-GCM (not base64 reverse obfuscation).
+5. **Backend register endpoint** now returns `accessToken` + `refreshToken` and creates a DB session (was only returning 7-day `token`).
+6. **Backend 2FA validate endpoint** now uses `JwtHardener` (HS512, 15min access token), returns refresh token, creates DB session.
+7. **`StatementWrapper.run()`** now returns `RETURNING` clause results (needed for INSERT RETURNING id).
+8. **`buildAppState()` no longer stores JWT** — SessionPersistence manages it.
+9. **`handleSessionExpired()`** now calls `SessionPersistence.logout()` to properly revoke the session on the backend.
+
+### Files Modified
+- `public/index.html` — Added `SecureTokenStore`, `SessionPersistence`, `authenticatedFetch`, updated all login/signup/2FA/restore handlers
+- `src/routes/auth.js` — Register endpoint now returns `accessToken` + `refreshToken`, creates session
+- `src/routes/security-routes.js` — 2FA validate returns `accessToken` + `refreshToken`, creates session
+- `src/database.js` — `run()` returns `RETURNING` results
+
+### Session Persistence Flow
+1. **Login**: Backend returns `accessToken`(15min) + `refreshToken`(7d). Client stores refresh token encrypted in localStorage, access token encrypted in sessionStorage.
+2. **API calls**: `authenticatedFetch()` or direct `Bearer` header reads from memory (`window.__HAVENGO_JWT__`). On 401 → auto-refreshes via `/api/auth/refresh` → retries.
+3. **Page reload**: `SessionPersistence.init()` reads encrypted refresh token → calls `/api/auth/refresh` → silently restores session (fingerprint checked).
+4. **Logout**: `POST /api/auth/logout` revokes the DB session. Client clears all stored tokens.
+
 ## Important Constraints (NEVER break these)
 - `index.html` is a single page — all JS, CSS, HTML in one file
 - NEVER remove `userBalance = 2000000` default — it's the only safety net for users when backend is unreachable
